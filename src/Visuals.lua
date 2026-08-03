@@ -1,125 +1,103 @@
--- Visuals Module
--- Lighting overrides (Fullbright / No Fog) and small client utilities
--- (Anti-AFK). Lighting originals are captured on first application and
--- restored when every override is off or on Cleanup.
+--==============================================================================
+-- VISUALS
+-- World lighting tweaks (Fullbright / No Fog) with original-state restore.
+--==============================================================================
 
-local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 
-local LocalPlayer = Players.LocalPlayer
-
 local Visuals = {}
+local Lighting = game:GetService("Lighting")
+local vs_originals -- captured the first time either feature turns on
+local vs_fullbrightOn = false
+local vs_noFogOn = false
+local vs_lastCheck = 0
+local VS_CHECK_INTERVAL = 1
 
-local config
-local connections = {}
-
--- Originals captured on the enable edge; nil while no override is applied.
-local originals
-
--- Properties we override and therefore need to restore
-local TRACKED = {
-	"Brightness",
-	"ClockTime",
-	"GlobalShadows",
-	"FogEnd",
-	"FogStart",
-	"Ambient",
-	"OutdoorAmbient",
-}
-
--- Which properties each toggle overrides. Fullbright = daylight + no
--- shadows; No Fog = push the fog out. Independent so No Fog doesn't
--- force daytime and vice versa.
-local OVERRIDES = {
-	Fullbright = {
-		Brightness = 2,
-		ClockTime = 14,
-		GlobalShadows = false,
-	},
-	NoFog = {
-		FogEnd = 1e5,
-		FogStart = 1e5,
-	},
-}
-
-local function captureOriginals()
-	originals = {}
-	for _, prop in ipairs(TRACKED) do
-		originals[prop] = Lighting[prop]
-	end
-end
-
-local function restoreOriginals()
-	if not originals then
+local function vs_captureOriginals()
+	if vs_originals then
 		return
 	end
-	for prop, value in pairs(originals) do
-		Lighting[prop] = value
-	end
-	originals = nil
+	vs_originals = {
+		Brightness = Lighting.Brightness,
+		ClockTime = Lighting.ClockTime,
+		GlobalShadows = Lighting.GlobalShadows,
+		FogEnd = Lighting.FogEnd,
+		FogStart = Lighting.FogStart,
+		Ambient = Lighting.Ambient,
+		OutdoorAmbient = Lighting.OutdoorAmbient,
+	}
 end
 
-local function applyOverrides()
-	-- Desired value per property: the toggle's override when active, the
-	-- captured original otherwise. Re-applied every frame so an external
-	-- change (game scripts, other lighting effects) can't silently undo it.
-	for _, prop in ipairs(TRACKED) do
-		local desired = originals[prop]
-		for toggle, props in pairs(OVERRIDES) do
-			if config.Visuals[toggle] and props[prop] ~= nil then
-				desired = props[prop]
-			end
-		end
-		if Lighting[prop] ~= desired then
-			Lighting[prop] = desired
-		end
-	end
+local function vs_applyFullbright()
+	Lighting.Brightness = 2
+	Lighting.ClockTime = 14 -- noon
+	Lighting.GlobalShadows = false
 end
 
--- Edge-triggered enable/disable, driven from the controller's render loop
-function Visuals:Update()
-	if not config then
+local function vs_applyNoFog()
+	Lighting.FogEnd = 100000
+end
+
+local function vs_restoreFullbright()
+	Lighting.Brightness = vs_originals.Brightness
+	Lighting.ClockTime = vs_originals.ClockTime
+	Lighting.GlobalShadows = vs_originals.GlobalShadows
+end
+
+local function vs_restoreNoFog()
+	Lighting.FogEnd = vs_originals.FogEnd
+	Lighting.FogStart = vs_originals.FogStart
+end
+
+function Visuals:Update(config)
+	if not (config.Fullbright or config.NoFog or vs_fullbrightOn or vs_noFogOn) then
 		return
 	end
+	vs_captureOriginals()
 
-	local wantOverride = config.Visuals.Fullbright or config.Visuals.NoFog
-
-	if wantOverride then
-		if not originals then
-			captureOriginals()
+	if config.Fullbright ~= vs_fullbrightOn then
+		vs_fullbrightOn = config.Fullbright
+		if vs_fullbrightOn then
+			vs_applyFullbright()
+		else
+			vs_restoreFullbright()
 		end
-		applyOverrides()
-	else
-		restoreOriginals()
 	end
-end
 
-function Visuals:Init(fullConfig)
-	config = fullConfig
-
-	-- Anti-AFK: fake a tiny input whenever Roblox would flag us idle, so the
-	-- 20-minute kick never fires. VirtualUser input is client-synthesized and
-	-- invisible to other players.
-	table.insert(connections, LocalPlayer.Idled:Connect(function()
-		if not config.Utility.AntiAFK then
-			return
+	if config.NoFog ~= vs_noFogOn then
+		vs_noFogOn = config.NoFog
+		if vs_noFogOn then
+			vs_applyNoFog()
+		else
+			vs_restoreNoFog()
 		end
-		pcall(function()
-			local virtualUser = game:GetService("VirtualUser")
-			virtualUser:CaptureController()
-			virtualUser:ClickButton2(Vector2.new())
-		end)
-	end))
+	end
+
+	-- The game may re-write lighting (new area, weather script); push back ~1/s.
+	if (vs_fullbrightOn or vs_noFogOn) and os.clock() - vs_lastCheck >= VS_CHECK_INTERVAL then
+		vs_lastCheck = os.clock()
+		if vs_fullbrightOn
+			and (Lighting.Brightness ~= 2 or Lighting.ClockTime ~= 14 or Lighting.GlobalShadows)
+		then
+			vs_applyFullbright()
+		end
+		if vs_noFogOn and Lighting.FogEnd < 100000 then
+			vs_applyNoFog()
+		end
+	end
 end
 
 function Visuals:Cleanup()
-	restoreOriginals()
-
-	for _, conn in ipairs(connections) do
-		conn:Disconnect()
+	if vs_originals then
+		if vs_fullbrightOn then
+			vs_restoreFullbright()
+		end
+		if vs_noFogOn then
+			vs_restoreNoFog()
+		end
 	end
-	table.clear(connections)
-	config = nil
+	vs_fullbrightOn = false
+	vs_noFogOn = false
 end
 
 return Visuals

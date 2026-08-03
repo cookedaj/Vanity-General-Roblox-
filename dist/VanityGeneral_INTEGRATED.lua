@@ -1,14 +1,6 @@
 --==============================================================================
--- VANITY-GENERAL v0 - FULLY INTEGRATED BUILD
---
--- Complete system combining:
--- • DebuggerDetection v2.0 (anti-tampering, security monitoring)
--- • StringObfuscation v2.0 (multi-level encryption, secrets management)
--- • Configuration (centralized settings)
--- • CameraDirector (smooth aim tracking)
--- • ESP (player highlighting)
--- • UI (modern tabbed interface with keybind customization)
--- • MainController (unified lifecycle management)
+-- VANITY-GENERAL - FULLY INTEGRATED BUILD
+-- GENERATED FILE - do not edit. Edit src/ and re-run tools/build.py.
 --
 -- Usage:
 --   local VanityGeneral = loadstring(readfile("VanityGeneral_INTEGRATED.lua"))()
@@ -19,1032 +11,192 @@
 -- Keys: RightShift = menu | LeftAlt = camera tracking | End = unload
 --==============================================================================
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local Workspace = game:GetService("Workspace")
-
-local LocalPlayer = Players.LocalPlayer
-
--- Forward-declared so UI callbacks (e.g. the Security tab's webhook button) can
--- reference the controller table. It's assigned (not re-declared) in the
--- CONTROLLER section at the bottom.
-local VanityGeneral
-
---==============================================================================
--- STRING OBFUSCATION v2.0
--- Advanced string encryption/obfuscation system with multi-level encryption,
--- secret objects, secret manager, vault system, audit logging, and statistics.
---==============================================================================
-
-local StringObfuscation = {
-	VERSION = "2.0",
-	_stats = {
-		encryptions = 0,
-		decryptions = 0,
-		secrets_created = 0,
-		total_access_time = 0,
-	},
-	_audit_log = {},
-	_max_audit_entries = 1000,
-}
-do
-
-	local KEY_PRIMARY = 0xAA
-	local KEY_SECONDARY = 0x55
-	local KEY_TERTIARY = 0xF3
-
-	local function _rotateKey(byte, position, level)
-		level = level or 1
-		if level == 1 then
-			return bit32.band(KEY_PRIMARY + position, 0xFF)
-		elseif level == 2 then
-			return bit32.band(KEY_SECONDARY + position * 2, 0xFF)
-		else
-			return bit32.band(KEY_TERTIARY + position * 3, 0xFF)
-		end
-	end
-
-	local function _simpleHash(str)
-		local hash = 5381
-		for i = 1, #str do
-			local byte = string.byte(str, i)
-			hash = bit32.band(hash * 33 + byte, 0xFFFFFFFF)
-		end
-		return hash
-	end
-
-	local function _addAuditEntry(action, secret_name, details)
-		local entry = {
-			timestamp = os.time(),
-			action = action,
-			name = secret_name,
-			details = details,
-		}
-		table.insert(StringObfuscation._audit_log, entry)
-		if #StringObfuscation._audit_log > StringObfuscation._max_audit_entries then
-			table.remove(StringObfuscation._audit_log, 1)
-		end
-	end
-
-	function StringObfuscation.encrypt(str, level)
-		level = level or 1
-		local encrypted = {}
-
-		for i = 1, #str do
-			local char = str:sub(i, i)
-			local byte = string.byte(char)
-			local key = _rotateKey(byte, i - 1, level)
-			local obfuscated = bit32.bxor(byte, key)
-			table.insert(encrypted, obfuscated)
-		end
-
-		StringObfuscation._stats.encryptions = StringObfuscation._stats.encryptions + 1
-		return encrypted
-	end
-
-	function StringObfuscation.decrypt(encrypted, level)
-		level = level or 1
-		local decrypted = {}
-
-		for i = 1, #encrypted do
-			local obfuscated = encrypted[i]
-			local key = _rotateKey(obfuscated, i - 1, level)
-			local byte = bit32.bxor(obfuscated, key)
-			table.insert(decrypted, string.char(byte))
-		end
-
-		StringObfuscation._stats.decryptions = StringObfuscation._stats.decryptions + 1
-		return table.concat(decrypted)
-	end
-
-	function StringObfuscation.obfuscate(str, level)
-		return StringObfuscation.encrypt(str, level or 1)
-	end
-
-	function StringObfuscation.deobfuscate(encrypted, level)
-		return StringObfuscation.decrypt(encrypted, level or 1)
-	end
-
-	function StringObfuscation.batchEncrypt(strings, level)
-		local results = {}
-		for i, str in ipairs(strings) do
-			results[i] = StringObfuscation.encrypt(str, level or 1)
-		end
-		return results
-	end
-
-	function StringObfuscation.batchDecrypt(encrypted_list, level)
-		local results = {}
-		for i, enc in ipairs(encrypted_list) do
-			results[i] = StringObfuscation.decrypt(enc, level or 1)
-		end
-		return results
-	end
-
-	function StringObfuscation.makeSecret(str, name, level)
-		level = level or 1
-		name = name or ("secret_" .. tostring({}):match("0x%x+"))
-		local encrypted = StringObfuscation.encrypt(str, level)
-		local hash = _simpleHash(str)
-
-		_addAuditEntry("secret_created", name, { level = level })
-		StringObfuscation._stats.secrets_created = StringObfuscation._stats.secrets_created + 1
-
-		local secret_meta = {
-			_encrypted = encrypted,
-			_decrypted = nil,
-			_access_count = 0,
-			_last_access = nil,
-			_creation_time = os.time(),
-			_name = name,
-			_level = level,
-			_hash = hash,
-			_cleared = false,
-			__tostring = function()
-				return "[SECRET:" .. name .. "]"
-			end,
-			__index = function(self, key)
-				if key == "value" then
-					if self._cleared then
-						warn("[StringObfuscation] Secret '" .. self._name .. "' was cleared and cannot be accessed")
-						return nil
-					end
-
-					local start_time = os.clock()
-					if not self._decrypted then
-						self._decrypted = StringObfuscation.decrypt(self._encrypted, self._level)
-					end
-
-					self._access_count = self._access_count + 1
-					self._last_access = os.time()
-
-					local access_time = os.clock() - start_time
-					StringObfuscation._stats.total_access_time = StringObfuscation._stats.total_access_time + access_time
-
-					_addAuditEntry("secret_accessed", self._name, {
-						access_num = self._access_count,
-						access_time_ms = access_time * 1000,
-					})
-
-					return self._decrypted
-				elseif key == "access_count" then
-					return self._access_count
-				elseif key == "last_access" then
-					return self._last_access
-				elseif key == "name" then
-					return self._name
-				elseif key == "level" then
-					return self._level
-				elseif key == "creation_time" then
-					return self._creation_time
-				elseif key == "age_seconds" then
-					return os.time() - self._creation_time
-				elseif key == "is_cleared" then
-					return self._cleared
-				end
-				return rawget(self, key)
-			end,
-			__metatable = "[PROTECTED]"
-		}
-
-		return setmetatable({
-			_encrypted = encrypted,
-			_decrypted = nil,
-			_access_count = 0,
-			_last_access = nil,
-			_creation_time = os.time(),
-			_name = name,
-			_level = level,
-			_hash = hash,
-			_cleared = false,
-		}, secret_meta)
-	end
-
-	function StringObfuscation.clearSecret(secret)
-		if type(secret) == "table" and secret._encrypted then
-			secret._decrypted = nil
-			secret._cleared = true
-			_addAuditEntry("secret_cleared", secret._name, {})
-			return true
-		end
-		return false
-	end
-
-	function StringObfuscation.verifySecret(secret, expected_hash)
-		if not secret or not secret._hash then
-			return false
-		end
-		if expected_hash then
-			return secret._hash == expected_hash
-		end
-		return true
-	end
-
-	function StringObfuscation.revealSecret(secret)
-		if type(secret) == "table" and secret._encrypted then
-			return secret.value
-		end
-		return secret
-	end
-
-	function StringObfuscation.getStats()
-		return {
-			encryptions = StringObfuscation._stats.encryptions,
-			decryptions = StringObfuscation._stats.decryptions,
-			secrets_created = StringObfuscation._stats.secrets_created,
-			total_access_time_ms = StringObfuscation._stats.total_access_time * 1000,
-			audit_log_size = #StringObfuscation._audit_log,
-		}
-	end
-
-	function StringObfuscation.getAuditLog(filter)
-		filter = filter or {}
-		local results = {}
-
-		for _, entry in ipairs(StringObfuscation._audit_log) do
-			local matches = true
-
-			if filter.action and entry.action ~= filter.action then
-				matches = false
-			end
-			if filter.name and entry.name ~= filter.name then
-				matches = false
-			end
-			if filter.since and entry.timestamp < filter.since then
-				matches = false
-			end
-
-			if matches then
-				table.insert(results, entry)
-			end
-		end
-
-		return results
-	end
-
-	function StringObfuscation.clearAuditLog()
-		StringObfuscation._audit_log = {}
-		return true
-	end
-
-	function StringObfuscation.createSecretManager()
-		local manager = {
-			_secrets = {},
-			_names = {},
-		}
-
-		function manager:register(name, value, level)
-			if self._names[name] then
-				warn("[SecretManager] Secret '" .. name .. "' already registered")
-				return nil
-			end
-
-			local secret = StringObfuscation.makeSecret(value, name, level)
-			self._secrets[name] = secret
-			self._names[name] = true
-			return secret
-		end
-
-		function manager:get(name)
-			if self._secrets[name] then
-				return self._secrets[name].value
-			end
-			return nil
-		end
-
-		function manager:getSecret(name)
-			return self._secrets[name]
-		end
-
-		function manager:list()
-			local list = {}
-			for name, secret in pairs(self._secrets) do
-				table.insert(list, {
-					name = name,
-					accessed = secret.access_count,
-					age = secret.age_seconds,
-					cleared = secret.is_cleared,
-				})
-			end
-			return list
-		end
-
-		function manager:clear(name)
-			if self._secrets[name] then
-				StringObfuscation.clearSecret(self._secrets[name])
-				self._secrets[name] = nil
-				self._names[name] = nil
-				return true
-			end
-			return false
-		end
-
-		function manager:clearAll()
-			for name in pairs(self._secrets) do
-				self:clear(name)
-			end
-		end
-
-		return manager
-	end
-
-	function StringObfuscation.createVault(password)
-		local vault = {
-			_password = StringObfuscation.makeSecret(password, "vault_password", 3),
-			_secrets = {},
-			_locked = true,
-		}
-
-		function vault:unlock(provided_password)
-			if self._password.value == provided_password then
-				self._locked = false
-				_addAuditEntry("vault_unlocked", "vault", {})
-				return true
-			end
-			_addAuditEntry("vault_unlock_failed", "vault", {})
-			return false
-		end
-
-		function vault:lock()
-			self._locked = true
-			_addAuditEntry("vault_locked", "vault", {})
-		end
-
-		function vault:store(name, value, level)
-			if self._locked then
-				warn("[Vault] Vault is locked")
-				return false
-			end
-
-			self._secrets[name] = StringObfuscation.makeSecret(value, name, level or 2)
-			_addAuditEntry("vault_store", name, {})
-			return true
-		end
-
-		function vault:retrieve(name)
-			if self._locked then
-				warn("[Vault] Vault is locked")
-				return nil
-			end
-
-			if self._secrets[name] then
-				_addAuditEntry("vault_retrieve", name, {})
-				return self._secrets[name].value
-			end
-			return nil
-		end
-
-		function vault:getSecret(name)
-			if self._locked then
-				return nil
-			end
-			return self._secrets[name]
-		end
-
-		function vault:list()
-			if self._locked then
-				warn("[Vault] Vault is locked")
-				return {}
-			end
-
-			local list = {}
-			for name in pairs(self._secrets) do
-				table.insert(list, name)
-			end
-			return list
-		end
-
-		function vault:delete(name)
-			if self._locked then
-				return false
-			end
-
-			if self._secrets[name] then
-				StringObfuscation.clearSecret(self._secrets[name])
-				self._secrets[name] = nil
-				_addAuditEntry("vault_delete", name, {})
-				return true
-			end
-			return false
-		end
-
-		return vault
-	end
-end
-
---==============================================================================
--- DEBUGGER DETECTION v2.0
--- Enterprise-grade defensive measures for detecting tampering and debugging.
---==============================================================================
-
-local DebuggerDetection = {}
-do
-	local DebugAuditLog = {}
-	local DebugStatistics = {
-		detections = 0,
-		checks_performed = 0,
-		tampering_attempts = 0,
-		total_check_time_ms = 0,
-	}
-	local DebugMonitoringActive = false
-	local DebugMonitorConnection = nil -- Heartbeat monitor; disconnected on unload
-
-	function DebuggerDetection.IsRunningInStudio()
-		return game:GetService("RunService"):IsStudio()
-	end
-
-	function DebuggerDetection.IsBeingDebugged()
-		return DebuggerDetection.IsRunningInStudio()
-	end
-
-	function DebuggerDetection.IsDebuggerAttached()
-		return DebuggerDetection.IsRunningInStudio()
-	end
-
-	function DebuggerDetection.DetectMemoryInspection(script_ref)
-		local mt = getmetatable(script_ref)
-		return mt ~= nil
-	end
-
-	function DebuggerDetection.CheckScriptIntegrity(script_ref, original_source_hash)
-		local ok, current_source = pcall(function()
-			return script_ref.Source
-		end)
-
-		if not ok or not current_source then
-			return nil, "source_unavailable"
-		end
-
-		local hash = tostring(#current_source) .. ":" .. string.sub(current_source, 1, 50)
-		return hash == original_source_hash
-	end
-
-	function DebuggerDetection.IsEnvironmentCompromised()
-		return DebuggerDetection.IsRunningInStudio()
-	end
-
-	function DebuggerDetection.CheckWithLevel(level)
-		level = level or 1
-
-		if level == 1 then
-			return DebuggerDetection.IsRunningInStudio()
-		elseif level == 2 then
-			return DebuggerDetection.IsDebuggerAttached()
-		elseif level == 3 then
-			return DebuggerDetection.IsEnvironmentCompromised()
-		end
-
-		return false
-	end
-
-	local function DebugLogAuditEvent(action, details)
-		table.insert(DebugAuditLog, {
-			action = action,
-			details = details or "",
-			timestamp = tick(),
-			time_string = os.date("%Y-%m-%d %H:%M:%S", tick()),
-		})
-		DebugStatistics.checks_performed = DebugStatistics.checks_performed + 1
-	end
-
-	function DebuggerDetection.GetAuditLog(filter)
-		if not filter then
-			return DebugAuditLog
-		end
-
-		local results = {}
-		for _, entry in ipairs(DebugAuditLog) do
-			local match = true
-			for key, value in pairs(filter) do
-				if entry[key] ~= value then
-					match = false
-					break
-				end
-			end
-			if match then
-				table.insert(results, entry)
-			end
-		end
-
-		return results
-	end
-
-	function DebuggerDetection.ClearAuditLog()
-		DebugAuditLog = {}
-	end
-
-	function DebuggerDetection.GetStats()
-		return {
-			detections = DebugStatistics.detections,
-			checks_performed = DebugStatistics.checks_performed,
-			tampering_attempts = DebugStatistics.tampering_attempts,
-			total_check_time_ms = DebugStatistics.total_check_time_ms,
-			audit_log_entries = #DebugAuditLog,
-		}
-	end
-
-	function DebuggerDetection.PrintStats()
-		local stats = DebuggerDetection.GetStats()
-		print("\n=== Debugger Detection Statistics ===")
-		print("Detections: " .. stats.detections)
-		print("Checks Performed: " .. stats.checks_performed)
-		print("Tampering Attempts: " .. stats.tampering_attempts)
-		print("Total Check Time: " .. string.format("%.2f", stats.total_check_time_ms) .. "ms")
-		print("Audit Log Entries: " .. stats.audit_log_entries)
-		print("=====================================\n")
-	end
-
-	function DebuggerDetection.HandleDebuggerState(debugged)
-		if debugged then
-			DebugStatistics.detections = DebugStatistics.detections + 1
-			DebugLogAuditEvent("debugger_detected", "Debug environment detected")
-			warn("[Security] Debugger detected — running in production-safe mode.")
-			return {
-				safe_mode = true,
-				reduced_logging = true,
-				skip_sensitive_ops = true,
-				detected_at = tick(),
-			}
-		else
-			DebugLogAuditEvent("normal_execution", "No debugger detected")
-			return {
-				safe_mode = false,
-				reduced_logging = false,
-				skip_sensitive_ops = false,
-				detected_at = tick(),
-			}
-		end
-	end
-
-	function DebuggerDetection.HandleTamperingAttempt(attempt_type, details)
-		DebugStatistics.tampering_attempts = DebugStatistics.tampering_attempts + 1
-		DebugLogAuditEvent("tampering_attempt", attempt_type .. ": " .. tostring(details))
-		warn("[Security Alert] Tampering attempt detected: " .. attempt_type)
-		return {
-			blocked = true,
-			attempt_type = attempt_type,
-			timestamp = tick(),
-			details = details,
-		}
-	end
-
-	function DebuggerDetection.MonitorDebugActivity()
-		if DebugMonitoringActive then
-			return
-		end
-
-		DebugMonitoringActive = true
-		local detection_active = false
-
-		local function CheckDebugState()
-			local start_time = tick()
-
-			if DebuggerDetection.IsBeingDebugged() then
-				if not detection_active then
-					detection_active = true
-					DebuggerDetection.HandleDebuggerState(true)
-				end
-			else
-				if detection_active then
-					detection_active = false
-					DebuggerDetection.HandleDebuggerState(false)
-				end
-			end
-
-			local elapsed = (tick() - start_time) * 1000
-			DebugStatistics.total_check_time_ms = DebugStatistics.total_check_time_ms + elapsed
-		end
-
-		-- Stored so Stop() can disconnect it. Previously this Heartbeat connection was
-		-- never kept, so it kept running every frame forever after an Unload.
-		DebugMonitorConnection = RunService.Heartbeat:Connect(CheckDebugState)
-		DebugLogAuditEvent("monitoring_started", "Real-time debug monitoring activated")
-
-		return CheckDebugState
-	end
-
-	-- Disconnects the Heartbeat monitor so unloading leaves nothing running.
-	function DebuggerDetection.StopMonitoring()
-		if DebugMonitorConnection then
-			pcall(function()
-				DebugMonitorConnection:Disconnect()
-			end)
-			DebugMonitorConnection = nil
-		end
-		DebugMonitoringActive = false
-	end
-
-	function DebuggerDetection.ExecuteSecurely(callback, allow_debug)
-		allow_debug = allow_debug or false
-		local debugged = DebuggerDetection.IsBeingDebugged()
-
-		if debugged and not allow_debug then
-			DebuggerDetection.HandleTamperingAttempt("secure_execution_in_debug", "Attempted execution in debug mode")
-			return nil
-		end
-
-		local success, result = pcall(callback)
-
-		if not success then
-			DebugLogAuditEvent("execution_failed", tostring(result))
-			warn("[Security] Secure execution failed: " .. tostring(result))
-			return nil
-		end
-
-		DebugLogAuditEvent("execution_success", "Secure code executed successfully")
-		return result
-	end
-
-	function DebuggerDetection.VerifyIntegrity()
-		local state = {
-			in_studio = DebuggerDetection.IsRunningInStudio(),
-			debugger_attached = DebuggerDetection.IsDebuggerAttached(),
-			environment_compromised = DebuggerDetection.IsEnvironmentCompromised(),
-			timestamp = tick(),
-			time_string = os.date("%Y-%m-%d %H:%M:%S", tick()),
-		}
-
-		DebugLogAuditEvent("integrity_check", state.debugger_attached and "COMPROMISED" or "OK")
-		return state
-	end
-
-	function DebuggerDetection.Initialize(options)
-		options = options or {}
-		local state = DebuggerDetection.VerifyIntegrity()
-
-		if state.debugger_attached then
-			DebuggerDetection.HandleDebuggerState(true)
-		else
-			DebuggerDetection.HandleDebuggerState(false)
-		end
-
-		if options.enable_monitoring ~= false then
-			DebuggerDetection.MonitorDebugActivity()
-		end
-
-		DebugLogAuditEvent("system_initialized", "DebuggerDetection v2.0 initialized")
-		return state
-	end
-end
-
---==============================================================================
--- PROTECTED SECRETS v1.0
--- Integration layer that wires DebuggerDetection into StringObfuscation.
---
--- Secrets are still encrypted/decrypted by StringObfuscation, but any operation
--- that would REVEAL a plaintext value (reveal / manager:get / vault:unlock /
--- vault:retrieve) is first gated by DebuggerDetection. When a debug environment
--- is detected the operation is blocked and logged as a tampering attempt, so
--- sensitive values are never decrypted while a debugger is watching.
---
--- By default a debug environment is Roblox Studio. Because that would also
--- block normal development, every entry point accepts
--- `{ allow_in_studio = true }` to opt out of the gate while iterating.
---==============================================================================
-
-local ProtectedSecrets = { VERSION = "1.0" }
-do
-
-	-- Returns true when reveal-style operations should be refused.
-	local function _secretsBlocked(allowInStudio)
-		if allowInStudio then
-			return false
-		end
-		return DebuggerDetection.IsBeingDebugged()
-	end
-
-	-- ==================== DIRECT SECRETS ====================
-
-	function ProtectedSecrets.makeSecret(str, name, level)
-		return StringObfuscation.makeSecret(str, name, level)
-	end
-
-	-- Reveal a secret's plaintext, gated by debugger detection.
-	function ProtectedSecrets.reveal(secret, opts)
-		opts = opts or {}
-		if _secretsBlocked(opts.allow_in_studio) then
-			DebuggerDetection.HandleTamperingAttempt(
-				"reveal_while_debugged",
-				secret and secret.name or "unknown"
-			)
-			return nil
-		end
-		return StringObfuscation.revealSecret(secret)
-	end
-
-	-- ==================== PROTECTED SECRET MANAGER ====================
-
-	-- Wraps StringObfuscation.createSecretManager; :get / :getSecret are gated.
-	function ProtectedSecrets.createProtectedManager(opts)
-		opts = opts or {}
-		local allowInStudio = opts.allow_in_studio == true
-		local inner = StringObfuscation.createSecretManager()
-
-		local manager = {}
-
-		function manager:register(name, value, level)
-			return inner:register(name, value, level)
-		end
-
-		function manager:get(name)
-			if _secretsBlocked(allowInStudio) then
-				DebuggerDetection.HandleTamperingAttempt("secret_get_while_debugged", name)
-				return nil
-			end
-			return inner:get(name)
-		end
-
-		function manager:getSecret(name)
-			if _secretsBlocked(allowInStudio) then
-				DebuggerDetection.HandleTamperingAttempt("secret_object_while_debugged", name)
-				return nil
-			end
-			return inner:getSecret(name)
-		end
-
-		function manager:list()
-			return inner:list()
-		end
-
-		function manager:clear(name)
-			return inner:clear(name)
-		end
-
-		function manager:clearAll()
-			return inner:clearAll()
-		end
-
-		return manager
-	end
-
-	-- ==================== SECURE VAULT ====================
-
-	-- Wraps StringObfuscation.createVault; unlock / retrieve / getSecret are gated
-	-- so a locked vault cannot be opened while a debugger is attached.
-	function ProtectedSecrets.createSecureVault(password, opts)
-		opts = opts or {}
-		local allowInStudio = opts.allow_in_studio == true
-		local inner = StringObfuscation.createVault(password)
-
-		local vault = {}
-
-		function vault:unlock(providedPassword)
-			if _secretsBlocked(allowInStudio) then
-				DebuggerDetection.HandleTamperingAttempt("vault_unlock_while_debugged", "vault")
-				return false
-			end
-			return inner:unlock(providedPassword)
-		end
-
-		function vault:retrieve(name)
-			if _secretsBlocked(allowInStudio) then
-				DebuggerDetection.HandleTamperingAttempt("vault_retrieve_while_debugged", name)
-				return nil
-			end
-			return inner:retrieve(name)
-		end
-
-		function vault:getSecret(name)
-			if _secretsBlocked(allowInStudio) then
-				DebuggerDetection.HandleTamperingAttempt("vault_secret_while_debugged", name)
-				return nil
-			end
-			return inner:getSecret(name)
-		end
-
-		-- Storing ciphertext and lifecycle ops don't leak plaintext, so pass through.
-		function vault:store(name, value, level)
-			return inner:store(name, value, level)
-		end
-
-		function vault:list()
-			return inner:list()
-		end
-
-		function vault:delete(name)
-			return inner:delete(name)
-		end
-
-		function vault:lock()
-			return inner:lock()
-		end
-
-		return vault
-	end
-
-	-- ==================== REPORTING ====================
-
-	-- Merges statistics from both subsystems into one report.
-	function ProtectedSecrets.getReport()
-		return {
-			obfuscation = StringObfuscation.getStats(),
-			detection = DebuggerDetection.GetStats(),
-			is_debugged = DebuggerDetection.IsBeingDebugged(),
-			timestamp = os.time(),
-		}
-	end
-
-	-- ==================== INITIALIZATION ====================
-
-	-- Boots DebuggerDetection with the given options and returns a combined report.
-	-- MainController's Start() calls this (not DebuggerDetection.Initialize
-	-- directly) so startup gets both monitoring armed and the merged
-	-- obfuscation+detection report in one call.
-	function ProtectedSecrets.initialize(opts)
-		opts = opts or {}
-
-		DebuggerDetection.Initialize({
-			enable_monitoring = opts.enable_monitoring ~= false,
-			enable_continuous_verification = opts.enable_continuous_verification,
-			verification_interval = opts.verification_interval,
-		})
-
-		return ProtectedSecrets.getReport()
-	end
-
-	-- Tears down anything initialize() started, so unloading leaves nothing running.
-	function ProtectedSecrets.shutdown()
-		DebuggerDetection.StopMonitoring()
-	end
-end
-
--- Exploit-friendly GUI parent: prefer a hidden container, then CoreGui, then PlayerGui.
-local function getGuiParent()
-	local ok, hidden = pcall(function()
-		return gethui and gethui()
-	end)
-	if ok and hidden then
-		return hidden
-	end
-
-	local ok2, coreGui = pcall(function()
-		return game:GetService("CoreGui")
-	end)
-	if ok2 and coreGui then
-		return coreGui
-	end
-
-	return LocalPlayer:WaitForChild("PlayerGui")
-end
-
---==============================================================================
+-- Module tables (hoisted so every section can reference any module)
+local Configuration
+local ConfigManager
+local Utility
+local CameraDirector
+local ESP
+local DrawingESP
+local Visuals
+local Webhook
+local Triggerbot
+local SilentAim
+local Hitbox
+local NoRecoil
+local NoSpread
+local UI
+local Movement
+local Controller
+
+--============================================================================
 -- CONFIGURATION
--- Centralized settings and single source of truth.
---==============================================================================
+--============================================================================
+Configuration = (function()
+	--==============================================================================
+	-- CONFIGURATION
+	-- Centralized settings and single source of truth.
+	--==============================================================================
 
-local Configuration = {}
 
-Configuration.Camera = {
-	Enabled = false,
-	-- LOWER = harder/snappier lock, HIGHER = slower, smoother follow.
-	Smoothness = 0.85,
-	-- Targeting cone radius in PIXELS from the crosshair (what the FOV circle draws).
-	FOV = 200,
-	-- World range limit in studs from your character.
-	MaxDistance = 1000,
-	-- Velocity lead: 0 = off, 1 = full lead using a rough time-of-flight model.
-	Prediction = 0,
-	-- Subtle per-frame jitter so the aim path isn't a perfect straight line.
-	Humanize = true,
+	local Configuration = {}
 
-	-- Hitbox mode: "Random (Weighted)" uses TargetWeights below; otherwise a
-	-- specific region ("Head" / "Torso" / "Arms" / "Legs") is aimed at directly.
-	Hitbox = "Random (Weighted)",
-	HitboxOptions = { "Random (Weighted)", "Head", "Torso", "Arms", "Legs" },
+	Configuration.Camera = {
+		Enabled = false,
+		-- LOWER = harder/snappier lock, HIGHER = slower, smoother follow.
+		Smoothness = 0.85,
+		-- Targeting cone radius in PIXELS from the crosshair (what the FOV circle draws).
+		FOV = 200,
+		-- World range limit in studs from your character.
+		MaxDistance = 1000,
+		-- Velocity lead: 0 = off, 1 = full lead using a rough time-of-flight model.
+		Prediction = 0,
+		-- Subtle per-frame jitter so the aim path isn't a perfect straight line.
+		Humanize = true,
 
-	-- 0-100 chance weights per body region, used only in Random (Weighted) mode.
-	-- They don't need to sum to 100 — they're relative.
-	TargetWeights = {
-		Head = 85,
-		Torso = 15,
-		Arms = 0,
-		Legs = 0,
-	},
+		-- Hitbox mode: "Random (Weighted)" uses TargetWeights below; otherwise a
+		-- specific region ("Head" / "Torso" / "Arms" / "Legs") is aimed at directly.
+		Hitbox = "Random (Weighted)",
+		HitboxOptions = { "Random (Weighted)", "Head", "Torso", "Arms", "Legs" },
 
-	WallCheck = true,     -- require line of sight to the target
-	StickyTarget = false, -- keep the current target until it dies / leaves / exits FOV
-	TargetBots = false,   -- also target NPCs (non-player models with a Humanoid)
-	TeamCheck = true,     -- never target players on your own team
-	FOVCircle = false,    -- draw the targeting radius on screen
+		-- 0-100 chance weights per body region, used only in Random (Weighted) mode.
+		-- They don't need to sum to 100 — they're relative.
+		TargetWeights = {
+			Head = 85,
+			Torso = 15,
+			Arms = 0,
+			Legs = 0,
+		},
 
-	ToggleKey = Enum.KeyCode.LeftAlt,
-	FOVCircleKey = Enum.KeyCode.F1,
-}
+		WallCheck = true,     -- require line of sight to the target
+		StickyTarget = false, -- keep the current target until it dies / leaves / exits FOV
+		TargetBots = false,   -- also target NPCs (non-player models with a Humanoid)
+		TeamCheck = true,     -- never target players on your own team
+		FOVCircle = false,    -- draw the targeting radius on screen
 
-Configuration.NoRecoil = {
-	Enabled = false,
-	-- 0..1 hold strength (1 = fully locked to where you started firing).
-	Strength = 1,
-	-- Only lock while the fire button (LMB) is held.
-	RequireMouseDown = true,
-	-- Still allow pulling the aim downward while firing (climb stays blocked).
-	AllowAim = false,
-	ToggleKey = Enum.KeyCode.F2,
-}
+		ToggleKey = Enum.KeyCode.LeftAlt,
+		FOVCircleKey = Enum.KeyCode.F1,
+	}
 
-Configuration.NoSpread = {
-	Enabled = false,
-	-- 0..1 how far each spread roll is pulled toward centre. 1 = dead centre
-	-- (no spread at all), 0.5 = half the cone, 0 = untouched.
-	Strength = 1,
-	-- Only suppress spread rolls while the fire button (LMB) is held. Leaving this
-	-- on keeps the rest of the game's randomness untouched except while shooting.
-	RequireMouseDown = true,
-	ToggleKey = Enum.KeyCode.F3,
-}
+	Configuration.NoRecoil = {
+		Enabled = false,
+		-- 0..1 hold strength (1 = fully locked to where you started firing).
+		Strength = 1,
+		-- Only lock while the fire button (LMB) is held.
+		RequireMouseDown = true,
+		-- Still allow pulling the aim downward while firing (climb stays blocked).
+		AllowAim = false,
+		ToggleKey = Enum.KeyCode.F2,
+	}
 
-Configuration.Triggerbot = {
-	Enabled = false,
-	-- Humanized reaction time: each shot waits a random delay sampled between
-	-- MinDelay and MaxDelay (seconds the crosshair must sit on the target).
-	MinDelay = 0.1,
-	MaxDelay = 0.25,
-	MaxDistance = 1000, -- studs; shots past this are ignored
-	WallCheck = true,   -- "Vischeck": require line of sight (off = fire through walls)
-	ToggleKey = Enum.KeyCode.F4,
-}
+	Configuration.NoSpread = {
+		Enabled = false,
+		-- 0..1 how far each spread roll is pulled toward centre. 1 = dead centre
+		-- (no spread at all), 0.5 = half the cone, 0 = untouched.
+		Strength = 1,
+		-- Only suppress spread rolls while the fire button (LMB) is held. Leaving this
+		-- on keeps the rest of the game's randomness untouched except while shooting.
+		RequireMouseDown = true,
+		ToggleKey = Enum.KeyCode.F3,
+	}
 
-Configuration.Movement = {
-	FlyEnabled = false,
-	FlySpeed = 50,
-	NoclipEnabled = false,
-	SpeedEnabled = false,
-	-- 16 = stock WalkSpeed, i.e. no boost. Only the surplus over 16 is applied.
-	Speed = 16,
-	InfJumpEnabled = false,
-	ClickTPEnabled = false,
-	ClickTPKey = Enum.KeyCode.LeftControl, -- hold this + left click to teleport
-}
+	Configuration.Triggerbot = {
+		Enabled = false,
+		-- Humanized reaction time: each shot waits a random delay sampled between
+		-- MinDelay and MaxDelay (seconds the crosshair must sit on the target).
+		MinDelay = 0.1,
+		MaxDelay = 0.25,
+		MaxDistance = 1000, -- studs; shots past this are ignored
+		WallCheck = true,   -- "Vischeck": require line of sight (off = fire through walls)
+		ToggleKey = Enum.KeyCode.F4,
+	}
 
-Configuration.SilentAim = {
-	Enabled = false,
-}
+	Configuration.Movement = {
+		FlyEnabled = false,
+		FlySpeed = 50,
+		NoclipEnabled = false,
+		SpeedEnabled = false,
+		-- 16 = stock WalkSpeed, i.e. no boost. Only the surplus over 16 is applied.
+		Speed = 16,
+		InfJumpEnabled = false,
+		ClickTPEnabled = false,
+		ClickTPKey = Enum.KeyCode.LeftControl, -- hold this + left click to teleport
+	}
 
-Configuration.Hitbox = {
-	Enabled = false,
-	Size = 5,
-	Transparency = 0.5,
-}
+	Configuration.SilentAim = {
+		Enabled = false,
+	}
 
-Configuration.Drawing = {
-	Boxes = false,
-	Tracers = false,
-	BoxColor = Color3.fromRGB(165, 75, 255),
-	TracerColor = Color3.fromRGB(255, 255, 255),
-}
+	Configuration.Hitbox = {
+		Enabled = false,
+		Size = 5,
+		Transparency = 0.5,
+	}
 
-Configuration.Visuals = {
-	Fullbright = false,
-	NoFog = false,
-}
+	Configuration.Drawing = {
+		Boxes = false,
+		Tracers = false,
+		BoxColor = Color3.fromRGB(165, 75, 255),
+		TracerColor = Color3.fromRGB(255, 255, 255),
+	}
 
-Configuration.Utility = {
-	AntiAFK = true, -- simulates input on Idled so Roblox never kicks for inactivity
-}
+	Configuration.Visuals = {
+		Fullbright = false,
+		NoFog = false,
+	}
 
-Configuration.ESP = {
-	Enabled = false,
-	-- Render styles; independent, so any combination can be on at once.
-	Outlines = true, -- Highlight silhouette
-	Boxes = false,   -- 2D screen-space box
-	Names = false,   -- player name floating above the head
-	Distance = false, -- meters from your character, under the name
-	-- Tag-suite keys: NameTags/DistanceTags alias Names/Distance (same head
-	-- billboard); HealthBars adds a health bar line to it.
-	NameTags = false,
-	HealthBars = false,
-	DistanceTags = false,
-	NPCs = false,    -- also highlight non-player characters (mobs/dummies)
-	OutlineColor = Color3.fromRGB(165, 75, 255),
-	FillColor = Color3.fromRGB(165, 75, 255),
-	Filled = false,
-	OutlineOpacity = 1,
-	FillOpacity = 0.4,
-	MaxDistance = 1000,
-	ToggleKey = Enum.KeyCode.RightAlt, -- keybind for toggling ESP, like the aimbot
-}
+	Configuration.Utility = {
+		AntiAFK = true, -- simulates input on Idled so Roblox never kicks for inactivity
+	}
 
-Configuration.UI = {
-	Scale = 1,
-	MenuKey = Enum.KeyCode.RightShift,
-	UnloadKey = Enum.KeyCode.End,
-	Visible = false, -- the menu itself; opened with MenuKey, not an Interface toggle
-	-- Interface overlays all start ON.
-	KeybindPanel = true,  -- standalone keybind window
-	TargetDisplay = true, -- popup naming whoever you're looking at
-	FPSCounter = true,    -- bottom-right fps readout
-	Watermark = true,     -- bottom-left watermark logo
-	-- Uploaded image id for the watermark logo. Leave "" to hide it.
-	-- This is the IMAGE id (a Decal id renders as nothing) — resolved from
-	-- decal 123653124904094 via InsertService:LoadAsset -> Decal.Texture.
-	WatermarkImageId = "139845693858856",
-}
+	Configuration.ESP = {
+		Enabled = false,
+		-- Render styles; independent, so any combination can be on at once.
+		Outlines = true, -- Highlight silhouette
+		Boxes = false,   -- 2D screen-space box
+		Names = false,   -- player name floating above the head
+		Distance = false, -- meters from your character, under the name
+		-- Tag-suite keys: NameTags/DistanceTags alias Names/Distance (same head
+		-- billboard); HealthBars adds a health bar line to it.
+		NameTags = false,
+		HealthBars = false,
+		DistanceTags = false,
+		NPCs = false,    -- also highlight non-player characters (mobs/dummies)
+		OutlineColor = Color3.fromRGB(165, 75, 255),
+		FillColor = Color3.fromRGB(165, 75, 255),
+		Filled = false,
+		OutlineOpacity = 1,
+		FillOpacity = 0.4,
+		MaxDistance = 1000,
+		ToggleKey = Enum.KeyCode.RightAlt, -- keybind for toggling ESP, like the aimbot
+	}
 
-Configuration.Debug = false
+	Configuration.UI = {
+		Scale = 1,
+		MenuKey = Enum.KeyCode.RightShift,
+		UnloadKey = Enum.KeyCode.End,
+		Visible = false, -- the menu itself; opened with MenuKey, not an Interface toggle
+		-- Interface overlays all start ON.
+		KeybindPanel = true,  -- standalone keybind window
+		TargetDisplay = true, -- popup naming whoever you're looking at
+		FPSCounter = true,    -- bottom-right fps readout
+		Watermark = true,     -- bottom-left watermark logo
+		-- Uploaded image id for the watermark logo. Leave "" to hide it.
+		-- This is the IMAGE id (a Decal id renders as nothing) — resolved from
+		-- decal 123653124904094 via InsertService:LoadAsset -> Decal.Texture.
+		WatermarkImageId = "139845693858856",
+	}
 
-do
+	-- Discord webhook URL in plaintext. The old single-file build kept this
+	-- encrypted via StringObfuscation/ProtectedSecrets; those modules left the
+	-- bundle (obfuscation happens at release build time), so the URL is plain
+	-- config now. Deliberately NOT in DEFAULTS, so Reset Settings keeps it.
+	Configuration.Webhook = {
+		Url = "",
+	}
+
+	Configuration.Debug = false
+
 	local DEFAULTS = {
 		Camera = {
 			Enabled = false,
@@ -1129,17 +281,24 @@ do
 			end
 		end
 	end
-end
 
---==============================================================================
--- CONFIG MANAGER
--- Saves/loads the whole Configuration to the executor's filesystem as JSON, so
--- settings survive between sessions. Color3 and EnumItem (keybinds) can't be
--- represented in JSON, so they're tagged and rebuilt on load.
---==============================================================================
+	return Configuration
+end)() -- /Configuration
 
-local ConfigManager = {}
-do
+--============================================================================
+-- CONFIGMANAGER
+--============================================================================
+ConfigManager = (function()
+	--==============================================================================
+	-- CONFIG MANAGER
+	-- Saves/loads the whole Configuration to the executor's filesystem as JSON, so
+	-- settings survive between sessions. Color3 and EnumItem (keybinds) can't be
+	-- represented in JSON, so they're tagged and rebuilt on load.
+	-- Profiles are per-game (PlaceId in the file name) with a legacy-path fallback.
+	--==============================================================================
+
+
+	local ConfigManager = {}
 	local CONFIG_FOLDER = "VanityGeneral"
 	local SAVED_SECTIONS = { "Camera", "ESP", "NoRecoil", "NoSpread", "Movement", "SilentAim", "Hitbox", "Drawing", "Visuals", "Utility", "UI" }
 
@@ -1355,42 +514,146 @@ do
 		end
 		return true, name
 	end
-end
 
---==============================================================================
--- CAMERA DIRECTOR
--- Smooth camera tracking toward prioritized, visible, alive targets.
---==============================================================================
+	return ConfigManager
+end)() -- /ConfigManager
 
-local CameraDirector = {}
+--============================================================================
+-- UTILITY
+--============================================================================
+Utility = (function()
+	--==============================================================================
+	-- UTILITY
+	-- Small quality-of-life features: Anti-AFK, server hop / rejoin, GUI parent helper.
+	--==============================================================================
 
--- Cached list of NPC ("bot") characters for the Target Bots mode. Scanning the
--- whole Workspace every frame is too expensive, so the list refreshes at most
--- every BOT_SCAN_INTERVAL seconds and the scan only runs while TargetBots is on.
-local BOT_SCAN_INTERVAL = 0.5
-local botCharacters = {}
-local botScanAt = -math.huge
+	local Players = game:GetService("Players")
+	local TeleportService = game:GetService("TeleportService")
 
-local function getBotCharacters()
-	local now = os.clock()
-	if now - botScanAt < BOT_SCAN_INTERVAL then
-		return botCharacters
+	local LocalPlayer = Players.LocalPlayer
+
+	local Utility = {}
+	local TeleportService = game:GetService("TeleportService")
+	local ut_idleConnection
+
+	-- Anti-AFK: Roblox kicks after ~20 minutes without input. VirtualUser fakes
+	-- input at the engine level — it's an executor global on most executors and a
+	-- real (normally script-inaccessible) service otherwise, so try both.
+	function Utility:Init(config)
+		if ut_idleConnection then
+			return
+		end
+
+		local vu = (type(VirtualUser) ~= "nil" and VirtualUser) or nil
+		if not vu then
+			pcall(function()
+				vu = game:GetService("VirtualUser")
+			end)
+		end
+		if not vu then
+			return -- no way to simulate input on this executor
+		end
+
+		ut_idleConnection = LocalPlayer.Idled:Connect(function()
+			if config.AntiAFK then
+				vu:CaptureController()
+				vu:ClickButton2(Vector2.new())
+			end
+		end)
 	end
-	botScanAt = now
 
-	table.clear(botCharacters)
-	for _, descendant in ipairs(Workspace:GetDescendants()) do
-		if descendant:IsA("Model")
-			and descendant:FindFirstChildOfClass("Humanoid")
-			and not Players:GetPlayerFromCharacter(descendant)
-		then
-			table.insert(botCharacters, descendant)
+	function Utility:Cleanup()
+		if ut_idleConnection then
+			ut_idleConnection:Disconnect()
+			ut_idleConnection = nil
 		end
 	end
-	return botCharacters
-end
 
-do
+	function Utility:ServerHop()
+		local ok, err = pcall(function()
+			TeleportService:Teleport(game.PlaceId, LocalPlayer)
+		end)
+		if not ok then
+			warn("[Vanity-General] Server hop failed:", err)
+		end
+		return ok
+	end
+
+	function Utility:Rejoin()
+		local ok, err = pcall(function()
+			TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+		end)
+		if not ok then
+			warn("[Vanity-General] Rejoin failed:", err)
+		end
+		return ok
+	end
+
+	-- Exploit-friendly GUI parent: prefer a hidden container, then CoreGui, then PlayerGui.
+	function Utility.getGuiParent()
+		local ok, hidden = pcall(function()
+			return gethui and gethui()
+		end)
+		if ok and hidden then
+			return hidden
+		end
+
+		local ok2, coreGui = pcall(function()
+			return game:GetService("CoreGui")
+		end)
+		if ok2 and coreGui then
+			return coreGui
+		end
+
+		return LocalPlayer:WaitForChild("PlayerGui")
+	end
+
+	return Utility
+end)() -- /Utility
+
+--============================================================================
+-- CAMERADIRECTOR
+--============================================================================
+CameraDirector = (function()
+	--==============================================================================
+	-- CAMERA DIRECTOR
+	-- Smooth camera tracking toward prioritized, visible, alive targets.
+	--==============================================================================
+
+	local Players = game:GetService("Players")
+	local Workspace = game:GetService("Workspace")
+
+	local LocalPlayer = Players.LocalPlayer
+	local Utility = Utility
+
+	local CameraDirector = {}
+
+	-- Cached list of NPC ("bot") characters for the Target Bots mode. Scanning the
+	-- whole Workspace every frame is too expensive, so the list refreshes at most
+	-- every BOT_SCAN_INTERVAL seconds and the scan only runs while TargetBots is on.
+	local BOT_SCAN_INTERVAL = 0.5
+	local botCharacters = {}
+	local botScanAt = -math.huge
+
+	local function getBotCharacters()
+		local now = os.clock()
+		if now - botScanAt < BOT_SCAN_INTERVAL then
+			return botCharacters
+		end
+		botScanAt = now
+
+		table.clear(botCharacters)
+		for _, descendant in ipairs(Workspace:GetDescendants()) do
+			if descendant:IsA("Model")
+				and descendant:FindFirstChildOfClass("Humanoid")
+				and not Players:GetPlayerFromCharacter(descendant)
+			then
+				table.insert(botCharacters, descendant)
+			end
+		end
+		return botCharacters
+	end
+
 	local Camera = Workspace.CurrentCamera
 	-- Random source for Humanize jitter (Random.new avoids reseeding the global RNG).
 	local cd_rng = Random.new()
@@ -1518,7 +781,7 @@ do
 		fovGui.DisplayOrder = 998
 
 		local ok = pcall(function()
-			fovGui.Parent = getGuiParent()
+			fovGui.Parent = Utility.getGuiParent()
 		end)
 		if not ok or not fovGui.Parent then
 			fovGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -1827,600 +1090,28 @@ do
 		self._currentTarget = nil
 		destroyFovCircle()
 	end
-end
+	CameraDirector.GetBotCharacters = getBotCharacters
 
---==============================================================================
--- HITBOX EXPANDER
--- Inflates enemy HumanoidRootParts so they're easier to hit. These are
--- CLIENT-SIDE writes on other players' characters: whether hits actually
--- register depends on the game (it works where the server trusts client
--- physics). Originals are stored per character and restored on disable,
--- cleanup, or when the character leaves the candidate set.
---==============================================================================
+	return CameraDirector
+end)() -- /CameraDirector
 
-local HitboxExpander = {}
-do
-	local hb_originals = {} -- [character] = { root, size, transparency, canCollide }
-
-	local function hb_restore(character)
-		local original = hb_originals[character]
-		if not original then
-			return
-		end
-		hb_originals[character] = nil
-		local root = original.root
-		if root and root.Parent then
-			root.Size = original.size
-			root.Transparency = original.transparency
-			root.CanCollide = original.canCollide
-		end
-	end
-
-	local function hb_restoreAll()
-		for character in pairs(hb_originals) do
-			hb_restore(character)
-		end
-	end
-
-	local function hb_apply(character, config, seen)
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if not (humanoid and humanoid.Health > 0 and root) then
-			return
-		end
-
-		seen[character] = true
-		if not hb_originals[character] then
-			hb_originals[character] = {
-				root = root,
-				size = root.Size,
-				transparency = root.Transparency,
-				canCollide = root.CanCollide,
-			}
-		end
-
-		local size = config.Size or 5
-		root.Size = Vector3.new(size, size, size)
-		root.Transparency = config.Transparency or 0.5
-		root.CanCollide = false
-	end
-
-	-- The candidate set mirrors the aimbot's: teammates skipped while Team Check is
-	-- on, NPCs included only while Target Bots is on (same cached scan).
-	function HitboxExpander:Update(config, cameraConfig)
-		if not config.Enabled then
-			hb_restoreAll()
-			return
-		end
-
-		local seen = {}
-		for _, player in ipairs(Players:GetPlayers()) do
-			if player ~= LocalPlayer
-				and not (cameraConfig.TeamCheck and player.Team ~= nil and player.Team == LocalPlayer.Team)
-			then
-				hb_apply(player.Character, config, seen)
-			end
-		end
-
-		if cameraConfig.TargetBots then
-			for _, character in ipairs(getBotCharacters()) do
-				hb_apply(character, config, seen)
-			end
-		end
-
-		-- Restore anyone who left the candidate set (died, left, switched teams).
-		for character in pairs(hb_originals) do
-			if not seen[character] then
-				hb_restore(character)
-			end
-		end
-	end
-
-	function HitboxExpander:Cleanup()
-		hb_restoreAll()
-	end
-end
-
---==============================================================================
--- SILENT AIM
--- Redirects your shots onto the aimbot's current target WITHOUT moving the
--- camera, by hooking game's metatable. Requires an executor with
--- hookmetamethod/getnamecallmethod — support varies, so both hooks are guarded
--- and independent of each other; without them the feature simply no-ops.
--- Conservative by design: only plain Vector3/CFrame values are rewritten, and
--- only calls coming from game scripts (checkcaller) — never our own wall-check
--- or triggerbot raycasts. There is no Cleanup: metatable hooks can't be
--- uninstalled cleanly, so the hook stays but gates on Enabled + a live target.
---==============================================================================
-
-local SilentAim = {}
-do
-	local sa_installed = false
-	local sa_warned = false
-
-	-- The part the aimbot is currently locked onto, or nil.
-	local function sa_targetPart()
-		local target = CameraDirector:GetCurrentTarget()
-		local part = target and target.Part
-		if part and part.Parent then
-			return part
-		end
-		return nil
-	end
-
-	-- Only rewrite calls from game scripts. If the executor can't tell (no
-	-- checkcaller), we don't rewrite at all — bending our own raycasts would break
-	-- the script itself.
-	local function sa_fromGameScript()
-		return type(checkcaller) == "function" and not checkcaller()
-	end
-
-	function SilentAim:Init(config)
-		if sa_installed then
-			return
-		end
-		if type(hookmetamethod) ~= "function" or type(getnamecallmethod) ~= "function" then
-			if not sa_warned then
-				warn("[Vanity-General] Silent Aim needs hookmetamethod — not available in this executor.")
-				sa_warned = true
-			end
-			return
-		end
-		sa_installed = true
-
-		-- __namecall: remote fires and Workspace.Raycast.
-		local oldNamecall
-		oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-			if config.Enabled and sa_fromGameScript() then
-				local method = getnamecallmethod()
-				local part = sa_targetPart()
-				if part then
-					if method == "FireServer" or method == "InvokeServer" then
-						-- Rewrite only position-like args; everything else passes through.
-						local args = { ... }
-						for i, value in ipairs(args) do
-							if typeof(value) == "Vector3" then
-								args[i] = part.Position
-							elseif typeof(value) == "CFrame" then
-								args[i] = part.CFrame
-							end
-						end
-						return oldNamecall(self, table.unpack(args))
-					end
-					if method == "Raycast" and self == Workspace then
-						-- Raycast(origin, direction, params): keep the original cast
-						-- length, bend the direction onto the target.
-						local origin, direction, params = ...
-						if typeof(origin) == "Vector3" and typeof(direction) == "Vector3" then
-							local bent = (part.Position - origin).Unit * direction.Magnitude
-							return oldNamecall(self, origin, bent, params)
-						end
-					end
-				end
-			end
-			return oldNamecall(self, ...)
-		end)
-
-		-- __index: the classic Mouse.Hit / Mouse.Target spoof.
-		local mouse = LocalPlayer:GetMouse()
-		local oldIndex
-		oldIndex = hookmetamethod(game, "__index", function(self, key)
-			if config.Enabled and sa_fromGameScript() and self == mouse then
-				local part = sa_targetPart()
-				if part then
-					if key == "Hit" then
-						return part.CFrame
-					end
-					if key == "Target" then
-						return part
-					end
-				end
-			end
-			return oldIndex(self, key)
-		end)
-	end
-end
-
---==============================================================================
--- NO RECOIL
--- Hard vertical aim-lock. When you start firing it captures your look pitch and
--- forces the camera back to it every frame, so recoil literally cannot climb the
--- crosshair off target (matching a "zero recoil" cheat). Works on games that
--- apply recoil to the camera. `Strength` scales how hard it holds (1 = fully
--- locked); `AllowAim` still lets you pull downward while firing.
---==============================================================================
-
-local NoRecoil = {}
-local function isFiring()
-	return UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
-end
-do
-	local basePitch = nil
-
-	local function cameraPitch(cam)
-		local look = cam.CFrame.LookVector
-		return math.asin(math.clamp(look.Y, -1, 1))
-	end
-
-
-	-- aimbotActive: when the camera director is actively steering the view, skip the
-	-- pitch lock (which also steers the CFrame) so the two don't fight. The
-	-- CameraOffset kill still runs, since it doesn't touch the aim direction.
-	function NoRecoil:Update(config, aimbotActive)
-		if not config.Enabled then
-			basePitch = nil
-			return
-		end
-
-		local cam = Workspace.CurrentCamera
-		if not cam then
-			basePitch = nil
-			return
-		end
-
-		if config.RequireMouseDown and not isFiring() then
-			basePitch = nil -- re-lock on the first firing frame
-			return
-		end
-
-		-- Always kill recoil/shake applied through Humanoid.CameraOffset. This is a
-		-- very common Roblox recoil source (the whole view kicks) and zeroing it
-		-- removes kick on every axis at once — the piece the pitch lock alone can't
-		-- catch. There's no reason to want No Recoil on but this off, so it's not a
-		-- switch; it just runs whenever No Recoil is active.
-		local char = LocalPlayer.Character
-		local hum = char and char:FindFirstChildOfClass("Humanoid")
-		if hum then
-			hum.CameraOffset = Vector3.new(0, 0, 0)
-		end
-
-		-- Pitch lock steers the camera CFrame, so hand off to the aimbot when it's on.
-		if aimbotActive then
-			basePitch = nil
-			return
-		end
-
-		local strength = math.clamp(config.Strength, 0, 1)
-		if strength <= 0 then
-			basePitch = nil
-			return
-		end
-
-		local pitch = cameraPitch(cam)
-		if basePitch == nil then
-			basePitch = pitch -- lock to wherever you started firing
-			return
-		end
-
-		local drift = pitch - basePitch
-		if config.AllowAim and drift < 0 then
-			-- Pulled below the lock (aiming down) — adopt the lower baseline instead of
-			-- fighting it, so you keep downward control while the climb stays blocked.
-			basePitch = pitch
-			return
-		end
-
-		if drift ~= 0 then
-			-- Force the view straight back to the locked pitch.
-			cam.CFrame = cam.CFrame * CFrame.Angles(-drift * strength, 0, 0)
-		end
-	end
-
-	function NoRecoil:Reset()
-		basePitch = nil
-	end
-end
-
---==============================================================================
--- NO SPREAD
--- Best-effort removal of client-side bullet spread. Many Roblox guns pick their
--- fire direction on the client by adding a random cone via math.random; when
--- enabled this routes those rolls to the MIDDLE of their range (zero deviation)
--- so shots land dead-center. Only affects games that compute spread on the
--- CLIENT — server-authoritative spread can't be changed from here. Needs an
--- executor with function hooking (hookfunction / replaceclosure); if absent the
--- feature simply warns once and stays inert.
---==============================================================================
-
-local NoSpread = {}
-do
-	local ns_active = false
-	local ns_warned = false
-	local ns_mathHooked = false
-	local ns_randHooked = false
-	local ns_strength = 1 -- 0..1, mirrored from config each frame
-	local ns_origMathRandom = nil
-	local ns_origNextNumber = nil
-	local ns_origNextInteger = nil
-
-	local function ns_hookApi()
-		if type(hookfunction) == "function" then
-			return hookfunction
-		elseif type(replaceclosure) == "function" then
-			return replaceclosure
-		end
-		return nil
-	end
-
-	-- Midpoint of a math.random(...) call, i.e. the centre of the spread cone.
-	-- Mirrors math.random's three argument forms.
-	local function ns_mathMid(a, b)
-		if a == nil then
-			return 0.5
-		elseif b == nil then
-			return math.floor((1 + a) / 2 + 0.5)
-		else
-			return math.floor((a + b) / 2 + 0.5)
-		end
-	end
-
-	-- Pulls a roll from its real value toward the centre by Strength. At 1 it lands
-	-- dead centre (no spread); at 0.5 the cone is halved; at 0 it's untouched. This
-	-- is what makes the Strength slider meaningful rather than just on/off.
-	local function ns_pull(original, centre, isInt)
-		local v = original + (centre - original) * ns_strength
-		if isInt then
-			return math.floor(v + 0.5)
-		end
-		return v
-	end
-
-	-- Covers guns that use math.random for their spread cone.
-	local function ns_installMath(hook)
-		if ns_mathHooked then
-			return
-		end
-		local ok, ret = pcall(hook, math.random, function(...)
-			local original = ns_origMathRandom(...)
-			if ns_active and ns_strength > 0 then
-				local a, b = ...
-				-- math.random() returns a float; the (n) and (a,b) forms return integers.
-				return ns_pull(original, ns_mathMid(a, b), a ~= nil)
-			end
-			return original
-		end)
-		if ok then
-			ns_origMathRandom = ret
-			ns_mathHooked = true
-		end
-	end
-
-	-- Covers guns that use a Random.new() object (NextNumber / NextInteger). The
-	-- method closures are shared across all Random instances, so hooking them once
-	-- from a sample instance affects every gun that uses them.
-	local function ns_installRandom(hook)
-		if ns_randHooked then
-			return
-		end
-		local ok = pcall(function()
-			local sample = Random.new()
-
-			ns_origNextNumber = hook(sample.NextNumber, function(self, ...)
-				local original = ns_origNextNumber(self, ...)
-				if ns_active and ns_strength > 0 then
-					local mn, mx = ...
-					local centre = (mn == nil) and 0.5 or ((mn + mx) / 2)
-					return ns_pull(original, centre, false)
-				end
-				return original
-			end)
-
-			ns_origNextInteger = hook(sample.NextInteger, function(self, ...)
-				local original = ns_origNextInteger(self, ...)
-				if ns_active and ns_strength > 0 then
-					local mn, mx = ...
-					return ns_pull(original, (mn + mx) / 2, true)
-				end
-				return original
-			end)
-		end)
-		if ok then
-			ns_randHooked = true
-		end
-	end
-
-	function NoSpread:_install()
-		if ns_mathHooked or ns_randHooked then
-			return true
-		end
-
-		local hook = ns_hookApi()
-		if not hook then
-			if not ns_warned then
-				warn("[Vanity-General] No Spread needs function hooking (hookfunction) — not available in this executor.")
-				ns_warned = true
-			end
-			return false
-		end
-
-		ns_installMath(hook)
-		ns_installRandom(hook)
-
-		if not (ns_mathHooked or ns_randHooked) then
-			if not ns_warned then
-				warn("[Vanity-General] No Spread: failed to install any hook.")
-				ns_warned = true
-			end
-			return false
-		end
-		return true
-	end
-
-	function NoSpread:Update(config)
-		ns_strength = math.clamp(config.Strength or 1, 0, 1)
-
-		if config.Enabled then
-			if not (ns_mathHooked or ns_randHooked) and not self:_install() then
-				return
-			end
-			ns_active = (not config.RequireMouseDown) or isFiring()
-		else
-			ns_active = false
-		end
-	end
-
-	-- Restores the originals (called on unload) so no global hook lingers.
-	function NoSpread:Cleanup()
-		ns_active = false
-		local hook = ns_hookApi()
-		if not hook then
-			return
-		end
-		if ns_mathHooked and ns_origMathRandom then
-			pcall(hook, math.random, ns_origMathRandom)
-			ns_mathHooked = false
-		end
-		if ns_randHooked then
-			pcall(function()
-				local sample = Random.new()
-				if ns_origNextNumber then
-					hook(sample.NextNumber, ns_origNextNumber)
-				end
-				if ns_origNextInteger then
-					hook(sample.NextInteger, ns_origNextInteger)
-				end
-			end)
-			ns_randHooked = false
-		end
-	end
-end
-
---==============================================================================
--- TRIGGERBOT
--- Fires when the crosshair is over a living player. It raycasts from the exact
--- centre of the screen, so a wall between you and the target blocks the shot
--- (inherent line-of-sight). Fires only after a reaction Delay and within
--- MaxDistance. Needs an executor mouse-click function (mouse1click / press+release).
---==============================================================================
-
-local Triggerbot = {}
-do
-	local tb_click -- resolved click function
-	local tb_resolved = false
-	local tb_warned = false
-	local tb_onTargetSince = nil -- os.clock when the crosshair first landed on a target
-	local tb_currentDelay -- humanized reaction time, re-sampled per target landing
-	local tb_rng = Random.new()
-	local tb_lastFire = 0
-	local TB_REFIRE = 0.08 -- min seconds between shots so it can't spam every frame
-
-	local function tb_resolveClick()
-		if tb_resolved then
-			return
-		end
-		tb_resolved = true
-
-		if type(mouse1click) == "function" then
-			tb_click = function()
-				mouse1click()
-			end
-		elseif type(mouse1press) == "function" and type(mouse1release) == "function" then
-			tb_click = function()
-				mouse1press()
-				task.delay(0.04, function()
-					pcall(mouse1release)
-				end)
-			end
-		end
-	end
-
-	-- Returns the character model under the crosshair (living, not you), else nil.
-	local function tb_targetUnderCrosshair(config, cameraConfig)
-		local cam = Workspace.CurrentCamera
-		if not cam then
-			return nil
-		end
-
-		local vs = cam.ViewportSize
-		local ray = cam:ViewportPointToRay(vs.X / 2, vs.Y / 2)
-
-		local params = RaycastParams.new()
-		if config.WallCheck then
-			-- Vischeck ON: hit the first thing, so walls between you and the target block.
-			params.FilterType = Enum.RaycastFilterType.Exclude
-			params.FilterDescendantsInstances = { LocalPlayer.Character }
-		else
-			-- Vischeck OFF: only collide with other players' characters, so the ray
-			-- passes straight through walls and still registers a target behind them.
-			local chars = {}
-			for _, plr in ipairs(Players:GetPlayers()) do
-				if plr ~= LocalPlayer and plr.Character then
-					table.insert(chars, plr.Character)
-				end
-			end
-			params.FilterType = Enum.RaycastFilterType.Include
-			params.FilterDescendantsInstances = chars
-		end
-
-		local result = Workspace:Raycast(ray.Origin, ray.Direction * (config.MaxDistance or 1000), params)
-		if not result then
-			return nil
-		end
-
-		local model = result.Instance:FindFirstAncestorOfClass("Model")
-		local plr = model and Players:GetPlayerFromCharacter(model)
-		if not plr or plr == LocalPlayer then
-			return nil
-		end
-
-		-- Team Check (lives in the Camera config): never fire on teammates.
-		-- Teamless players (Team == nil) stay fair game.
-		if cameraConfig and cameraConfig.TeamCheck and plr.Team ~= nil and plr.Team == LocalPlayer.Team then
-			return nil
-		end
-
-		local hum = model:FindFirstChildOfClass("Humanoid")
-		if not hum or hum.Health <= 0 then
-			return nil
-		end
-
-		return model
-	end
-
-	function Triggerbot:Update(config, cameraConfig)
-		if not config.Enabled then
-			tb_onTargetSince = nil
-			return
-		end
-
-		tb_resolveClick()
-		if not tb_click then
-			if not tb_warned then
-				warn("[Vanity-General] Triggerbot needs a mouse-click function (mouse1click) — not available in this executor.")
-				tb_warned = true
-			end
-			return
-		end
-
-		local target = tb_targetUnderCrosshair(config, cameraConfig)
-		if not target then
-			tb_onTargetSince = nil -- reset the reaction timer when off-target
-			return
-		end
-
-		local now = os.clock()
-		if not tb_onTargetSince then
-			tb_onTargetSince = now
-			-- Humanized reaction time, sampled fresh each time the crosshair lands.
-			local lo = math.min(config.MinDelay or 0.1, config.MaxDelay or 0.25)
-			local hi = math.max(config.MinDelay or 0.1, config.MaxDelay or 0.25)
-			tb_currentDelay = tb_rng:NextNumber(lo, hi)
-		end
-
-		if (now - tb_onTargetSince) >= (tb_currentDelay or 0) and (now - tb_lastFire) >= TB_REFIRE then
-			tb_lastFire = now
-			tb_click()
-		end
-	end
-end
-
---==============================================================================
+--============================================================================
 -- ESP
--- Player highlighting with outlines, optional fill, and shell-based thickness.
---==============================================================================
+--============================================================================
+ESP = (function()
+	--==============================================================================
+	-- ESP
+	-- Player highlighting with outlines, optional fill, boxes and head info tags.
+	--==============================================================================
 
-local ESP = {}
-do
+	local Players = game:GetService("Players")
+	local Workspace = game:GetService("Workspace")
+
+	local LocalPlayer = Players.LocalPlayer
+	local Configuration = Configuration
+	local Utility = Utility
+
+	local ESP = {}
 	local entries = {}
 	local container
 	local boxGui -- ScreenGui holding the 2D boxes (Boxes mode)
@@ -2452,7 +1143,7 @@ do
 		boxGui.DisplayOrder = 996
 
 		local ok = pcall(function()
-			boxGui.Parent = getGuiParent()
+			boxGui.Parent = Utility.getGuiParent()
 		end)
 		if not ok or not boxGui.Parent then
 			boxGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -2822,7 +1513,7 @@ do
 		container.Name = "VanityGeneralESP"
 
 		local ok = pcall(function()
-			container.Parent = getGuiParent()
+			container.Parent = Utility.getGuiParent()
 		end)
 		if not ok or not container.Parent then
 			container.Parent = Workspace
@@ -2888,18 +1579,25 @@ do
 			boxGui = nil
 		end
 	end
-end
 
---==============================================================================
--- DRAWING ESP
--- Screen-space boxes + tracers via the executor's Drawing library. Drawing
--- objects can't be parented to anything, so they're tracked in a table here and
--- destroyed when their player leaves or on Cleanup. No library, no-op: the
--- whole section guards on Drawing being present.
---==============================================================================
+	return ESP
+end)() -- /ESP
 
-local DrawingESP = {}
-do
+--============================================================================
+-- DRAWINGESP
+--============================================================================
+DrawingESP = (function()
+	--==============================================================================
+	-- DRAWING ESP
+	-- Screen-space boxes + tracers via the executor's Drawing library.
+	--==============================================================================
+
+	local Players = game:GetService("Players")
+	local Workspace = game:GetService("Workspace")
+
+	local LocalPlayer = Players.LocalPlayer
+
+	local DrawingESP = {}
 	local de_available = type(Drawing) == "table" and type(Drawing.new) == "function"
 	local de_warned = false
 	local de_entries = {} -- player -> { box = {4 Lines}, tracer = Line }
@@ -3033,17 +1731,22 @@ do
 			de_removePlayer(player)
 		end
 	end
-end
 
---==============================================================================
+	return DrawingESP
+end)() -- /DrawingESP
+
+--============================================================================
 -- VISUALS
--- World lighting tweaks. Fullbright/NoFog write Lighting properties, so the
--- originals are captured first and restored on toggle-off or Cleanup. While
--- enabled, a ~1s watch re-applies if the game changes the properties back.
---==============================================================================
+--============================================================================
+Visuals = (function()
+	--==============================================================================
+	-- VISUALS
+	-- World lighting tweaks (Fullbright / No Fog) with original-state restore.
+	--==============================================================================
 
-local Visuals = {}
-do
+	local Lighting = game:GetService("Lighting")
+
+	local Visuals = {}
 	local Lighting = game:GetService("Lighting")
 	local vs_originals -- captured the first time either feature turns on
 	local vs_fullbrightOn = false
@@ -3137,79 +1840,776 @@ do
 		vs_fullbrightOn = false
 		vs_noFogOn = false
 	end
-end
 
---==============================================================================
--- UTILITY
--- Small quality-of-life features: Anti-AFK plus server hop / rejoin helpers.
---==============================================================================
+	return Visuals
+end)() -- /Visuals
 
-local Utility = {}
-do
-	local TeleportService = game:GetService("TeleportService")
-	local ut_idleConnection
+--============================================================================
+-- WEBHOOK
+--============================================================================
+Webhook = (function()
+	--==============================================================================
+	-- SECURE WEBHOOK
+	-- On load the script pings a Discord webhook (player name / game / etc).
+	--
+	-- SECURITY NOTE: the old single-file build stored the URL as an encrypted
+	-- cipher and gated reveals behind StringObfuscation/DebuggerDetection. Those
+	-- modules left the bundle — obfuscation now happens at release build time —
+	-- so the URL lives in plain config: Configuration.Webhook.Url (set it directly,
+	-- or via Webhook.SetWebhook at runtime).
+	--==============================================================================
 
-	-- Anti-AFK: Roblox kicks after ~20 minutes without input. VirtualUser fakes
-	-- input at the engine level — it's an executor global on most executors and a
-	-- real (normally script-inaccessible) service otherwise, so try both.
-	function Utility:Init(config)
-		if ut_idleConnection then
+	local Players = game:GetService("Players")
+
+	local LocalPlayer = Players.LocalPlayer
+
+	local Configuration = Configuration
+
+	local Webhook = {}
+	Webhook.Version = "0" -- stamped by the controller on load (used in the embed)
+
+	-- Finds whatever HTTP-POST function this executor exposes.
+	local function resolveHttpRequest()
+		local candidates = {
+			(syn and syn.request),
+			(http and http.request),
+			http_request,
+			request,
+			(fluxus and fluxus.request),
+		}
+		for _, fn in ipairs(candidates) do
+			if type(fn) == "function" then
+				return fn
+			end
+		end
+		return nil
+	end
+
+	-- The configured URL, or nil when none is set.
+	local function resolveWebhookUrl()
+		local url = Configuration.Webhook.Url
+		if type(url) == "string" and url ~= "" then
+			return url
+		end
+		return nil
+	end
+
+	-- Store/replace the webhook URL at runtime.
+	function Webhook.SetWebhook(url)
+		Configuration.Webhook.Url = tostring(url or "")
+		return true
+	end
+
+	-- True if a URL is configured.
+	function Webhook.HasWebhook()
+		return resolveWebhookUrl() ~= nil
+	end
+
+	-- Sends a Discord message. Returns false (never throws) when unconfigured or
+	-- the executor has no HTTP function.
+	function Webhook.SendWebhook(content, opts)
+		opts = opts or {}
+
+		local url = resolveWebhookUrl()
+		if not url then
+			return false, "no_webhook"
+		end
+
+		local req = resolveHttpRequest()
+		if not req then
+			warn("[Vanity-General] No HTTP request function available in this executor")
+			return false, "no_http"
+		end
+
+		local payload = {
+			username = opts.username or "Vanity-General",
+			avatar_url = opts.avatar_url,
+			content = content,
+			embeds = opts.embeds,
+		}
+
+		local ok, err = pcall(function()
+			local body = game:GetService("HttpService"):JSONEncode(payload)
+			return req({
+				Url = url,
+				Method = "POST",
+				Headers = { ["Content-Type"] = "application/json" },
+				Body = body,
+			})
+		end)
+		url = nil -- drop the reference promptly
+
+		if not ok then
+			warn("[Vanity-General] Webhook send failed:", err)
+			return false, err
+		end
+		return true
+	end
+
+	-- The nice "loaded" embed. Kept here so both Start and manual calls can reuse it.
+	function Webhook.SendLoadedEmbed(isDebugged)
+		local placeName = "?"
+		pcall(function()
+			placeName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+		end)
+
+		return Webhook.SendWebhook(nil, {
+			embeds = {
+				{
+					title = "Vanity.dev General loaded",
+					color = 8666558, -- accent purple (0x843EBE)
+					fields = {
+						{ name = "Player", value = "`" .. (LocalPlayer and LocalPlayer.Name or "?") .. "`", inline = true },
+						{ name = "Version", value = "`v" .. tostring(Webhook.Version) .. "`", inline = true },
+						{ name = "Game", value = placeName, inline = false },
+						{ name = "PlaceId", value = "`" .. tostring(game.PlaceId) .. "`", inline = true },
+						{ name = "Debugged", value = "`" .. tostring(isDebugged) .. "`", inline = true },
+					},
+					footer = { text = os.date("%Y-%m-%d %H:%M:%S") },
+				},
+			},
+		})
+	end
+
+	return Webhook
+end)() -- /Webhook
+
+--============================================================================
+-- TRIGGERBOT
+--============================================================================
+Triggerbot = (function()
+	--==============================================================================
+	-- TRIGGERBOT
+	-- Fires when the crosshair is over a living player.
+	--==============================================================================
+
+	local Players = game:GetService("Players")
+	local Workspace = game:GetService("Workspace")
+
+	local LocalPlayer = Players.LocalPlayer
+
+	local Triggerbot = {}
+	local tb_click -- resolved click function
+	local tb_resolved = false
+	local tb_warned = false
+	local tb_onTargetSince = nil -- os.clock when the crosshair first landed on a target
+	local tb_currentDelay -- humanized reaction time, re-sampled per target landing
+	local tb_rng = Random.new()
+	local tb_lastFire = 0
+	local TB_REFIRE = 0.08 -- min seconds between shots so it can't spam every frame
+
+	local function tb_resolveClick()
+		if tb_resolved then
+			return
+		end
+		tb_resolved = true
+
+		if type(mouse1click) == "function" then
+			tb_click = function()
+				mouse1click()
+			end
+		elseif type(mouse1press) == "function" and type(mouse1release) == "function" then
+			tb_click = function()
+				mouse1press()
+				task.delay(0.04, function()
+					pcall(mouse1release)
+				end)
+			end
+		end
+	end
+
+	-- Returns the character model under the crosshair (living, not you), else nil.
+	local function tb_targetUnderCrosshair(config, cameraConfig)
+		local cam = Workspace.CurrentCamera
+		if not cam then
+			return nil
+		end
+
+		local vs = cam.ViewportSize
+		local ray = cam:ViewportPointToRay(vs.X / 2, vs.Y / 2)
+
+		local params = RaycastParams.new()
+		if config.WallCheck then
+			-- Vischeck ON: hit the first thing, so walls between you and the target block.
+			params.FilterType = Enum.RaycastFilterType.Exclude
+			params.FilterDescendantsInstances = { LocalPlayer.Character }
+		else
+			-- Vischeck OFF: only collide with other players' characters, so the ray
+			-- passes straight through walls and still registers a target behind them.
+			local chars = {}
+			for _, plr in ipairs(Players:GetPlayers()) do
+				if plr ~= LocalPlayer and plr.Character then
+					table.insert(chars, plr.Character)
+				end
+			end
+			params.FilterType = Enum.RaycastFilterType.Include
+			params.FilterDescendantsInstances = chars
+		end
+
+		local result = Workspace:Raycast(ray.Origin, ray.Direction * (config.MaxDistance or 1000), params)
+		if not result then
+			return nil
+		end
+
+		local model = result.Instance:FindFirstAncestorOfClass("Model")
+		local plr = model and Players:GetPlayerFromCharacter(model)
+		if not plr or plr == LocalPlayer then
+			return nil
+		end
+
+		-- Team Check (lives in the Camera config): never fire on teammates.
+		-- Teamless players (Team == nil) stay fair game.
+		if cameraConfig and cameraConfig.TeamCheck and plr.Team ~= nil and plr.Team == LocalPlayer.Team then
+			return nil
+		end
+
+		local hum = model:FindFirstChildOfClass("Humanoid")
+		if not hum or hum.Health <= 0 then
+			return nil
+		end
+
+		return model
+	end
+
+	function Triggerbot:Update(config, cameraConfig)
+		if not config.Enabled then
+			tb_onTargetSince = nil
 			return
 		end
 
-		local vu = (type(VirtualUser) ~= "nil" and VirtualUser) or nil
-		if not vu then
-			pcall(function()
-				vu = game:GetService("VirtualUser")
-			end)
-		end
-		if not vu then
-			return -- no way to simulate input on this executor
-		end
-
-		ut_idleConnection = LocalPlayer.Idled:Connect(function()
-			if config.AntiAFK then
-				vu:CaptureController()
-				vu:ClickButton2(Vector2.new())
+		tb_resolveClick()
+		if not tb_click then
+			if not tb_warned then
+				warn("[Vanity-General] Triggerbot needs a mouse-click function (mouse1click) — not available in this executor.")
+				tb_warned = true
 			end
-		end)
-	end
+			return
+		end
 
-	function Utility:Cleanup()
-		if ut_idleConnection then
-			ut_idleConnection:Disconnect()
-			ut_idleConnection = nil
+		local target = tb_targetUnderCrosshair(config, cameraConfig)
+		if not target then
+			tb_onTargetSince = nil -- reset the reaction timer when off-target
+			return
+		end
+
+		local now = os.clock()
+		if not tb_onTargetSince then
+			tb_onTargetSince = now
+			-- Humanized reaction time, sampled fresh each time the crosshair lands.
+			local lo = math.min(config.MinDelay or 0.1, config.MaxDelay or 0.25)
+			local hi = math.max(config.MinDelay or 0.1, config.MaxDelay or 0.25)
+			tb_currentDelay = tb_rng:NextNumber(lo, hi)
+		end
+
+		if (now - tb_onTargetSince) >= (tb_currentDelay or 0) and (now - tb_lastFire) >= TB_REFIRE then
+			tb_lastFire = now
+			tb_click()
 		end
 	end
 
-	function Utility:ServerHop()
-		local ok, err = pcall(function()
-			TeleportService:Teleport(game.PlaceId, LocalPlayer)
-		end)
-		if not ok then
-			warn("[Vanity-General] Server hop failed:", err)
+	return Triggerbot
+end)() -- /Triggerbot
+
+--============================================================================
+-- SILENTAIM
+--============================================================================
+SilentAim = (function()
+	--==============================================================================
+	-- SILENT AIM
+	-- Redirects your shots onto the aimbot's current target WITHOUT moving the
+	-- camera, by hooking game's metatable. Requires an executor with
+	-- hookmetamethod/getnamecallmethod — support varies, so both hooks are guarded
+	-- and independent of each other; without them the feature simply no-ops.
+	--==============================================================================
+
+	local Players = game:GetService("Players")
+	local Workspace = game:GetService("Workspace")
+
+	local LocalPlayer = Players.LocalPlayer
+	local CameraDirector = CameraDirector
+
+	local SilentAim = {}
+	local sa_installed = false
+	local sa_warned = false
+
+	-- The part the aimbot is currently locked onto, or nil.
+	local function sa_targetPart()
+		local target = CameraDirector:GetCurrentTarget()
+		local part = target and target.Part
+		if part and part.Parent then
+			return part
 		end
-		return ok
+		return nil
 	end
 
-	function Utility:Rejoin()
-		local ok, err = pcall(function()
-			TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
-		end)
-		if not ok then
-			warn("[Vanity-General] Rejoin failed:", err)
-		end
-		return ok
+	-- Only rewrite calls from game scripts. If the executor can't tell (no
+	-- checkcaller), we don't rewrite at all — bending our own raycasts would break
+	-- the script itself.
+	local function sa_fromGameScript()
+		return type(checkcaller) == "function" and not checkcaller()
 	end
-end
 
---==============================================================================
+	function SilentAim:Init(config)
+		if sa_installed then
+			return
+		end
+		if type(hookmetamethod) ~= "function" or type(getnamecallmethod) ~= "function" then
+			if not sa_warned then
+				warn("[Vanity-General] Silent Aim needs hookmetamethod — not available in this executor.")
+				sa_warned = true
+			end
+			return
+		end
+		sa_installed = true
+
+		-- __namecall: remote fires and Workspace.Raycast.
+		local oldNamecall
+		oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+			if config.Enabled and sa_fromGameScript() then
+				local method = getnamecallmethod()
+				local part = sa_targetPart()
+				if part then
+					if method == "FireServer" or method == "InvokeServer" then
+						-- Rewrite only position-like args; everything else passes through.
+						local args = { ... }
+						for i, value in ipairs(args) do
+							if typeof(value) == "Vector3" then
+								args[i] = part.Position
+							elseif typeof(value) == "CFrame" then
+								args[i] = part.CFrame
+							end
+						end
+						return oldNamecall(self, table.unpack(args))
+					end
+					if method == "Raycast" and self == Workspace then
+						-- Raycast(origin, direction, params): keep the original cast
+						-- length, bend the direction onto the target.
+						local origin, direction, params = ...
+						if typeof(origin) == "Vector3" and typeof(direction) == "Vector3" then
+							local bent = (part.Position - origin).Unit * direction.Magnitude
+							return oldNamecall(self, origin, bent, params)
+						end
+					end
+				end
+			end
+			return oldNamecall(self, ...)
+		end)
+
+		-- __index: the classic Mouse.Hit / Mouse.Target spoof.
+		local mouse = LocalPlayer:GetMouse()
+		local oldIndex
+		oldIndex = hookmetamethod(game, "__index", function(self, key)
+			if config.Enabled and sa_fromGameScript() and self == mouse then
+				local part = sa_targetPart()
+				if part then
+					if key == "Hit" then
+						return part.CFrame
+					end
+					if key == "Target" then
+						return part
+					end
+				end
+			end
+			return oldIndex(self, key)
+		end)
+	end
+
+	return SilentAim
+end)() -- /SilentAim
+
+--============================================================================
+-- HITBOX
+--============================================================================
+Hitbox = (function()
+	--==============================================================================
+	-- HITBOX EXPANDER
+	-- Inflates enemy HumanoidRootParts so they're easier to hit. These are
+	-- CLIENT-SIDE writes on other players' characters: whether hits actually
+	-- register depends on the game (it works where the server trusts client
+	-- physics). Originals are stored per character and restored on disable,
+	-- cleanup, or when the character leaves the candidate set.
+	--==============================================================================
+
+	local Players = game:GetService("Players")
+
+	local LocalPlayer = Players.LocalPlayer
+	local CameraDirector = CameraDirector
+
+	local HitboxExpander = {}
+	local hb_originals = {} -- [character] = { root, size, transparency, canCollide }
+
+	local function hb_restore(character)
+		local original = hb_originals[character]
+		if not original then
+			return
+		end
+		hb_originals[character] = nil
+		local root = original.root
+		if root and root.Parent then
+			root.Size = original.size
+			root.Transparency = original.transparency
+			root.CanCollide = original.canCollide
+		end
+	end
+
+	local function hb_restoreAll()
+		for character in pairs(hb_originals) do
+			hb_restore(character)
+		end
+	end
+
+	local function hb_apply(character, config, seen)
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if not (humanoid and humanoid.Health > 0 and root) then
+			return
+		end
+
+		seen[character] = true
+		if not hb_originals[character] then
+			hb_originals[character] = {
+				root = root,
+				size = root.Size,
+				transparency = root.Transparency,
+				canCollide = root.CanCollide,
+			}
+		end
+
+		local size = config.Size or 5
+		root.Size = Vector3.new(size, size, size)
+		root.Transparency = config.Transparency or 0.5
+		root.CanCollide = false
+	end
+
+	-- The candidate set mirrors the aimbot's: teammates skipped while Team Check is
+	-- on, NPCs included only while Target Bots is on (same cached scan).
+	function HitboxExpander:Update(config, cameraConfig)
+		if not config.Enabled then
+			hb_restoreAll()
+			return
+		end
+
+		local seen = {}
+		for _, player in ipairs(Players:GetPlayers()) do
+			if player ~= LocalPlayer
+				and not (cameraConfig.TeamCheck and player.Team ~= nil and player.Team == LocalPlayer.Team)
+			then
+				hb_apply(player.Character, config, seen)
+			end
+		end
+
+		if cameraConfig.TargetBots then
+			for _, character in ipairs(CameraDirector.GetBotCharacters()) do
+				hb_apply(character, config, seen)
+			end
+		end
+
+		-- Restore anyone who left the candidate set (died, left, switched teams).
+		for character in pairs(hb_originals) do
+			if not seen[character] then
+				hb_restore(character)
+			end
+		end
+	end
+
+	function HitboxExpander:Cleanup()
+		hb_restoreAll()
+	end
+
+	return HitboxExpander
+end)() -- /Hitbox
+
+--============================================================================
+-- NORECOIL
+--============================================================================
+NoRecoil = (function()
+	--==============================================================================
+	-- NO RECOIL
+	-- Hard vertical aim-lock plus Humanoid.CameraOffset zeroing.
+	--==============================================================================
+
+	local Players = game:GetService("Players")
+	local UserInputService = game:GetService("UserInputService")
+	local Workspace = game:GetService("Workspace")
+
+	local LocalPlayer = Players.LocalPlayer
+
+	local NoRecoil = {}
+	local function isFiring()
+		return UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+	end
+	local basePitch = nil
+
+	local function cameraPitch(cam)
+		local look = cam.CFrame.LookVector
+		return math.asin(math.clamp(look.Y, -1, 1))
+	end
+
+
+	-- aimbotActive: when the camera director is actively steering the view, skip the
+	-- pitch lock (which also steers the CFrame) so the two don't fight. The
+	-- CameraOffset kill still runs, since it doesn't touch the aim direction.
+	function NoRecoil:Update(config, aimbotActive)
+		if not config.Enabled then
+			basePitch = nil
+			return
+		end
+
+		local cam = Workspace.CurrentCamera
+		if not cam then
+			basePitch = nil
+			return
+		end
+
+		if config.RequireMouseDown and not isFiring() then
+			basePitch = nil -- re-lock on the first firing frame
+			return
+		end
+
+		-- Always kill recoil/shake applied through Humanoid.CameraOffset. This is a
+		-- very common Roblox recoil source (the whole view kicks) and zeroing it
+		-- removes kick on every axis at once — the piece the pitch lock alone can't
+		-- catch. There's no reason to want No Recoil on but this off, so it's not a
+		-- switch; it just runs whenever No Recoil is active.
+		local char = LocalPlayer.Character
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if hum then
+			hum.CameraOffset = Vector3.new(0, 0, 0)
+		end
+
+		-- Pitch lock steers the camera CFrame, so hand off to the aimbot when it's on.
+		if aimbotActive then
+			basePitch = nil
+			return
+		end
+
+		local strength = math.clamp(config.Strength, 0, 1)
+		if strength <= 0 then
+			basePitch = nil
+			return
+		end
+
+		local pitch = cameraPitch(cam)
+		if basePitch == nil then
+			basePitch = pitch -- lock to wherever you started firing
+			return
+		end
+
+		local drift = pitch - basePitch
+		if config.AllowAim and drift < 0 then
+			-- Pulled below the lock (aiming down) — adopt the lower baseline instead of
+			-- fighting it, so you keep downward control while the climb stays blocked.
+			basePitch = pitch
+			return
+		end
+
+		if drift ~= 0 then
+			-- Force the view straight back to the locked pitch.
+			cam.CFrame = cam.CFrame * CFrame.Angles(-drift * strength, 0, 0)
+		end
+	end
+
+	function NoRecoil:Reset()
+		basePitch = nil
+	end
+	NoRecoil.IsFiring = isFiring
+
+	return NoRecoil
+end)() -- /NoRecoil
+
+--============================================================================
+-- NOSPREAD
+--============================================================================
+NoSpread = (function()
+	--==============================================================================
+	-- NO SPREAD
+	-- Best-effort removal of client-side bullet spread via function hooking.
+	--==============================================================================
+
+	local NoRecoil = NoRecoil
+
+	local NoSpread = {}
+	local ns_active = false
+	local ns_warned = false
+	local ns_mathHooked = false
+	local ns_randHooked = false
+	local ns_strength = 1 -- 0..1, mirrored from config each frame
+	local ns_origMathRandom = nil
+	local ns_origNextNumber = nil
+	local ns_origNextInteger = nil
+
+	local function ns_hookApi()
+		if type(hookfunction) == "function" then
+			return hookfunction
+		elseif type(replaceclosure) == "function" then
+			return replaceclosure
+		end
+		return nil
+	end
+
+	-- Midpoint of a math.random(...) call, i.e. the centre of the spread cone.
+	-- Mirrors math.random's three argument forms.
+	local function ns_mathMid(a, b)
+		if a == nil then
+			return 0.5
+		elseif b == nil then
+			return math.floor((1 + a) / 2 + 0.5)
+		else
+			return math.floor((a + b) / 2 + 0.5)
+		end
+	end
+
+	-- Pulls a roll from its real value toward the centre by Strength. At 1 it lands
+	-- dead centre (no spread); at 0.5 the cone is halved; at 0 it's untouched. This
+	-- is what makes the Strength slider meaningful rather than just on/off.
+	local function ns_pull(original, centre, isInt)
+		local v = original + (centre - original) * ns_strength
+		if isInt then
+			return math.floor(v + 0.5)
+		end
+		return v
+	end
+
+	-- Covers guns that use math.random for their spread cone.
+	local function ns_installMath(hook)
+		if ns_mathHooked then
+			return
+		end
+		local ok, ret = pcall(hook, math.random, function(...)
+			local original = ns_origMathRandom(...)
+			if ns_active and ns_strength > 0 then
+				local a, b = ...
+				-- math.random() returns a float; the (n) and (a,b) forms return integers.
+				return ns_pull(original, ns_mathMid(a, b), a ~= nil)
+			end
+			return original
+		end)
+		if ok then
+			ns_origMathRandom = ret
+			ns_mathHooked = true
+		end
+	end
+
+	-- Covers guns that use a Random.new() object (NextNumber / NextInteger). The
+	-- method closures are shared across all Random instances, so hooking them once
+	-- from a sample instance affects every gun that uses them.
+	local function ns_installRandom(hook)
+		if ns_randHooked then
+			return
+		end
+		local ok = pcall(function()
+			local sample = Random.new()
+
+			ns_origNextNumber = hook(sample.NextNumber, function(self, ...)
+				local original = ns_origNextNumber(self, ...)
+				if ns_active and ns_strength > 0 then
+					local mn, mx = ...
+					local centre = (mn == nil) and 0.5 or ((mn + mx) / 2)
+					return ns_pull(original, centre, false)
+				end
+				return original
+			end)
+
+			ns_origNextInteger = hook(sample.NextInteger, function(self, ...)
+				local original = ns_origNextInteger(self, ...)
+				if ns_active and ns_strength > 0 then
+					local mn, mx = ...
+					return ns_pull(original, (mn + mx) / 2, true)
+				end
+				return original
+			end)
+		end)
+		if ok then
+			ns_randHooked = true
+		end
+	end
+
+	function NoSpread:_install()
+		if ns_mathHooked or ns_randHooked then
+			return true
+		end
+
+		local hook = ns_hookApi()
+		if not hook then
+			if not ns_warned then
+				warn("[Vanity-General] No Spread needs function hooking (hookfunction) — not available in this executor.")
+				ns_warned = true
+			end
+			return false
+		end
+
+		ns_installMath(hook)
+		ns_installRandom(hook)
+
+		if not (ns_mathHooked or ns_randHooked) then
+			if not ns_warned then
+				warn("[Vanity-General] No Spread: failed to install any hook.")
+				ns_warned = true
+			end
+			return false
+		end
+		return true
+	end
+
+	function NoSpread:Update(config)
+		ns_strength = math.clamp(config.Strength or 1, 0, 1)
+
+		if config.Enabled then
+			if not (ns_mathHooked or ns_randHooked) and not self:_install() then
+				return
+			end
+			ns_active = (not config.RequireMouseDown) or NoRecoil.IsFiring()
+		else
+			ns_active = false
+		end
+	end
+
+	-- Restores the originals (called on unload) so no global hook lingers.
+	function NoSpread:Cleanup()
+		ns_active = false
+		local hook = ns_hookApi()
+		if not hook then
+			return
+		end
+		if ns_mathHooked and ns_origMathRandom then
+			pcall(hook, math.random, ns_origMathRandom)
+			ns_mathHooked = false
+		end
+		if ns_randHooked then
+			pcall(function()
+				local sample = Random.new()
+				if ns_origNextNumber then
+					hook(sample.NextNumber, ns_origNextNumber)
+				end
+				if ns_origNextInteger then
+					hook(sample.NextInteger, ns_origNextInteger)
+				end
+			end)
+			ns_randHooked = false
+		end
+	end
+
+	return NoSpread
+end)() -- /NoSpread
+
+--============================================================================
 -- UI
--- Modern tabbed interface with dark theme, smooth animations, keybind customization
---==============================================================================
+--============================================================================
+UI = (function()
+	--==============================================================================
+	-- UI
+	-- Modern tabbed interface with dark theme, smooth animations, keybind customization
+	--==============================================================================
 
-local UI = {}
-do
+	local Players = game:GetService("Players")
+	local UserInputService = game:GetService("UserInputService")
+	local TweenService = game:GetService("TweenService")
+
+	local LocalPlayer = Players.LocalPlayer
+	local ConfigManager = ConfigManager
+	local Utility = Utility
+
+	local UI = {}
 
 	-- Deep purple + black theme.
 	local COLORS = {
@@ -3237,6 +2637,7 @@ do
 	local layoutOrder = 0
 	local visible = false
 	local activeConfig -- stored by Init so visibility can be written back to config
+	local onUnloadCallback -- stored by Init; the Unload button calls it (controller's Stop)
 
 	local uisConnections = {}
 	local moveHandlers = {}
@@ -5793,12 +5194,15 @@ do
 		end
 	end
 
-	function UI:Init(config)
+	-- onUnload: called by the Settings > Unload button (the controller passes its
+	-- own Stop, so the UI never needs a forward reference to the controller).
+	function UI:Init(config, onUnload)
 		if gui then
 			return
 		end
 
 		activeConfig = config
+		onUnloadCallback = onUnload
 
 		startInputRouter()
 
@@ -5811,7 +5215,7 @@ do
 		})
 
 		local ok = pcall(function()
-			gui.Parent = getGuiParent()
+			gui.Parent = Utility.getGuiParent()
 		end)
 		if not ok or not gui.Parent then
 			gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -5964,7 +5368,9 @@ do
 		})
 
 		unloadBtn.MouseButton1Click:Connect(function()
-			VanityGeneral.Stop()
+			if onUnloadCallback then
+				onUnloadCallback()
+			end
 		end)
 
 		unloadBtn.MouseEnter:Connect(function()
@@ -6223,20 +5629,29 @@ do
 		end
 		visible = false
 	end
-end
 
---==============================================================================
+	return UI
+end)() -- /UI
+
+--============================================================================
 -- MOVEMENT
--- Client-side movement suite: fly, noclip, speed, infinite jump, click TP.
--- Stealth notes: everything here is CFrame or physics velocity only. No
--- BodyVelocity/BodyGyro instances, no WalkSpeed/JumpPower property writes, no
--- Humanoid:ChangeState spoofing — those are exactly what client anti-cheats
--- scan for. Noclip and fly are inherently client-side; the server never sees
--- them, and other players still collide with you.
---==============================================================================
+--============================================================================
+Movement = (function()
+	--==============================================================================
+	-- MOVEMENT
+	-- Client-side movement suite: fly, noclip, speed, infinite jump, click TP.
+	-- Everything is CFrame or physics velocity only — no BodyMovers, no
+	-- WalkSpeed/JumpPower writes, no Humanoid:ChangeState spoofing.
+	--==============================================================================
 
-local Movement = {}
-do
+	local Players = game:GetService("Players")
+	local UserInputService = game:GetService("UserInputService")
+	local Workspace = game:GetService("Workspace")
+
+	local LocalPlayer = Players.LocalPlayer
+	local UI = UI
+
+	local Movement = {}
 
 	-- Stock WalkSpeed; Speed mode only adds the surplus over this, so a Speed of
 	-- 16 is a no-op (you move exactly as fast as the game intends).
@@ -6408,177 +5823,47 @@ do
 		-- Noclip needs no restore here: it only re-sets CanCollide = false each
 		-- frame, so once Update stops running collision returns naturally.
 	end
-end
 
---==============================================================================
--- MAIN CONTROLLER - Entry Point
--- Orchestrates all systems (DebuggerDetection, StringObfuscation, ESP, Camera, UI)
---==============================================================================
+	return Movement
+end)() -- /Movement
 
--- Assigns to the forward-declared local at the top of the file (no `local` here).
-VanityGeneral = {}
-VanityGeneral.Version = "0"
-VanityGeneral.Config = Configuration
-VanityGeneral.StringObfuscation = StringObfuscation
-VanityGeneral.DebuggerDetection = DebuggerDetection
-VanityGeneral.ProtectedSecrets = ProtectedSecrets
+--============================================================================
+-- CONTROLLER
+--============================================================================
+Controller = (function()
+	--==============================================================================
+	-- MAIN CONTROLLER - Entry Point
+	-- Orchestrates all systems (ESP, Camera, UI, Movement, Webhook, etc).
+	-- Exported to getgenv().VanityGeneral on Start (the global name is kept).
+	--==============================================================================
 
--- Debugger-gated store for anything the app itself needs to keep secret
--- (webhook URLs, remote keys, etc). Reveal-style reads on this manager refuse
--- and log a tampering attempt while a debugger/Studio is attached; fill it in
--- via VanityGeneral.Secrets:register(name, value, level) before Start().
-VanityGeneral.Secrets = ProtectedSecrets.createProtectedManager()
+	local Players = game:GetService("Players")
+	local RunService = game:GetService("RunService")
+	local UserInputService = game:GetService("UserInputService")
 
---==============================================================================
--- SECURE WEBHOOK
--- On load the script pings a Discord webhook (player name / game / etc). The URL
--- is kept encrypted in memory and only decrypts to actually send when NO
--- debugger/Studio is attached.
---
--- SETUP — pick ONE:
---   (1) EASIEST: paste your webhook URL into WEBHOOK_URL just below. It's stored
---       encrypted in memory on Start; the plaintext only lives in this one line.
---   (2) Runtime: getgenv().VanityGeneral.SetWebhook("https://discord.com/...")
---   (3) No plaintext in the file at all: run
---         getgenv().VanityGeneral.EncryptWebhook("https://discord.com/...")
---       once, then paste the printed line over WEBHOOK_CIPHER below.
---==============================================================================
+	local LocalPlayer = Players.LocalPlayer
 
--- Webhook is configured via the pre-encrypted cipher below (option 3), so no
--- plaintext URL lives in this file. Leave WEBHOOK_URL empty.
-do
-	local WEBHOOK_URL = ""
+	local Configuration = Configuration
+	local ConfigManager = ConfigManager
+	local CameraDirector = CameraDirector
+	local HitboxExpander = Hitbox
+	local SilentAim = SilentAim
+	local NoRecoil = NoRecoil
+	local NoSpread = NoSpread
+	local Triggerbot = Triggerbot
+	local ESP = ESP
+	local DrawingESP = DrawingESP
+	local Visuals = Visuals
+	local Utility = Utility
+	local UI = UI
+	local Movement = Movement
+	local Webhook = Webhook
 
-	local WEBHOOK_LEVEL = 2
-	local WEBHOOK_CIPHER = { 61, 35, 45, 43, 46, 101, 78, 76, 1, 14, 26, 8, 2, 29, 21, 93, 22, 24, 20, 84, 28, 15, 232, 172, 242, 226, 235, 227, 226, 224, 250, 224, 186, 166, 172, 168, 173, 175, 151, 145, 148, 150, 157, 146, 158, 158, 129, 139, 128, 132, 143, 142, 146, 210, 151, 244, 143, 132, 139, 164, 136, 171, 231, 226, 177, 133, 173, 154, 167, 236, 152, 219, 131, 140, 167, 156, 220, 187, 128, 164, 141, 145, 156, 191, 201, 155, 87, 74, 108, 48, 113, 89, 101, 119, 87, 85, 32, 101, 75, 85, 109, 101, 108, 21, 108, 125, 126, 28, 100, 78, 118, 106, 108, 7, 64, 114, 15, 11, 57, 53, 26 }
-	local webhookViaManager = false -- true once SetWebhook stores a URL in Secrets
+	local Controller = {}
+	Controller.Version = "0"
+	Controller.Config = Configuration
 
-	-- Finds whatever HTTP-POST function this executor exposes.
-	local function resolveHttpRequest()
-		local candidates = {
-			(syn and syn.request),
-			(http and http.request),
-			http_request,
-			request,
-			(fluxus and fluxus.request),
-		}
-		for _, fn in ipairs(candidates) do
-			if type(fn) == "function" then
-				return fn
-			end
-		end
-		return nil
-	end
-
-	-- Returns the plaintext URL only when revealing is allowed (no debugger),
-	-- otherwise nil. Never logs a false tampering hit when no webhook is configured.
-	local function resolveWebhookUrl()
-		if webhookViaManager then
-			-- :get is gated inside ProtectedSecrets — nil while debugged.
-			local url = VanityGeneral.Secrets:get("webhook_url")
-			if url then
-				return url
-			end
-		end
-		if #WEBHOOK_CIPHER > 0 then
-			if DebuggerDetection.IsBeingDebugged() then
-				DebuggerDetection.HandleTamperingAttempt("webhook_reveal_while_debugged", "webhook")
-				return nil
-			end
-			return StringObfuscation.decrypt(WEBHOOK_CIPHER, WEBHOOK_LEVEL)
-		end
-		return nil
-	end
-
-	-- Store/replace the webhook URL (Option A). Encrypted immediately in memory.
-	function VanityGeneral.SetWebhook(url, level)
-		VanityGeneral.Secrets:clear("webhook_url") -- no-op if not present
-		VanityGeneral.Secrets:register("webhook_url", url, level or WEBHOOK_LEVEL)
-		webhookViaManager = true
-		return true
-	end
-
-	-- Prints a paste-ready encrypted array for WEBHOOK_CIPHER (Option B) so the
-	-- plaintext URL never has to live in this file.
-	function VanityGeneral.EncryptWebhook(url, level)
-		level = level or WEBHOOK_LEVEL
-		local bytes = StringObfuscation.encrypt(url, level)
-		print(string.format("-- Paste the two lines below into the SECURE WEBHOOK config (level %d):", level))
-		print(string.format("local WEBHOOK_LEVEL = %d", level))
-		print("local WEBHOOK_CIPHER = { " .. table.concat(bytes, ", ") .. " }")
-		return bytes
-	end
-
-	-- True if either configuration path has a URL available.
-	function VanityGeneral.HasWebhook()
-		return webhookViaManager or #WEBHOOK_CIPHER > 0
-	end
-
-	-- Sends a Discord message. Returns false (never throws) when unconfigured,
-	-- blocked by the debugger gate, or the executor has no HTTP function.
-	function VanityGeneral.SendWebhook(content, opts)
-		opts = opts or {}
-
-		local url = resolveWebhookUrl()
-		if not url then
-			return false, "no_webhook_or_blocked"
-		end
-
-		local req = resolveHttpRequest()
-		if not req then
-			warn("[Vanity-General] No HTTP request function available in this executor")
-			return false, "no_http"
-		end
-
-		local payload = {
-			username = opts.username or "Vanity-General",
-			avatar_url = opts.avatar_url,
-			content = content,
-			embeds = opts.embeds,
-		}
-
-		local ok, err = pcall(function()
-			local body = game:GetService("HttpService"):JSONEncode(payload)
-			return req({
-				Url = url,
-				Method = "POST",
-				Headers = { ["Content-Type"] = "application/json" },
-				Body = body,
-			})
-		end)
-		url = nil -- drop the plaintext reference promptly
-
-		if not ok then
-			warn("[Vanity-General] Webhook send failed:", err)
-			return false, err
-		end
-		return true
-	end
-
-	-- The nice "loaded" embed. Kept here so both Start and manual calls can reuse it.
-	function VanityGeneral.SendLoadedEmbed(isDebugged)
-		local placeName = "?"
-		pcall(function()
-			placeName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
-		end)
-
-		return VanityGeneral.SendWebhook(nil, {
-			embeds = {
-				{
-					title = "Vanity.dev General loaded",
-					color = 8666558, -- accent purple (0x843EBE)
-					fields = {
-						{ name = "Player", value = "`" .. (LocalPlayer and LocalPlayer.Name or "?") .. "`", inline = true },
-						{ name = "Version", value = "`v" .. tostring(VanityGeneral.Version) .. "`", inline = true },
-						{ name = "Game", value = placeName, inline = false },
-						{ name = "PlaceId", value = "`" .. tostring(game.PlaceId) .. "`", inline = true },
-						{ name = "Debugged", value = "`" .. tostring(isDebugged) .. "`", inline = true },
-					},
-					footer = { text = os.date("%Y-%m-%d %H:%M:%S") },
-				},
-			},
-		})
-	end
+	Webhook.Version = Controller.Version -- stamped for the "loaded" embed
 
 	local running = false
 	local connections = {}
@@ -6616,17 +5901,17 @@ do
 		return false, nil
 	end
 
-	function VanityGeneral.IsRunning()
+	function Controller.IsRunning()
 		return running
 	end
 
 	-- Config profiles, also usable from the console:
 	--   VanityGeneral.SaveConfig("legit") / .LoadConfig("legit") / .ListConfigs()
-	function VanityGeneral.SaveConfig(name)
+	function Controller.SaveConfig(name)
 		return ConfigManager.save(name, Configuration)
 	end
 
-	function VanityGeneral.LoadConfig(name)
+	function Controller.LoadConfig(name)
 		local ok, res = ConfigManager.load(name, Configuration)
 		if ok then
 			pcall(function()
@@ -6636,46 +5921,51 @@ do
 		return ok, res
 	end
 
-	function VanityGeneral.ListConfigs()
+	function Controller.ListConfigs()
 		return ConfigManager.list()
 	end
 
-	function VanityGeneral.DeleteConfig(name)
+	function Controller.DeleteConfig(name)
 		return ConfigManager.delete(name)
 	end
 
 	-- Teleport helpers (also on the Settings > Account buttons).
-	function VanityGeneral.ServerHop()
+	function Controller.ServerHop()
 		return Utility:ServerHop()
 	end
 
-	function VanityGeneral.Rejoin()
+	function Controller.Rejoin()
 		return Utility:Rejoin()
 	end
 
 	-- Sets the watermark logo from an uploaded image id (bare id or rbxassetid://).
 	-- Persists into config so it survives a menu rebuild.
-	function VanityGeneral.SetWatermarkImage(id)
+	function Controller.SetWatermarkImage(id)
 		Configuration.UI.WatermarkImageId = tostring(id or "")
 		UI:SetWatermarkImage(Configuration.UI.WatermarkImageId)
-		return VanityGeneral
+		return Controller
 	end
 
-	-- Combined DebuggerDetection + StringObfuscation stats plus current debug state.
-	function VanityGeneral.GetSecurityReport()
-		return ProtectedSecrets.getReport()
+	-- Webhook passthroughs (implementation lives in the Webhook module).
+	function Controller.SetWebhook(url)
+		return Webhook.SetWebhook(url)
 	end
 
-	function VanityGeneral.Start()
+	function Controller.HasWebhook()
+		return Webhook.HasWebhook()
+	end
+
+	function Controller.SendWebhook(content, opts)
+		return Webhook.SendWebhook(content, opts)
+	end
+
+	function Controller.SendLoadedEmbed(isDebugged)
+		return Webhook.SendLoadedEmbed(isDebugged)
+	end
+
+	function Controller.Start()
 		if running then
-			return VanityGeneral
-		end
-
-		-- Routes through ProtectedSecrets so the same Initialize call that arms
-		-- DebuggerDetection also hands back a combined obfuscation+detection report.
-		local securityState = ProtectedSecrets.initialize({ enable_monitoring = true })
-		if securityState.is_debugged then
-			warn("[Vanity-General] Debug environment detected at startup — protected secrets will refuse to reveal until allow_in_studio is set.")
+			return Controller
 		end
 
 		running = true
@@ -6683,7 +5973,9 @@ do
 		local ok, err = pcall(function()
 			ESP:Init()
 
-			UI:Init(Configuration)
+			UI:Init(Configuration, function()
+				Controller.Stop()
+			end)
 
 			Movement:Init(Configuration.Movement)
 
@@ -6711,7 +6003,7 @@ do
 					if key == Configuration.UI.MenuKey then
 						UI:Toggle()
 					elseif key == Configuration.UI.UnloadKey then
-						VanityGeneral.Stop()
+						Controller.Stop()
 					else
 						local toggles = {
 							{ Configuration.Camera, "Enabled", Configuration.Camera.ToggleKey },
@@ -6805,40 +6097,37 @@ do
 
 		if not ok then
 			warn("[Vanity-General] Failed to start:", err)
-			VanityGeneral.Stop()
-			return VanityGeneral
+			Controller.Stop()
+			return Controller
+		end
+
+		-- Export under the historical global name so re-executions can find us.
+		if getgenv then
+			getgenv().VanityGeneral = Controller
 		end
 
 		UI:Notify(string.format("Vanity-General loaded  •  Press %s", Configuration.UI.MenuKey.Name), 4)
 
-		print(string.format("[Vanity-General] Running (v%s)", VanityGeneral.Version))
-		print(string.format("  • StringObfuscation v%s (active)", StringObfuscation.VERSION))
-		print(string.format("  • DebuggerDetection v2.0 (monitoring: active, debugged: %s)", tostring(securityState.is_debugged)))
-		print(string.format("  • ProtectedSecrets v%s (VanityGeneral.Secrets gated by debugger detection)", ProtectedSecrets.VERSION))
+		print(string.format("[Vanity-General] Running (v%s)", Controller.Version))
 		print(string.format("Menu: %s  |  Camera: %s  |  Unload: %s",
 			Configuration.UI.MenuKey.Name,
 			Configuration.Camera.ToggleKey.Name,
 			Configuration.UI.UnloadKey.Name))
 
-		-- Pick up the pasted WEBHOOK_URL (option 1) if present and not already set.
-		if not VanityGeneral.HasWebhook() and type(WEBHOOK_URL) == "string" and WEBHOOK_URL ~= "" then
-			pcall(VanityGeneral.SetWebhook, WEBHOOK_URL)
-		end
-
 		-- Fire-and-forget "loaded" ping as a Discord embed. No-ops silently if no
-		-- webhook is configured or a debugger is attached (the URL won't decrypt).
-		if VanityGeneral.HasWebhook() then
+		-- webhook is configured.
+		if Webhook.HasWebhook() then
 			task.spawn(function()
-				VanityGeneral.SendLoadedEmbed(securityState.is_debugged)
+				Webhook.SendLoadedEmbed(false)
 			end)
 		end
 
-		return VanityGeneral
+		return Controller
 	end
 
-	function VanityGeneral.Stop()
+	function Controller.Stop()
 		if not running then
-			return VanityGeneral
+			return Controller
 		end
 		running = false
 
@@ -6881,44 +6170,54 @@ do
 		pcall(function()
 			NoSpread:Cleanup() -- restore original math.random so no global hook lingers
 		end)
-		pcall(function()
-			ProtectedSecrets.shutdown() -- disconnects the Heartbeat debug monitor
-		end)
 		NoRecoil:Reset()
 		table.clear(guardState) -- fresh error throttling on the next Start
 
 		print("[Vanity-General] Stopped")
-		return VanityGeneral
+		return Controller
 	end
 
-	function VanityGeneral.Toggle()
+	function Controller.Toggle()
 		if running then
-			VanityGeneral.Stop()
+			Controller.Stop()
 		else
-			VanityGeneral.Start()
+			Controller.Start()
 		end
-		return VanityGeneral
+		return Controller
 	end
-end
 
-VanityGeneral.start = VanityGeneral.Start
-VanityGeneral.stop = VanityGeneral.Stop
-VanityGeneral.toggle = VanityGeneral.Toggle
+	Controller.start = Controller.Start
+	Controller.stop = Controller.Stop
+	Controller.toggle = Controller.Toggle
 
-if getgenv then
-	local previous = getgenv().VanityGeneral
-	if previous and previous ~= VanityGeneral and type(previous.Stop) == "function" then
-		pcall(previous.Stop)
+	return Controller
+end)() -- /Controller
+
+--============================================================================
+-- MAIN
+--============================================================================
+do -- Main
+	--==============================================================================
+	-- VANITY-GENERAL - Entry point
+	-- Loads the controller, stops any previously injected copy, and starts.
+	--==============================================================================
+
+	local Controller = Controller
+
+	-- Safe restart: a previous execution exported itself to getgenv().VanityGeneral
+	-- on Start; stop it before this copy takes over.
+	if getgenv then
+		local previous = getgenv().VanityGeneral
+		if previous and previous ~= Controller and type(previous.Stop) == "function" then
+			pcall(previous.Stop)
+		end
 	end
-	getgenv().VanityGeneral = VanityGeneral
-end
 
--- Auto-start when the file is executed directly (run from the executor's script
--- list, or pasted whole into the console). Harmless if you instead use
--- loadstring(readfile("..."))().Start() — Start() guards against running twice.
--- Wrapped in pcall so a start failure still returns the module for manual use.
-pcall(function()
-	VanityGeneral.Start()
-end)
+	-- Wrapped in pcall so a start failure still returns the module for manual use.
+	pcall(function()
+		Controller.Start()
+	end)
 
-return VanityGeneral
+	return Controller
+
+end -- /Main
