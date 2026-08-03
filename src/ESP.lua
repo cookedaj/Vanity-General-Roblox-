@@ -1,5 +1,5 @@
 -- ESP Module
--- Player highlighting with outlines and fills
+-- Player highlighting with outlines, fills, and billboard tags
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
@@ -151,6 +151,7 @@ local function updatePlayer(player, entry, config)
 	local character = player.Character
 	if not character then
 		entry.hl.Enabled = false
+		entry.tag.Enabled = false
 		teardownShell(entry)
 		return
 	end
@@ -160,6 +161,7 @@ local function updatePlayer(player, entry, config)
 
 	if not config.Enabled or not hrp or not isAlive(humanoid) then
 		entry.hl.Enabled = false
+		entry.tag.Enabled = false
 		teardownShell(entry)
 		return
 	end
@@ -168,6 +170,7 @@ local function updatePlayer(player, entry, config)
 	local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
 	if myRoot and (hrp.Position - myRoot.Position).Magnitude > config.MaxDistance then
 		entry.hl.Enabled = false
+		entry.tag.Enabled = false
 		teardownShell(entry)
 		return
 	end
@@ -208,6 +211,40 @@ local function updatePlayer(player, entry, config)
 	else
 		teardownShell(entry)
 	end
+
+	-- Billboard tag: adorn to the head and compose the text from whichever tag
+	-- toggles are on. Range/enabled culling above already hid it when out of
+	-- view, so reaching here means the player is ESP-visible.
+	local head = character:FindFirstChild("Head")
+	if head and (config.NameTags or config.HealthBars or config.DistanceTags) then
+		if entry.tag.Adornee ~= head then
+			entry.tag.Adornee = head
+		end
+
+		local lines = {}
+		if config.NameTags then
+			table.insert(lines, player.Name)
+		end
+
+		local info = {}
+		if config.HealthBars then
+			table.insert(info, tostring(math.floor(humanoid.Health)))
+		end
+		if config.DistanceTags then
+			local camera = Workspace.CurrentCamera
+			if camera then
+				table.insert(info, string.format("%dm", (hrp.Position - camera.CFrame.Position).Magnitude))
+			end
+		end
+		if #info > 0 then
+			table.insert(lines, table.concat(info, " | "))
+		end
+
+		entry.tagLabel.Text = table.concat(lines, "\n")
+		entry.tag.Enabled = true
+	else
+		entry.tag.Enabled = false
+	end
 end
 
 -- Add player to ESP tracking
@@ -224,8 +261,29 @@ local function addPlayer(player, defaultColor)
 	highlight.OutlineColor = color
 	highlight.Parent = container
 
+	-- Billboard tag above the head; name/health/distance text is composed per
+	-- Update depending on which tag toggles are on
+	local tag = Instance.new("BillboardGui")
+	tag.Name = "ESPTag"
+	tag.Size = UDim2.new(4, 0, 1, 0)
+	tag.StudsOffsetWorldSpace = Vector3.new(0, 2.5, 0)
+	tag.AlwaysOnTop = true
+	tag.Enabled = false
+	tag.Parent = container
+
+	local tagLabel = Instance.new("TextLabel")
+	tagLabel.Size = UDim2.fromScale(1, 1)
+	tagLabel.BackgroundTransparency = 1
+	tagLabel.Font = Enum.Font.GothamBold
+	tagLabel.TextSize = 12
+	tagLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	tagLabel.TextStrokeTransparency = 0.5
+	tagLabel.Parent = tag
+
 	entries[player] = {
 		hl = highlight,
+		tag = tag,
+		tagLabel = tagLabel,
 		shell = nil,
 		shellHl = nil,
 		links = nil,
@@ -244,6 +302,9 @@ local function removePlayer(player)
 	teardownShell(entry)
 	if entry.hl then
 		entry.hl:Destroy()
+	end
+	if entry.tag then
+		entry.tag:Destroy()
 	end
 
 	entries[player] = nil

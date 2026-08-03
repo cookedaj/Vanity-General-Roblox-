@@ -19,12 +19,16 @@ end
 local Configuration
 local CameraDirector
 local ESP
+local Movement
+local Visuals
 local UI
 
 local success, err = pcall(function()
 	Configuration = require(moduleLocation:WaitForChild("Configuration", 5))
 	CameraDirector = require(moduleLocation:WaitForChild("CameraDirector", 5))
 	ESP = require(moduleLocation:WaitForChild("ESP", 5))
+	Movement = require(moduleLocation:WaitForChild("Movement", 5))
+	Visuals = require(moduleLocation:WaitForChild("Visuals", 5))
 	UI = require(moduleLocation:WaitForChild("UI", 5))
 end)
 
@@ -43,6 +47,8 @@ local Players = game:GetService("Players")
 
 local function init()
 	ESP:Init()
+	Movement:Init(Configuration.Movement)
+	Visuals:Init(Configuration)
 
 	-- Reset defaults live in Configuration (single source of truth)
 	UI:Init(Configuration, function()
@@ -80,9 +86,11 @@ local function init()
 
 	UI:Notify(string.format("Vanity-General loaded  •  Press %s", Configuration.UI.MenuKey.Name), 4)
 
-	-- Single RenderStepped loop drives both systems
-	RunService.RenderStepped:Connect(function()
+	-- Single RenderStepped loop drives all systems (RenderStepped passes dt)
+	RunService.RenderStepped:Connect(function(dt)
 		ESP:Update(Configuration.ESP)
+		Movement:Update(dt)
+		Visuals:Update()
 
 		local target = CameraDirector:Update(Configuration.Camera, Configuration.Debug)
 		if Configuration.Camera.Enabled and target then

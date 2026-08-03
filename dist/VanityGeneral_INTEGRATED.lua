@@ -898,6 +898,10 @@ Configuration.Camera = {
 	FOV = 200,
 	-- World range limit in studs from your character.
 	MaxDistance = 1000,
+	-- Velocity lead: 0 = off, 1 = full lead using a rough time-of-flight model.
+	Prediction = 0,
+	-- Subtle per-frame jitter so the aim path isn't a perfect straight line.
+	Humanize = true,
 
 	-- Hitbox mode: "Random (Weighted)" uses TargetWeights below; otherwise a
 	-- specific region ("Head" / "Torso" / "Arms" / "Legs") is aimed at directly.
@@ -947,10 +951,54 @@ Configuration.NoSpread = {
 
 Configuration.Triggerbot = {
 	Enabled = false,
-	Delay = 0.05,       -- seconds the crosshair must sit on a target before firing
+	-- Humanized reaction time: each shot waits a random delay sampled between
+	-- MinDelay and MaxDelay (seconds the crosshair must sit on the target).
+	MinDelay = 0.1,
+	MaxDelay = 0.25,
 	MaxDistance = 1000, -- studs; shots past this are ignored
 	WallCheck = true,   -- "Vischeck": require line of sight (off = fire through walls)
 	ToggleKey = Enum.KeyCode.F4,
+}
+
+Configuration.Movement = {
+	FlyEnabled = false,
+	FlySpeed = 50,
+	NoclipEnabled = false,
+	SpeedEnabled = false,
+	-- 16 = stock WalkSpeed, i.e. no boost. Only the surplus over 16 is applied.
+	Speed = 16,
+	InfJumpEnabled = false,
+	ClickTPEnabled = false,
+	ClickTPKey = Enum.KeyCode.LeftControl, -- hold this + left click to teleport
+	-- Fat Walk: client-side-only wide-body visual (R15 rigs only).
+	FatWalk = false,
+	FatScale = 2,
+}
+
+Configuration.SilentAim = {
+	Enabled = false,
+}
+
+Configuration.Hitbox = {
+	Enabled = false,
+	Size = 5,
+	Transparency = 0.5,
+}
+
+Configuration.Drawing = {
+	Boxes = false,
+	Tracers = false,
+	BoxColor = Color3.fromRGB(165, 75, 255),
+	TracerColor = Color3.fromRGB(255, 255, 255),
+}
+
+Configuration.Visuals = {
+	Fullbright = false,
+	NoFog = false,
+}
+
+Configuration.Utility = {
+	AntiAFK = true, -- simulates input on Idled so Roblox never kicks for inactivity
 }
 
 Configuration.ESP = {
@@ -960,6 +1008,11 @@ Configuration.ESP = {
 	Boxes = false,   -- 2D screen-space box
 	Names = false,   -- player name floating above the head
 	Distance = false, -- meters from your character, under the name
+	-- Tag-suite keys: NameTags/DistanceTags alias Names/Distance (same head
+	-- billboard); HealthBars adds a health bar line to it.
+	NameTags = false,
+	HealthBars = false,
+	DistanceTags = false,
 	NPCs = false,    -- also highlight non-player characters (mobs/dummies)
 	OutlineColor = Color3.fromRGB(165, 75, 255),
 	FillColor = Color3.fromRGB(165, 75, 255),
@@ -994,6 +1047,8 @@ local DEFAULTS = {
 		Smoothness = 0.85,
 		FOV = 200,
 		MaxDistance = 1000,
+		Prediction = 0,
+		Humanize = true,
 		Hitbox = "Random (Weighted)",
 		TargetWeights = { Head = 85, Torso = 15, Arms = 0, Legs = 0 },
 		WallCheck = true,
@@ -1008,6 +1063,9 @@ local DEFAULTS = {
 		Boxes = false,
 		Names = false,
 		Distance = false,
+		NameTags = false,
+		HealthBars = false,
+		DistanceTags = false,
 		NPCs = false,
 		OutlineColor = Color3.fromRGB(165, 75, 255),
 		FillColor = Color3.fromRGB(165, 75, 255),
@@ -1018,7 +1076,28 @@ local DEFAULTS = {
 	},
 	NoRecoil = { Enabled = false, Strength = 1, RequireMouseDown = true, AllowAim = false },
 	NoSpread = { Enabled = false, Strength = 1, RequireMouseDown = true },
-	Triggerbot = { Enabled = false, Delay = 0.05, MaxDistance = 1000, WallCheck = true },
+	Triggerbot = { Enabled = false, MinDelay = 0.1, MaxDelay = 0.25, MaxDistance = 1000, WallCheck = true },
+	Movement = {
+		FlyEnabled = false,
+		FlySpeed = 50,
+		NoclipEnabled = false,
+		SpeedEnabled = false,
+		Speed = 16,
+		InfJumpEnabled = false,
+		ClickTPEnabled = false,
+		FatWalk = false,
+		FatScale = 2,
+	},
+	SilentAim = { Enabled = false },
+	Hitbox = { Enabled = false, Size = 5, Transparency = 0.5 },
+	Drawing = {
+		Boxes = false,
+		Tracers = false,
+		BoxColor = Color3.fromRGB(165, 75, 255),
+		TracerColor = Color3.fromRGB(255, 255, 255),
+	},
+	Visuals = { Fullbright = false, NoFog = false },
+	Utility = { AntiAFK = true },
 	UI = {
 		Scale = 1,
 		KeybindPanel = true,
@@ -1058,7 +1137,7 @@ end
 
 local ConfigManager = {}
 local CONFIG_FOLDER = "VanityGeneral"
-local SAVED_SECTIONS = { "Camera", "ESP", "NoRecoil", "NoSpread", "UI" }
+local SAVED_SECTIONS = { "Camera", "ESP", "NoRecoil", "NoSpread", "Movement", "SilentAim", "Hitbox", "Drawing", "Visuals", "Utility", "UI" }
 
 -- Executors vary in what file APIs they expose; everything degrades gracefully.
 local function fsAvailable()
@@ -1080,7 +1159,15 @@ local function sanitizeName(name)
 	return (tostring(name or ""):gsub("[^%w_%- ]", ""):gsub("^%s+", ""):gsub("%s+$", ""))
 end
 
+-- Profiles are per-game: the PlaceId is baked into the file name so one
+-- executor folder can hold settings for every game without collisions.
 local function pathFor(name)
+	return CONFIG_FOLDER .. "/profile_" .. game.PlaceId .. "_" .. name .. ".json"
+end
+
+-- Pre-per-game saves lived at VanityGeneral/<name>.json; still read as a
+-- fallback so old profiles keep loading (they're never written anymore).
+local function legacyPathFor(name)
 	return CONFIG_FOLDER .. "/" .. name .. ".json"
 end
 
@@ -1160,9 +1247,11 @@ function ConfigManager.list()
 	end
 
 	for _, path in ipairs(files) do
+		-- Only this game's profiles (other PlaceIds' files stay hidden).
+		local prefix = "profile_" .. game.PlaceId .. "_"
 		local name = tostring(path):match("([^/\\]+)%.json$")
-		if name then
-			table.insert(out, name)
+		if name and name:sub(1, #prefix) == prefix then
+			table.insert(out, name:sub(#prefix + 1))
 		end
 	end
 	table.sort(out)
@@ -1216,7 +1305,14 @@ function ConfigManager.load(name, config)
 	if type(isfile) == "function" then
 		local okIs, exists = pcall(isfile, path)
 		if okIs and not exists then
-			return false, "No config named '" .. name .. "'"
+			-- Migration fallback: an old pre-per-game save with the same name.
+			local legacy = legacyPathFor(name)
+			local okLegacy, legacyExists = pcall(isfile, legacy)
+			if okLegacy and legacyExists then
+				path = legacy
+			else
+				return false, "No config named '" .. name .. "'"
+			end
 		end
 	end
 
@@ -1263,6 +1359,8 @@ end
 
 local CameraDirector = {}
 local Camera = Workspace.CurrentCamera
+-- Random source for Humanize jitter (Random.new avoids reseeding the global RNG).
+local cd_rng = Random.new()
 
 -- Body regions map to the actual part names each rig type uses. Targeting picks a
 -- region (a fixed one, or a weighted-random roll), then the first part that region
@@ -1640,6 +1738,7 @@ function CameraDirector:Update(config, debug)
 		self._lockedChar = nil -- reset the weighted lock so re-enabling re-rolls
 		self._stickyCharacter = nil
 		self._stickyPlayer = nil
+		self._currentTarget = nil
 		return
 	end
 
@@ -1665,6 +1764,7 @@ function CameraDirector:Update(config, debug)
 		self._lockedChar = nil
 		self._stickyCharacter = nil
 		self._stickyPlayer = nil
+		self._currentTarget = nil
 		return
 	end
 	self._stickyCharacter = target.Character
@@ -1673,13 +1773,32 @@ function CameraDirector:Update(config, debug)
 	local region = self:_resolveRegion(target.Character, config)
 	local aimPart = pickPartFromRegion(target.Character, region) or pickAnyPart(target.Character)
 	if not aimPart then
+		self._currentTarget = nil
 		return
 	end
 
-	self:PointCamera(aimPart.Position, config.Smoothness)
+	local aimPosition = aimPart.Position
+	local worldDistance = (aimPosition - Camera.CFrame.Position).Magnitude
+
+	-- Velocity lead. `worldDistance / 500` is a rough time-of-flight in seconds;
+	-- game forks with real projectile speeds should override that divisor.
+	if (config.Prediction or 0) > 0 then
+		aimPosition = aimPosition + aimPart.AssemblyLinearVelocity * config.Prediction * (worldDistance / 500)
+	end
+
+	local smoothness = config.Smoothness
+	if config.Humanize then
+		-- Per-frame jitter: a slightly varying lerp alpha plus a sub-degree
+		-- angular wobble (scaled to distance) so the aim path isn't a perfect line.
+		smoothness = smoothness * (0.9 + cd_rng:NextNumber() * 0.2)
+		aimPosition = aimPosition + cd_rng:NextUnitVector() * (worldDistance * math.rad(cd_rng:NextNumber() * 0.25))
+	end
+
+	self:PointCamera(aimPosition, smoothness)
 
 	target.Part = aimPart
 	target.Region = region
+	self._currentTarget = target
 
 	if debug then
 		print("Tracking:", target.Character.Name, "Region:", region, "Distance:", math.floor(target.ScreenDistance))
@@ -1688,11 +1807,206 @@ function CameraDirector:Update(config, debug)
 	return target
 end
 
+-- The aimbot's current lock (a target table like FindBestTarget returns), or
+-- nil. Silent Aim reads this to redirect shots without moving the camera.
+function CameraDirector:GetCurrentTarget()
+	return self._currentTarget
+end
+
 function CameraDirector:Cleanup()
 	self._lockedChar = nil
 	self._stickyCharacter = nil
 	self._stickyPlayer = nil
+	self._currentTarget = nil
 	destroyFovCircle()
+end
+
+--==============================================================================
+-- HITBOX EXPANDER
+-- Inflates enemy HumanoidRootParts so they're easier to hit. These are
+-- CLIENT-SIDE writes on other players' characters: whether hits actually
+-- register depends on the game (it works where the server trusts client
+-- physics). Originals are stored per character and restored on disable,
+-- cleanup, or when the character leaves the candidate set.
+--==============================================================================
+
+local HitboxExpander = {}
+local hb_originals = {} -- [character] = { root, size, transparency, canCollide }
+
+local function hb_restore(character)
+	local original = hb_originals[character]
+	if not original then
+		return
+	end
+	hb_originals[character] = nil
+	local root = original.root
+	if root and root.Parent then
+		root.Size = original.size
+		root.Transparency = original.transparency
+		root.CanCollide = original.canCollide
+	end
+end
+
+local function hb_restoreAll()
+	for character in pairs(hb_originals) do
+		hb_restore(character)
+	end
+end
+
+local function hb_apply(character, config, seen)
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not (humanoid and humanoid.Health > 0 and root) then
+		return
+	end
+
+	seen[character] = true
+	if not hb_originals[character] then
+		hb_originals[character] = {
+			root = root,
+			size = root.Size,
+			transparency = root.Transparency,
+			canCollide = root.CanCollide,
+		}
+	end
+
+	local size = config.Size or 5
+	root.Size = Vector3.new(size, size, size)
+	root.Transparency = config.Transparency or 0.5
+	root.CanCollide = false
+end
+
+-- The candidate set mirrors the aimbot's: teammates skipped while Team Check is
+-- on, NPCs included only while Target Bots is on (same cached scan).
+function HitboxExpander:Update(config, cameraConfig)
+	if not config.Enabled then
+		hb_restoreAll()
+		return
+	end
+
+	local seen = {}
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer
+			and not (cameraConfig.TeamCheck and player.Team ~= nil and player.Team == LocalPlayer.Team)
+		then
+			hb_apply(player.Character, config, seen)
+		end
+	end
+
+	if cameraConfig.TargetBots then
+		for _, character in ipairs(getBotCharacters()) do
+			hb_apply(character, config, seen)
+		end
+	end
+
+	-- Restore anyone who left the candidate set (died, left, switched teams).
+	for character in pairs(hb_originals) do
+		if not seen[character] then
+			hb_restore(character)
+		end
+	end
+end
+
+function HitboxExpander:Cleanup()
+	hb_restoreAll()
+end
+
+--==============================================================================
+-- SILENT AIM
+-- Redirects your shots onto the aimbot's current target WITHOUT moving the
+-- camera, by hooking game's metatable. Requires an executor with
+-- hookmetamethod/getnamecallmethod — support varies, so both hooks are guarded
+-- and independent of each other; without them the feature simply no-ops.
+-- Conservative by design: only plain Vector3/CFrame values are rewritten, and
+-- only calls coming from game scripts (checkcaller) — never our own wall-check
+-- or triggerbot raycasts. There is no Cleanup: metatable hooks can't be
+-- uninstalled cleanly, so the hook stays but gates on Enabled + a live target.
+--==============================================================================
+
+local SilentAim = {}
+local sa_installed = false
+local sa_warned = false
+
+-- The part the aimbot is currently locked onto, or nil.
+local function sa_targetPart()
+	local target = CameraDirector:GetCurrentTarget()
+	local part = target and target.Part
+	if part and part.Parent then
+		return part
+	end
+	return nil
+end
+
+-- Only rewrite calls from game scripts. If the executor can't tell (no
+-- checkcaller), we don't rewrite at all — bending our own raycasts would break
+-- the script itself.
+local function sa_fromGameScript()
+	return type(checkcaller) == "function" and not checkcaller()
+end
+
+function SilentAim:Init(config)
+	if sa_installed then
+		return
+	end
+	if type(hookmetamethod) ~= "function" or type(getnamecallmethod) ~= "function" then
+		if not sa_warned then
+			warn("[Vanity-General] Silent Aim needs hookmetamethod — not available in this executor.")
+			sa_warned = true
+		end
+		return
+	end
+	sa_installed = true
+
+	-- __namecall: remote fires and Workspace.Raycast.
+	local oldNamecall
+	oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+		if config.Enabled and sa_fromGameScript() then
+			local method = getnamecallmethod()
+			local part = sa_targetPart()
+			if part then
+				if method == "FireServer" or method == "InvokeServer" then
+					-- Rewrite only position-like args; everything else passes through.
+					local args = { ... }
+					for i, value in ipairs(args) do
+						if typeof(value) == "Vector3" then
+							args[i] = part.Position
+						elseif typeof(value) == "CFrame" then
+							args[i] = part.CFrame
+						end
+					end
+					return oldNamecall(self, table.unpack(args))
+				end
+				if method == "Raycast" and self == Workspace then
+					-- Raycast(origin, direction, params): keep the original cast
+					-- length, bend the direction onto the target.
+					local origin, direction, params = ...
+					if typeof(origin) == "Vector3" and typeof(direction) == "Vector3" then
+						local bent = (part.Position - origin).Unit * direction.Magnitude
+						return oldNamecall(self, origin, bent, params)
+					end
+				end
+			end
+		end
+		return oldNamecall(self, ...)
+	end)
+
+	-- __index: the classic Mouse.Hit / Mouse.Target spoof.
+	local mouse = LocalPlayer:GetMouse()
+	local oldIndex
+	oldIndex = hookmetamethod(game, "__index", function(self, key)
+		if config.Enabled and sa_fromGameScript() and self == mouse then
+			local part = sa_targetPart()
+			if part then
+				if key == "Hit" then
+					return part.CFrame
+				end
+				if key == "Target" then
+					return part
+				end
+			end
+		end
+		return oldIndex(self, key)
+	end)
 end
 
 --==============================================================================
@@ -1968,6 +2282,8 @@ local tb_click -- resolved click function
 local tb_resolved = false
 local tb_warned = false
 local tb_onTargetSince = nil -- os.clock when the crosshair first landed on a target
+local tb_currentDelay -- humanized reaction time, re-sampled per target landing
+local tb_rng = Random.new()
 local tb_lastFire = 0
 local TB_REFIRE = 0.08 -- min seconds between shots so it can't spam every frame
 
@@ -2068,9 +2384,13 @@ function Triggerbot:Update(config, cameraConfig)
 	local now = os.clock()
 	if not tb_onTargetSince then
 		tb_onTargetSince = now
+		-- Humanized reaction time, sampled fresh each time the crosshair lands.
+		local lo = math.min(config.MinDelay or 0.1, config.MaxDelay or 0.25)
+		local hi = math.max(config.MinDelay or 0.1, config.MaxDelay or 0.25)
+		tb_currentDelay = tb_rng:NextNumber(lo, hi)
 	end
 
-	if (now - tb_onTargetSince) >= (config.Delay or 0) and (now - tb_lastFire) >= TB_REFIRE then
+	if (now - tb_onTargetSince) >= (tb_currentDelay or 0) and (now - tb_lastFire) >= TB_REFIRE then
 		tb_lastFire = now
 		tb_click()
 	end
@@ -2170,7 +2490,7 @@ end
 local function makeInfoTag(entry, name, head, config)
 	local tag = Instance.new("BillboardGui")
 	tag.Name = "VGInfo"
-	tag.Size = UDim2.fromOffset(200, 34)
+	tag.Size = UDim2.fromOffset(200, 46)
 	tag.StudsOffset = Vector3.new(0, 2.7, 0)
 	tag.AlwaysOnTop = true
 	tag.Adornee = head
@@ -2211,9 +2531,29 @@ local function makeInfoTag(entry, name, head, config)
 	distLbl.Visible = false
 	distLbl.Parent = holder
 
+	-- Health bar: thin back + fill under the text lines.
+	local healthBack = Instance.new("Frame")
+	healthBack.LayoutOrder = 3
+	healthBack.BackgroundColor3 = Color3.fromRGB(15, 12, 20)
+	healthBack.BackgroundTransparency = 0.3
+	healthBack.BorderSizePixel = 0
+	healthBack.Size = UDim2.new(0.55, 0, 0, 5)
+	healthBack.Visible = false
+	healthBack.Parent = holder
+	newInstance("UICorner", { Parent = healthBack, CornerRadius = UDim.new(1, 0) })
+
+	local healthFill = Instance.new("Frame")
+	healthFill.BackgroundColor3 = Color3.fromRGB(80, 220, 100)
+	healthFill.BorderSizePixel = 0
+	healthFill.Size = UDim2.fromScale(1, 1)
+	healthFill.Parent = healthBack
+	newInstance("UICorner", { Parent = healthFill, CornerRadius = UDim.new(1, 0) })
+
 	entry.nameTag = tag
 	entry.nameLabel = nameLbl
 	entry.distanceLabel = distLbl
+	entry.healthBack = healthBack
+	entry.healthFill = healthFill
 	entry.nameHead = head
 end
 
@@ -2237,16 +2577,25 @@ local function updateInfoTag(name, entry, character, config)
 	end
 
 	entry.nameLabel.TextColor3 = config.OutlineColor
-	entry.nameLabel.Visible = config.Names
+	entry.nameLabel.Visible = config.Names or config.NameTags
 
-	entry.distanceLabel.Visible = config.Distance
-	if config.Distance then
+	entry.distanceLabel.Visible = config.Distance or config.DistanceTags
+	if entry.distanceLabel.Visible then
 		entry.distanceLabel.TextColor3 = config.OutlineColor
 		local myChar = LocalPlayer.Character
 		local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
 		local hrp = character:FindFirstChild("HumanoidRootPart")
 		local d = (myRoot and hrp) and math.floor((hrp.Position - myRoot.Position).Magnitude + 0.5) or 0
 		entry.distanceLabel.Text = "[" .. d .. "m]"
+	end
+
+	entry.healthBack.Visible = config.HealthBars
+	if config.HealthBars then
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		local frac = humanoid and math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1) or 0
+		entry.healthFill.Size = UDim2.fromScale(frac, 1)
+		-- Red at low health, green at full.
+		entry.healthFill.BackgroundColor3 = Color3.fromRGB(220, 60, 60):Lerp(Color3.fromRGB(80, 220, 100), frac)
 	end
 
 	entry.nameTag.Enabled = true
@@ -2287,7 +2636,7 @@ local function renderCharacter(entry, character, name, config)
 		entry.box.Visible = false
 	end
 
-	if config.Names or config.Distance then
+	if config.Names or config.Distance or config.NameTags or config.DistanceTags or config.HealthBars then
 		updateInfoTag(name, entry, character, config)
 	elseif entry.nameTag then
 		entry.nameTag.Enabled = false
@@ -2519,6 +2868,313 @@ function ESP:Cleanup()
 		boxGui:Destroy()
 		boxGui = nil
 	end
+end
+
+--==============================================================================
+-- DRAWING ESP
+-- Screen-space boxes + tracers via the executor's Drawing library. Drawing
+-- objects can't be parented to anything, so they're tracked in a table here and
+-- destroyed when their player leaves or on Cleanup. No library, no-op: the
+-- whole section guards on Drawing being present.
+--==============================================================================
+
+local DrawingESP = {}
+local de_available = type(Drawing) == "table" and type(Drawing.new) == "function"
+local de_warned = false
+local de_entries = {} -- player -> { box = {4 Lines}, tracer = Line }
+
+local function de_newLine()
+	local line = Drawing.new("Line")
+	line.Thickness = 1
+	line.Visible = false
+	return line
+end
+
+local function de_newEntry(player)
+	local entry = {
+		box = { de_newLine(), de_newLine(), de_newLine(), de_newLine() },
+		tracer = de_newLine(),
+	}
+	de_entries[player] = entry
+	return entry
+end
+
+local function de_hide(entry)
+	for _, line in ipairs(entry.box) do
+		line.Visible = false
+	end
+	entry.tracer.Visible = false
+end
+
+local function de_removePlayer(player)
+	local entry = de_entries[player]
+	if not entry then
+		return
+	end
+	de_entries[player] = nil
+	for _, line in ipairs(entry.box) do
+		line:Remove()
+	end
+	entry.tracer:Remove()
+end
+
+local function de_updatePlayer(player, config, cam)
+	local entry = de_entries[player]
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+
+	if not (config.Boxes or config.Tracers) or not root or not (humanoid and humanoid.Health > 0) then
+		if entry then
+			de_hide(entry)
+		end
+		return
+	end
+
+	-- Same bounding math as the UI-stroke box ESP: head top to below the root.
+	local head = character:FindFirstChild("Head")
+	local topWorld = head and (head.Position + Vector3.new(0, head.Size.Y, 0))
+		or (root.Position + Vector3.new(0, 3, 0))
+	local botWorld = root.Position - Vector3.new(0, 3.2, 0)
+
+	local topV, onScreen = cam:WorldToViewportPoint(topWorld)
+	local botV = cam:WorldToViewportPoint(botWorld)
+	-- Behind the camera or off-screen: nothing to draw.
+	if not onScreen or topV.Z <= 0 or botV.Z <= 0 then
+		if entry then
+			de_hide(entry)
+		end
+		return
+	end
+
+	entry = entry or de_newEntry(player)
+
+	local height = math.abs(botV.Y - topV.Y)
+	local width = height * 0.62
+	local cx = (topV.X + botV.X) * 0.5
+	local left, right = cx - width * 0.5, cx + width * 0.5
+	local top, bottom = topV.Y, botV.Y
+
+	local box = entry.box
+	-- top, bottom, left, right edges
+	box[1].From = Vector2.new(left, top)
+	box[1].To = Vector2.new(right, top)
+	box[2].From = Vector2.new(left, bottom)
+	box[2].To = Vector2.new(right, bottom)
+	box[3].From = Vector2.new(left, top)
+	box[3].To = Vector2.new(left, bottom)
+	box[4].From = Vector2.new(right, top)
+	box[4].To = Vector2.new(right, bottom)
+	for _, line in ipairs(box) do
+		line.Color = config.BoxColor
+		line.Visible = config.Boxes
+	end
+
+	entry.tracer.From = Vector2.new(cam.ViewportSize.X / 2, cam.ViewportSize.Y)
+	entry.tracer.To = Vector2.new(cx, bottom)
+	entry.tracer.Color = config.TracerColor
+	entry.tracer.Visible = config.Tracers
+end
+
+-- Candidates mirror the aimbot's team rule (camera config drives Team Check).
+function DrawingESP:Update(config, cameraConfig)
+	if not de_available then
+		if (config.Boxes or config.Tracers) and not de_warned then
+			warn("[Vanity-General] Box/Tracer ESP needs the Drawing library — not available in this executor.")
+			de_warned = true
+		end
+		return
+	end
+
+	local cam = Workspace.CurrentCamera
+	if not cam then
+		return
+	end
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer
+			and not (cameraConfig.TeamCheck and player.Team ~= nil and player.Team == LocalPlayer.Team)
+		then
+			de_updatePlayer(player, config, cam)
+		end
+	end
+
+	-- Drawing objects can't be parented, so leavers must be cleaned up by hand.
+	for player in pairs(de_entries) do
+		if player.Parent ~= Players then
+			de_removePlayer(player)
+		end
+	end
+end
+
+function DrawingESP:Cleanup()
+	for player in pairs(de_entries) do
+		de_removePlayer(player)
+	end
+end
+
+--==============================================================================
+-- VISUALS
+-- World lighting tweaks. Fullbright/NoFog write Lighting properties, so the
+-- originals are captured first and restored on toggle-off or Cleanup. While
+-- enabled, a ~1s watch re-applies if the game changes the properties back.
+--==============================================================================
+
+local Visuals = {}
+local Lighting = game:GetService("Lighting")
+local vs_originals -- captured the first time either feature turns on
+local vs_fullbrightOn = false
+local vs_noFogOn = false
+local vs_lastCheck = 0
+local VS_CHECK_INTERVAL = 1
+
+local function vs_captureOriginals()
+	if vs_originals then
+		return
+	end
+	vs_originals = {
+		Brightness = Lighting.Brightness,
+		ClockTime = Lighting.ClockTime,
+		GlobalShadows = Lighting.GlobalShadows,
+		FogEnd = Lighting.FogEnd,
+		FogStart = Lighting.FogStart,
+		Ambient = Lighting.Ambient,
+		OutdoorAmbient = Lighting.OutdoorAmbient,
+	}
+end
+
+local function vs_applyFullbright()
+	Lighting.Brightness = 2
+	Lighting.ClockTime = 14 -- noon
+	Lighting.GlobalShadows = false
+end
+
+local function vs_applyNoFog()
+	Lighting.FogEnd = 100000
+end
+
+local function vs_restoreFullbright()
+	Lighting.Brightness = vs_originals.Brightness
+	Lighting.ClockTime = vs_originals.ClockTime
+	Lighting.GlobalShadows = vs_originals.GlobalShadows
+end
+
+local function vs_restoreNoFog()
+	Lighting.FogEnd = vs_originals.FogEnd
+	Lighting.FogStart = vs_originals.FogStart
+end
+
+function Visuals:Update(config)
+	if not (config.Fullbright or config.NoFog or vs_fullbrightOn or vs_noFogOn) then
+		return
+	end
+	vs_captureOriginals()
+
+	if config.Fullbright ~= vs_fullbrightOn then
+		vs_fullbrightOn = config.Fullbright
+		if vs_fullbrightOn then
+			vs_applyFullbright()
+		else
+			vs_restoreFullbright()
+		end
+	end
+
+	if config.NoFog ~= vs_noFogOn then
+		vs_noFogOn = config.NoFog
+		if vs_noFogOn then
+			vs_applyNoFog()
+		else
+			vs_restoreNoFog()
+		end
+	end
+
+	-- The game may re-write lighting (new area, weather script); push back ~1/s.
+	if (vs_fullbrightOn or vs_noFogOn) and os.clock() - vs_lastCheck >= VS_CHECK_INTERVAL then
+		vs_lastCheck = os.clock()
+		if vs_fullbrightOn
+			and (Lighting.Brightness ~= 2 or Lighting.ClockTime ~= 14 or Lighting.GlobalShadows)
+		then
+			vs_applyFullbright()
+		end
+		if vs_noFogOn and Lighting.FogEnd < 100000 then
+			vs_applyNoFog()
+		end
+	end
+end
+
+function Visuals:Cleanup()
+	if vs_originals then
+		if vs_fullbrightOn then
+			vs_restoreFullbright()
+		end
+		if vs_noFogOn then
+			vs_restoreNoFog()
+		end
+	end
+	vs_fullbrightOn = false
+	vs_noFogOn = false
+end
+
+--==============================================================================
+-- UTILITY
+-- Small quality-of-life features: Anti-AFK plus server hop / rejoin helpers.
+--==============================================================================
+
+local Utility = {}
+local TeleportService = game:GetService("TeleportService")
+local ut_idleConnection
+
+-- Anti-AFK: Roblox kicks after ~20 minutes without input. VirtualUser fakes
+-- input at the engine level — it's an executor global on most executors and a
+-- real (normally script-inaccessible) service otherwise, so try both.
+function Utility:Init(config)
+	if ut_idleConnection then
+		return
+	end
+
+	local vu = (type(VirtualUser) ~= "nil" and VirtualUser) or nil
+	if not vu then
+		pcall(function()
+			vu = game:GetService("VirtualUser")
+		end)
+	end
+	if not vu then
+		return -- no way to simulate input on this executor
+	end
+
+	ut_idleConnection = LocalPlayer.Idled:Connect(function()
+		if config.AntiAFK then
+			vu:CaptureController()
+			vu:ClickButton2(Vector2.new())
+		end
+	end)
+end
+
+function Utility:Cleanup()
+	if ut_idleConnection then
+		ut_idleConnection:Disconnect()
+		ut_idleConnection = nil
+	end
+end
+
+function Utility:ServerHop()
+	local ok, err = pcall(function()
+		TeleportService:Teleport(game.PlaceId, LocalPlayer)
+	end)
+	if not ok then
+		warn("[Vanity-General] Server hop failed:", err)
+	end
+	return ok
+end
+
+function Utility:Rejoin()
+	local ok, err = pcall(function()
+		TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+	end)
+	if not ok then
+		warn("[Vanity-General] Rejoin failed:", err)
+	end
+	return ok
 end
 
 --==============================================================================
@@ -3648,7 +4304,7 @@ local function wireKeybindBox(box, labelText, getKey, setKey, conflictCheck)
 end
 
 -- Returns the name of the action already using `key` (excluding `field`), or nil.
--- Fields: menu, aimbot, esp, fovcircle, norecoil, nospread, unload.
+-- Fields: menu, aimbot, esp, fovcircle, norecoil, nospread, clicktp, unload.
 local function keyConflict(config, key, field)
 	if field ~= "menu" and config.UI.MenuKey == key then
 		return "Menu"
@@ -3670,6 +4326,9 @@ local function keyConflict(config, key, field)
 	end
 	if field ~= "triggerbot" and config.Triggerbot.ToggleKey == key then
 		return "Triggerbot"
+	end
+	if field ~= "clicktp" and config.Movement.ClickTPKey == key then
+		return "Click TP"
 	end
 	if field ~= "unload" and config.UI.UnloadKey == key then
 		return "Unload"
@@ -4129,6 +4788,12 @@ local function buildCameraTab(parent, config)
 		config.Camera.TeamCheck = not config.Camera.TeamCheck
 	end)
 
+	makeToggle(aim, "Humanize", function()
+		return config.Camera.Humanize
+	end, function()
+		config.Camera.Humanize = not config.Camera.Humanize
+	end)
+
 	makeToggleWithKeybind(aim, "FOV Circle", function()
 		return config.Camera.FOVCircle
 	end, function()
@@ -4145,6 +4810,12 @@ local function buildCameraTab(parent, config)
 		return config.Camera.Smoothness
 	end, function(val)
 		config.Camera.Smoothness = val
+	end, false)
+
+	makeFillSlider(aim, "Prediction", 0, 1, function()
+		return config.Camera.Prediction
+	end, function(val)
+		config.Camera.Prediction = val
 	end, false)
 
 	-- FOV drives both the targeting cone and the on-screen circle.
@@ -4213,10 +4884,16 @@ local function buildCameraTab(parent, config)
 		return keyConflict(config, key, "triggerbot")
 	end)
 
-	makeFillSlider(trigger, "Delay", 0, 500, function()
-		return config.Triggerbot.Delay * 1000
+	makeFillSlider(trigger, "Min Delay", 0, 500, function()
+		return config.Triggerbot.MinDelay * 1000
 	end, function(val)
-		config.Triggerbot.Delay = val / 1000
+		config.Triggerbot.MinDelay = val / 1000
+	end, true, "ms", true)
+
+	makeFillSlider(trigger, "Max Delay", 0, 500, function()
+		return config.Triggerbot.MaxDelay * 1000
+	end, function(val)
+		config.Triggerbot.MaxDelay = val / 1000
 	end, true, "ms", true)
 
 	makeFillSlider(trigger, "Max Distance", 100, 2000, function()
@@ -4230,6 +4907,37 @@ local function buildCameraTab(parent, config)
 	end, function()
 		config.Triggerbot.WallCheck = not config.Triggerbot.WallCheck
 	end)
+
+	-- Silent Aim redirects shots without moving the camera. On executors without
+	-- hookmetamethod the toggle simply does nothing (see the SILENT AIM section).
+	local silent = makeGroup(right, "Silent Aim")
+
+	makeToggle(silent, "Enabled", function()
+		return config.SilentAim.Enabled
+	end, function()
+		config.SilentAim.Enabled = not config.SilentAim.Enabled
+	end)
+
+	-- Client-side root inflation; originals restore when toggled back off.
+	local expander = makeGroup(right, "Hitbox Expander")
+
+	makeToggle(expander, "Enabled", function()
+		return config.Hitbox.Enabled
+	end, function()
+		config.Hitbox.Enabled = not config.Hitbox.Enabled
+	end)
+
+	makeFillSlider(expander, "Size", 1, 20, function()
+		return config.Hitbox.Size
+	end, function(val)
+		config.Hitbox.Size = val
+	end, true)
+
+	makeFillSlider(expander, "Transparency", 0, 1, function()
+		return config.Hitbox.Transparency
+	end, function(val)
+		config.Hitbox.Transparency = val
+	end, false)
 
 	------------------------------------------------------------------- Weapons --
 	left, right = makeColumns(host:add("Weapons"))
@@ -4351,6 +5059,12 @@ local function buildESPTab(parent, config)
 		config.ESP.Distance = not config.ESP.Distance
 	end)
 
+	makeToggle(look, "Health Bars", function()
+		return config.ESP.HealthBars
+	end, function()
+		config.ESP.HealthBars = not config.ESP.HealthBars
+	end)
+
 	makeToggle(look, "Filled", function()
 		return config.ESP.Filled
 	end, function()
@@ -4369,6 +5083,35 @@ local function buildESPTab(parent, config)
 		config.ESP.FillOpacity = val
 	end, false)
 
+	-- Executor Drawing-library boxes/tracers (no-op where Drawing is missing).
+	local drawing = makeGroup(right, "Drawing ESP")
+
+	makeToggle(drawing, "Boxes", function()
+		return config.Drawing.Boxes
+	end, function()
+		config.Drawing.Boxes = not config.Drawing.Boxes
+	end)
+
+	makeToggle(drawing, "Tracers", function()
+		return config.Drawing.Tracers
+	end, function()
+		config.Drawing.Tracers = not config.Drawing.Tracers
+	end)
+
+	local world = makeGroup(right, "World")
+
+	makeToggle(world, "Fullbright", function()
+		return config.Visuals.Fullbright
+	end, function()
+		config.Visuals.Fullbright = not config.Visuals.Fullbright
+	end)
+
+	makeToggle(world, "No Fog", function()
+		return config.Visuals.NoFog
+	end, function()
+		config.Visuals.NoFog = not config.Visuals.NoFog
+	end)
+
 	----------------------------------------------------------------- Colors -----
 	left, right = makeColumns(host:add("Colors"))
 
@@ -4383,6 +5126,96 @@ local function buildESPTab(parent, config)
 	end, function(c)
 		config.ESP.FillColor = c
 	end)
+
+	makeColorPicker(left, "Box Color", function()
+		return config.Drawing.BoxColor
+	end, function(c)
+		config.Drawing.BoxColor = c
+	end)
+
+	makeColorPicker(right, "Tracer Color", function()
+		return config.Drawing.TracerColor
+	end, function(c)
+		config.Drawing.TracerColor = c
+	end)
+end
+
+local function buildMovementTab(parent, config)
+	layoutOrder = 0
+	local host = makeSubTabHost(parent)
+	local left, right = makeColumns(host:add("Movement"))
+
+	local fly = makeGroup(left, "Fly")
+
+	makeToggle(fly, "Enabled", function()
+		return config.Movement.FlyEnabled
+	end, function()
+		config.Movement.FlyEnabled = not config.Movement.FlyEnabled
+	end)
+
+	makeFillSlider(fly, "Fly Speed", 10, 200, function()
+		return config.Movement.FlySpeed
+	end, function(val)
+		config.Movement.FlySpeed = val
+	end, true)
+
+	local speed = makeGroup(left, "Speed")
+
+	makeToggle(speed, "Enabled", function()
+		return config.Movement.SpeedEnabled
+	end, function()
+		config.Movement.SpeedEnabled = not config.Movement.SpeedEnabled
+	end)
+
+	makeFillSlider(speed, "Speed", 16, 100, function()
+		return config.Movement.Speed
+	end, function(val)
+		config.Movement.Speed = val
+	end, true)
+
+	local misc = makeGroup(left, "Other")
+
+	makeToggle(misc, "Noclip", function()
+		return config.Movement.NoclipEnabled
+	end, function()
+		config.Movement.NoclipEnabled = not config.Movement.NoclipEnabled
+	end)
+
+	makeToggle(misc, "Infinite Jump", function()
+		return config.Movement.InfJumpEnabled
+	end, function()
+		config.Movement.InfJumpEnabled = not config.Movement.InfJumpEnabled
+	end)
+
+	local tp = makeGroup(right, "Click TP")
+
+	makeToggle(tp, "Enabled", function()
+		return config.Movement.ClickTPEnabled
+	end, function()
+		config.Movement.ClickTPEnabled = not config.Movement.ClickTPEnabled
+	end)
+
+	makeKeybind(tp, "Modifier Key", function()
+		return config.Movement.ClickTPKey
+	end, function(key)
+		config.Movement.ClickTPKey = key
+	end, function(key)
+		return keyConflict(config, key, "clicktp")
+	end)
+
+	local fat = makeGroup(right, "Fat Walk")
+
+	makeToggle(fat, "Enabled", function()
+		return config.Movement.FatWalk
+	end, function()
+		config.Movement.FatWalk = not config.Movement.FatWalk
+	end)
+
+	makeFillSlider(fat, "Fat Scale", 1, 5, function()
+		return config.Movement.FatScale
+	end, function(val)
+		config.Movement.FatScale = val
+	end, false)
 end
 
 local function buildSettingsTab(parent, config)
@@ -4442,6 +5275,20 @@ local function buildSettingsTab(parent, config)
 	makeLabel(account, "Username", LocalPlayer and LocalPlayer.Name or "—")
 	makeLabel(account, "Display Name", LocalPlayer and LocalPlayer.DisplayName or "—")
 	makeLabel(account, "User ID", LocalPlayer and tostring(LocalPlayer.UserId) or "—")
+
+	makeToggle(account, "Anti-AFK", function()
+		return config.Utility.AntiAFK
+	end, function()
+		config.Utility.AntiAFK = not config.Utility.AntiAFK
+	end)
+
+	makeButton(account, "Server Hop", function()
+		Utility:ServerHop()
+	end)
+
+	makeButton(account, "Rejoin Server", function()
+		Utility:Rejoin()
+	end)
 
 	------------------------------------------------------------------ Configs ---
 	-- Save / load / delete named setting profiles.
@@ -5137,7 +5984,7 @@ function UI:Init(config)
 		PaddingRight = UDim.new(0, 4),
 	})
 
-	local tabs = { "Combat", "Visual", "Settings" }
+	local tabs = { "Combat", "Visual", "Movement", "Settings" }
 	local tabFrames = {}
 
 	for i, tabName in ipairs(tabs) do
@@ -5213,6 +6060,7 @@ function UI:Init(config)
 
 	buildCameraTab(tabFrames["Combat"].frame, config)
 	buildESPTab(tabFrames["Visual"].frame, config)
+	buildMovementTab(tabFrames["Movement"].frame, config)
 	buildSettingsTab(tabFrames["Settings"].frame, config)
 	buildKeybindPanel(config)
 	buildTargetPanel(config)
@@ -5361,6 +6209,232 @@ function UI:Cleanup()
 		mainWindow = nil
 	end
 	visible = false
+end
+
+--==============================================================================
+-- MOVEMENT
+-- Client-side movement suite: fly, noclip, speed, infinite jump, click TP.
+-- Stealth notes: everything here is CFrame or physics velocity only. No
+-- BodyVelocity/BodyGyro instances, no WalkSpeed/JumpPower property writes, no
+-- Humanoid:ChangeState spoofing — those are exactly what client anti-cheats
+-- scan for. Noclip and fly are inherently client-side; the server never sees
+-- them, and other players still collide with you.
+--==============================================================================
+
+local Movement = {}
+
+-- Stock WalkSpeed; Speed mode only adds the surplus over this, so a Speed of
+-- 16 is a no-op (you move exactly as fast as the game intends).
+local BASE_WALKSPEED = 16
+
+-- Matches a normal jump's upward launch (~50 studs/s) so Infinite Jump feels
+-- like jumping, just without needing to touch the ground.
+local JUMP_VELOCITY = 50
+
+local mv_jumpConnection
+local mv_clickConnection
+local fw_original -- { width, depth } captured the first frame Fat Walk turns on
+
+-- Returns character, root, humanoid for the local player, or nil when any piece
+-- is missing or dead (mid-respawn, etc).
+local function mv_character()
+	local character = LocalPlayer.Character
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if not (character and root and humanoid and humanoid.Health > 0) then
+		return nil
+	end
+	return character, root, humanoid
+end
+
+-- WASD relative to the camera (flattened, so looking down doesn't dive) plus
+-- Space/Shift for up/down. Returns a unit vector, or nil when nothing is held.
+local function mv_flyDirection(cam)
+	local look = cam.CFrame.LookVector
+	local flat = Vector3.new(look.X, 0, look.Z)
+	if flat.Magnitude < 0.001 then
+		flat = Vector3.new(0, 0, -1) -- looking straight up/down: pick a fallback
+	else
+		flat = flat.Unit
+	end
+	local right = cam.CFrame.RightVector
+	right = Vector3.new(right.X, 0, right.Z).Unit
+
+	local move = Vector3.zero
+	if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+		move = move + flat
+	end
+	if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+		move = move - flat
+	end
+	if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+		move = move + right
+	end
+	if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+		move = move - right
+	end
+	if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+		move = move + Vector3.yAxis
+	end
+	if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+		move = move - Vector3.yAxis
+	end
+
+	if move.Magnitude > 0 then
+		return move.Unit
+	end
+	return nil
+end
+
+-- Fat Walk scales the R15 body width/depth NumberValues (height untouched).
+-- Purely client-side visual (FilteringEnabled): others see you normally and
+-- nothing replicates. R6 rigs don't have these values, so it's a no-op there.
+local function mv_setFatWalk(humanoid, scale)
+	local width = humanoid and humanoid:FindFirstChild("BodyWidthScale")
+	local depth = humanoid and humanoid:FindFirstChild("BodyDepthScale")
+	if not (width and depth) then
+		return
+	end
+	if not fw_original then
+		fw_original = { width = width.Value, depth = depth.Value }
+	end
+	width.Value = scale
+	depth.Value = scale
+end
+
+local function mv_restoreFatWalk(humanoid)
+	if not fw_original then
+		return
+	end
+	local width = humanoid and humanoid:FindFirstChild("BodyWidthScale")
+	local depth = humanoid and humanoid:FindFirstChild("BodyDepthScale")
+	if width then
+		width.Value = fw_original.width
+	end
+	if depth then
+		depth.Value = fw_original.depth
+	end
+	fw_original = nil
+end
+
+-- Per-frame driver, called from the controller's RenderStepped loop.
+function Movement:Update(dt, config)
+	local character, root, humanoid = mv_character()
+
+	-- Noclip: re-applied every frame, so the moment this stops running (toggle
+	-- off, or the whole script unloads) collision comes back on its own.
+	if config.NoclipEnabled and character then
+		for _, part in ipairs(character:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = false
+			end
+		end
+	end
+
+	if not root then
+		return
+	end
+
+	-- Fly: pure CFrame translation of the root (rotation untouched, so the
+	-- character stays upright and keeps its look direction). Velocity is zeroed
+	-- while flying so gravity can't make you sink between steps.
+	if config.FlyEnabled then
+		local cam = Workspace.CurrentCamera
+		if cam then
+			root.AssemblyLinearVelocity = Vector3.zero
+			-- While a keybind box is capturing, WASD/Space are a rebind, not flying.
+			if not UI:IsCapturingKey() then
+				local dir = mv_flyDirection(cam)
+				if dir then
+					root.CFrame = root.CFrame + dir * (config.FlySpeed or 50) * dt
+				end
+			end
+		end
+	end
+
+	-- Speed: a CFrame nudge along the humanoid's OWN move direction, so it works
+	-- with any control scheme and never touches WalkSpeed.
+	if config.SpeedEnabled then
+		local surplus = (config.Speed or BASE_WALKSPEED) - BASE_WALKSPEED
+		if surplus > 0 and humanoid.MoveDirection.Magnitude > 0 then
+			root.CFrame = root.CFrame + humanoid.MoveDirection * surplus * dt
+		end
+	end
+
+	-- Fat Walk: re-applied each frame so a respawn keeps the effect; originals
+	-- are restored the first frame the toggle is off (and in Cleanup).
+	if config.FatWalk then
+		mv_setFatWalk(humanoid, config.FatScale or 2)
+	else
+		mv_restoreFatWalk(humanoid)
+	end
+end
+
+-- JumpRequest fires on Space even mid-air. AssemblyLinearVelocity is a physics
+-- velocity, not one of the property writes anti-cheats watch (WalkSpeed /
+-- JumpPower), so this reads as an ordinary jump.
+local function mv_onJumpRequest(config)
+	if not config.InfJumpEnabled then
+		return
+	end
+	local _, root = mv_character()
+	if root then
+		local velocity = root.AssemblyLinearVelocity
+		root.AssemblyLinearVelocity = Vector3.new(velocity.X, JUMP_VELOCITY, velocity.Z)
+	end
+end
+
+local function mv_onInput(config, input, gameProcessed)
+	if gameProcessed or UI:IsCapturingKey() then
+		return
+	end
+	if not config.ClickTPEnabled then
+		return
+	end
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 then
+		return
+	end
+	if not UserInputService:IsKeyDown(config.ClickTPKey or Enum.KeyCode.LeftControl) then
+		return
+	end
+
+	local _, root = mv_character()
+	local mouse = LocalPlayer:GetMouse()
+	if root and mouse and mouse.Hit then
+		-- +3 studs so you land on top of the surface instead of inside it.
+		root.CFrame = CFrame.new(mouse.Hit.Position + Vector3.new(0, 3, 0))
+	end
+end
+
+-- Event-driven halves (jump, click) live on their own connections; the
+-- per-frame halves are driven by the controller calling Update.
+function Movement:Init(config)
+	if not mv_jumpConnection then
+		mv_jumpConnection = UserInputService.JumpRequest:Connect(function()
+			mv_onJumpRequest(config)
+		end)
+	end
+	if not mv_clickConnection then
+		mv_clickConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+			mv_onInput(config, input, gameProcessed)
+		end)
+	end
+end
+
+function Movement:Cleanup()
+	if mv_jumpConnection then
+		mv_jumpConnection:Disconnect()
+		mv_jumpConnection = nil
+	end
+	if mv_clickConnection then
+		mv_clickConnection:Disconnect()
+		mv_clickConnection = nil
+	end
+	-- Noclip needs no restore here: it only re-sets CanCollide = false each
+	-- frame, so once Update stops running collision returns naturally.
+	local character = LocalPlayer.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	mv_restoreFatWalk(humanoid)
 end
 
 --==============================================================================
@@ -5596,6 +6670,15 @@ function VanityGeneral.DeleteConfig(name)
 	return ConfigManager.delete(name)
 end
 
+-- Teleport helpers (also on the Settings > Account buttons).
+function VanityGeneral.ServerHop()
+	return Utility:ServerHop()
+end
+
+function VanityGeneral.Rejoin()
+	return Utility:Rejoin()
+end
+
 -- Sets the watermark logo from an uploaded image id (bare id or rbxassetid://).
 -- Persists into config so it survives a menu rebuild.
 function VanityGeneral.SetWatermarkImage(id)
@@ -5627,6 +6710,12 @@ function VanityGeneral.Start()
 		ESP:Init()
 
 		UI:Init(Configuration)
+
+		Movement:Init(Configuration.Movement)
+
+		SilentAim:Init(Configuration.SilentAim)
+
+		Utility:Init(Configuration.Utility)
 
 		table.insert(connections, Players.PlayerAdded:Connect(function(player)
 			guarded("PlayerAdded", ESP.OnPlayerAdded, ESP, player)
@@ -5700,6 +6789,19 @@ function VanityGeneral.Start()
 
 			-- Auto-fire when the crosshair is on a target.
 			guarded("Triggerbot", Triggerbot.Update, Triggerbot, Configuration.Triggerbot, Configuration.Camera)
+
+			-- CFrame movement suite (fly / noclip / speed); event halves run on
+			-- their own connections from Movement:Init.
+			guarded("Movement", Movement.Update, Movement, dt, Configuration.Movement)
+
+			-- Client-side root inflation on the aimbot's candidate set.
+			guarded("Hitbox", HitboxExpander.Update, HitboxExpander, Configuration.Hitbox, Configuration.Camera)
+
+			-- Executor Drawing boxes/tracers (no-op without the Drawing library).
+			guarded("Drawing ESP", DrawingESP.Update, DrawingESP, Configuration.Drawing, Configuration.Camera)
+
+			-- Fullbright / No Fog lighting watches.
+			guarded("Visuals", Visuals.Update, Visuals, Configuration.Visuals)
 
 			-- Averaging over a window rather than 1/dt keeps the readout steady.
 			fpsAccum = fpsAccum + dt
@@ -5786,6 +6888,21 @@ function VanityGeneral.Stop()
 	end)
 	pcall(function()
 		CameraDirector:Cleanup() -- removes the FOV circle drawing
+	end)
+	pcall(function()
+		Movement:Cleanup() -- disconnects jump/click listeners; noclip self-restores
+	end)
+	pcall(function()
+		HitboxExpander:Cleanup() -- restore any inflated enemy roots
+	end)
+	pcall(function()
+		DrawingESP:Cleanup() -- destroy all Drawing line objects
+	end)
+	pcall(function()
+		Visuals:Cleanup() -- restore original Lighting properties
+	end)
+	pcall(function()
+		Utility:Cleanup() -- disconnect the Anti-AFK Idled listener
 	end)
 	pcall(function()
 		NoSpread:Cleanup() -- restore original math.random so no global hook lingers

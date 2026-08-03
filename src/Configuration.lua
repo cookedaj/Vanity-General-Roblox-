@@ -14,6 +14,11 @@ Config.Camera = {
 	TargetBots = false,
 	-- Never target players on the same team as the local player.
 	TeamCheck = true,
+	-- Projectile lead factor: 0 aims at the live position, higher values lead
+	-- the target by velocity scaled over distance.
+	Prediction = 0,
+	-- Jitter aim smoothness/angle so tracking doesn't look robotic.
+	Humanize = true,
 	-- Every standard rig part (R15 + R6). CameraDirector resolves whichever the
 	-- target actually has, falling back through this list, so any of these can be
 	-- aimed at regardless of rig type.
@@ -56,6 +61,35 @@ Config.ESP = {
 	OutlineOpacity = 1,
 	FillOpacity = 0.4,
 	MaxDistance = 1000,
+	-- Billboard tags above heads; composed per frame from whichever are on.
+	NameTags = false,
+	HealthBars = false,
+	DistanceTags = false,
+}
+
+-- Lighting overrides (full daylight / fog removal), restored on disable.
+Config.Visuals = {
+	Fullbright = false,
+	NoFog = false,
+}
+
+Config.Utility = {
+	AntiAFK = true,
+}
+
+Config.Movement = {
+	FlyEnabled = false,
+	FlySpeed = 50,
+	NoclipEnabled = false,
+	SpeedEnabled = false,
+	Speed = 16,
+	InfJumpEnabled = false,
+	ClickTPEnabled = false,
+	-- Modifier held while left-clicking to teleport to the mouse.
+	ClickTPKey = Enum.KeyCode.LeftControl,
+	-- Widen the local character's body (client-side only; see Movement module).
+	FatWalk = false,
+	FatScale = 2,
 }
 
 Config.UI = {
@@ -70,7 +104,7 @@ Config.Debug = false
 -- Default values used by reset(). Keybinds and option lists are intentionally
 -- excluded so a reset restores tunables without wiping user bindings.
 local DEFAULTS = {
-	Camera = { Enabled = false, Smoothness = 0.15, MaxDistance = 300, TargetPart = "Head", TargetBots = false, TeamCheck = true },
+	Camera = { Enabled = false, Smoothness = 0.15, MaxDistance = 300, TargetPart = "Head", TargetBots = false, TeamCheck = true, Prediction = 0, Humanize = true },
 	ESP = {
 		Enabled = false,
 		Color = Color3.fromRGB(165, 75, 255),
@@ -79,8 +113,24 @@ local DEFAULTS = {
 		OutlineOpacity = 1,
 		FillOpacity = 0.4,
 		MaxDistance = 1000,
+		NameTags = false,
+		HealthBars = false,
+		DistanceTags = false,
 	},
 	UI = { Scale = 1 },
+	Visuals = { Fullbright = false, NoFog = false },
+	Utility = { AntiAFK = true },
+	Movement = {
+		FlyEnabled = false,
+		FlySpeed = 50,
+		NoclipEnabled = false,
+		SpeedEnabled = false,
+		Speed = 16,
+		InfJumpEnabled = false,
+		ClickTPEnabled = false,
+		FatWalk = false,
+		FatScale = 2,
+	},
 }
 
 -- Restore all tunable settings to their defaults.

@@ -9,6 +9,10 @@ local Camera = Workspace.CurrentCamera
 
 local CameraDirector = {}
 
+-- Single Random instance for humanization jitter (created once, never reseeded
+-- per frame — reseeding would produce correlated values on fast frames).
+local rng = Random.new()
+
 -- Find valid target part on character based on priority list
 local function getTargetPart(character, targetPartName, partPriority)
 	if not character then
@@ -127,6 +131,8 @@ function CameraDirector:FindBestTarget(config)
 				Character = character,
 				Part = part,
 				ScreenDistance = distance,
+				-- Carried through so Update can scale prediction lead by range
+				WorldDistance = worldDistance,
 			}
 		end
 	end
@@ -150,10 +156,21 @@ function CameraDirector:FindBestTarget(config)
 	return best
 end
 
--- Smooth camera movement toward target
-function CameraDirector:PointCamera(targetPosition, smoothness)
+-- Smooth camera movement toward target. `humanize` adds a sub-degree random
+-- angular offset so the aim path isn't a perfectly straight mechanical line.
+function CameraDirector:PointCamera(targetPosition, smoothness, humanize)
 	local cameraPosition = Camera.CFrame.Position
 	local desired = CFrame.lookAt(cameraPosition, targetPosition)
+
+	if humanize then
+		local maxOffset = math.rad(0.3)
+		desired = desired * CFrame.Angles(
+			(rng:NextNumber() - 0.5) * 2 * maxOffset,
+			(rng:NextNumber() - 0.5) * 2 * maxOffset,
+			0
+		)
+	end
+
 	Camera.CFrame = Camera.CFrame:Lerp(desired, smoothness)
 end
 
@@ -176,7 +193,23 @@ function CameraDirector:Update(config, debug)
 		return
 	end
 
-	self:PointCamera(target.Part.Position, config.Smoothness)
+	local aimPosition = target.Part.Position
+
+	-- Prediction: lead the target by its velocity, scaled by range. The /500
+	-- normalizes against a generic reference speed — real projectile speeds
+	-- are per-game, so game-specific forks should tune this constant.
+	if config.Prediction > 0 then
+		aimPosition = aimPosition
+			+ target.Part.Velocity * config.Prediction * (target.WorldDistance / 500)
+	end
+
+	-- Humanize: ±10% jitter on smoothness so the lerp speed isn't constant
+	local smoothness = config.Smoothness
+	if config.Humanize then
+		smoothness = smoothness * (0.9 + rng:NextNumber() * 0.2)
+	end
+
+	self:PointCamera(aimPosition, smoothness, config.Humanize)
 
 	if debug then
 		print("Tracking:", target.Character.Name, "Distance:", math.floor(target.ScreenDistance))

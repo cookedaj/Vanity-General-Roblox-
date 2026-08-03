@@ -632,6 +632,39 @@ local function makeLabel(parent, text, initialValue)
 	return value
 end
 
+-- Clickable action button row (Server Hop, Rejoin). Matches makeToggle's row
+-- layout; `color` defaults to the accent, hover lifts it slightly.
+local function makeButton(parent, text, onClick, color)
+	local base = color or COLORS.accent
+
+	local btn = newInstance("TextButton", {
+		Parent = parent,
+		LayoutOrder = nextOrder(),
+		Size = UDim2.new(1, 0, 0, 30),
+		BackgroundColor3 = base,
+		BorderSizePixel = 0,
+		AutoButtonColor = false,
+		Font = Enum.Font.GothamBold,
+		TextSize = 12,
+		TextColor3 = Color3.fromRGB(255, 255, 255),
+		Text = text,
+	})
+
+	newInstance("UICorner", { Parent = btn, CornerRadius = UDim.new(0, 6) })
+
+	btn.MouseButton1Click:Connect(onClick)
+
+	btn.MouseEnter:Connect(function()
+		TweenService:Create(btn, ANIM, { BackgroundColor3 = COLORS.rowHover }):Play()
+	end)
+
+	btn.MouseLeave:Connect(function()
+		TweenService:Create(btn, ANIM, { BackgroundColor3 = base }):Play()
+	end)
+
+	return btn
+end
+
 -- Clickable keybind row: shows the current key in a box on the right. Click it to
 -- arm capture ("Press a key…"), then the next key press rebinds it. Escape or a
 -- second click cancels. `conflictCheck(key)` may return the name of another action
@@ -729,7 +762,7 @@ local function wireKeybindBox(box, labelText, getKey, setKey, conflictCheck)
 end
 
 -- Returns the name of the action already using `key` (excluding `field`), or nil.
--- Fields: "menu", "aimbot", "unload".
+-- Fields: "menu", "aimbot", "unload", "clicktp".
 local function keyConflict(config, key, field)
 	if field ~= "menu" and config.UI.MenuKey == key then
 		return "Menu"
@@ -739,6 +772,9 @@ local function keyConflict(config, key, field)
 	end
 	if field ~= "unload" and config.UI.UnloadKey == key then
 		return "Unload"
+	end
+	if field ~= "clicktp" and config.Movement.ClickTPKey == key then
+		return "Click TP"
 	end
 	return nil
 end
@@ -910,10 +946,22 @@ local function buildCameraTab(parent, config)
 		config.Camera.TeamCheck = not config.Camera.TeamCheck
 	end)
 
+	makeToggle(parent, "Humanize", function()
+		return config.Camera.Humanize
+	end, function()
+		config.Camera.Humanize = not config.Camera.Humanize
+	end)
+
 	makeSlider(parent, "Smoothness", 0.05, 1, function()
 		return config.Camera.Smoothness
 	end, function(v)
 		config.Camera.Smoothness = v
+	end, false)
+
+	makeSlider(parent, "Prediction", 0, 1, function()
+		return config.Camera.Prediction
+	end, function(v)
+		config.Camera.Prediction = v
 	end, false)
 
 	makeSlider(parent, "Max Distance", 100, 500, function()
@@ -932,6 +980,72 @@ local function buildCameraTab(parent, config)
 	targetLabel = makeLabel(parent, "Current Target", "None")
 end
 
+local function buildMovementTab(parent, config)
+	layoutOrder = 0
+
+	makeToggle(parent, "Fly", function()
+		return config.Movement.FlyEnabled
+	end, function()
+		config.Movement.FlyEnabled = not config.Movement.FlyEnabled
+	end)
+
+	makeToggle(parent, "Noclip", function()
+		return config.Movement.NoclipEnabled
+	end, function()
+		config.Movement.NoclipEnabled = not config.Movement.NoclipEnabled
+	end)
+
+	makeToggle(parent, "Speed", function()
+		return config.Movement.SpeedEnabled
+	end, function()
+		config.Movement.SpeedEnabled = not config.Movement.SpeedEnabled
+	end)
+
+	makeToggle(parent, "Infinite Jump", function()
+		return config.Movement.InfJumpEnabled
+	end, function()
+		config.Movement.InfJumpEnabled = not config.Movement.InfJumpEnabled
+	end)
+
+	makeToggle(parent, "Click TP", function()
+		return config.Movement.ClickTPEnabled
+	end, function()
+		config.Movement.ClickTPEnabled = not config.Movement.ClickTPEnabled
+	end)
+
+	makeToggle(parent, "Fat Walk", function()
+		return config.Movement.FatWalk
+	end, function()
+		config.Movement.FatWalk = not config.Movement.FatWalk
+	end)
+
+	makeSlider(parent, "Fat Scale", 1, 5, function()
+		return config.Movement.FatScale
+	end, function(v)
+		config.Movement.FatScale = v
+	end, false)
+
+	makeSlider(parent, "Fly Speed", 10, 200, function()
+		return config.Movement.FlySpeed
+	end, function(v)
+		config.Movement.FlySpeed = v
+	end, true)
+
+	makeSlider(parent, "Walk Speed", 16, 100, function()
+		return config.Movement.Speed
+	end, function(v)
+		config.Movement.Speed = v
+	end, true)
+
+	makeKeybind(parent, "Click TP Key", function()
+		return config.Movement.ClickTPKey
+	end, function(key)
+		config.Movement.ClickTPKey = key
+	end, function(key)
+		return keyConflict(config, key, "clicktp")
+	end)
+end
+
 local function buildESPTab(parent, config)
 	layoutOrder = 0
 
@@ -945,6 +1059,24 @@ local function buildESPTab(parent, config)
 		return config.ESP.Filled
 	end, function()
 		config.ESP.Filled = not config.ESP.Filled
+	end)
+
+	makeToggle(parent, "Name Tags", function()
+		return config.ESP.NameTags
+	end, function()
+		config.ESP.NameTags = not config.ESP.NameTags
+	end)
+
+	makeToggle(parent, "Health", function()
+		return config.ESP.HealthBars
+	end, function()
+		config.ESP.HealthBars = not config.ESP.HealthBars
+	end)
+
+	makeToggle(parent, "Distance", function()
+		return config.ESP.DistanceTags
+	end, function()
+		config.ESP.DistanceTags = not config.ESP.DistanceTags
 	end)
 
 	makeSlider(parent, "Thickness", 1, 6, function()
@@ -975,6 +1107,21 @@ local function buildESPTab(parent, config)
 		return config.ESP.Color
 	end, function(c)
 		config.ESP.Color = c
+	end)
+
+	-- Lighting overrides live on the ESP tab (visuals, not movement)
+	makeLabel(parent, "Lighting", "")
+
+	makeToggle(parent, "Fullbright", function()
+		return config.Visuals.Fullbright
+	end, function()
+		config.Visuals.Fullbright = not config.Visuals.Fullbright
+	end)
+
+	makeToggle(parent, "No Fog", function()
+		return config.Visuals.NoFog
+	end, function()
+		config.Visuals.NoFog = not config.Visuals.NoFog
 	end)
 end
 
@@ -1034,6 +1181,30 @@ local function buildSettingsTab(parent, config, resetCallback)
 		config.UI.UnloadKey = key
 	end, function(key)
 		return keyConflict(config, key, "unload")
+	end)
+
+	makeToggle(parent, "Anti-AFK", function()
+		return config.Utility.AntiAFK
+	end, function()
+		config.Utility.AntiAFK = not config.Utility.AntiAFK
+	end)
+
+	makeButton(parent, "Server Hop", function()
+		local ok, err = pcall(function()
+			game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
+		end)
+		if not ok then
+			warn("[Vanity-General] Server hop failed:", err)
+		end
+	end)
+
+	makeButton(parent, "Rejoin Server", function()
+		local ok, err = pcall(function()
+			game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+		end)
+		if not ok then
+			warn("[Vanity-General] Rejoin failed:", err)
+		end
 	end)
 end
 
@@ -1195,14 +1366,16 @@ function UI:Init(config, resetCallback)
 		PaddingRight = UDim.new(0, 4),
 	})
 
-	local tabs = { "Aimbot", "ESP", "Settings" }
+	local tabs = { "Aimbot", "Movement", "ESP", "Settings" }
 	local tabFrames = {}
 
 	for i, tabName in ipairs(tabs) do
 		local tabBtn = newInstance("TextButton", {
 			Parent = tabContainer,
 			LayoutOrder = i,
-			Size = UDim2.new(0, 70, 1, 0),
+			-- Fill the bar evenly regardless of tab count (the -4 absorbs
+			-- the UIListLayout padding between buttons)
+			Size = UDim2.new(1 / #tabs, -4, 1, 0),
 			BackgroundColor3 = currentTab == tabName and COLORS.accent or COLORS.off,
 			BorderSizePixel = 0,
 			AutoButtonColor = false,
@@ -1253,6 +1426,7 @@ function UI:Init(config, resetCallback)
 	end
 
 	buildCameraTab(tabFrames["Aimbot"].frame, config)
+	buildMovementTab(tabFrames["Movement"].frame, config)
 	buildESPTab(tabFrames["ESP"].frame, config)
 	buildSettingsTab(tabFrames["Settings"].frame, config, resetCallback)
 

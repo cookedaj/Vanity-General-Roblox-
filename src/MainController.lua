@@ -1,5 +1,5 @@
 -- Main Controller
--- Orchestrates Camera Director, ESP, and UI systems
+-- Orchestrates Camera Director, ESP, Movement, Visuals, and UI systems
 -- Single RenderStepped loop for optimal performance
 
 local RunService = game:GetService("RunService")
@@ -12,6 +12,8 @@ local LocalPlayer = Players.LocalPlayer
 local Configuration = require(script.Configuration)
 local CameraDirector = require(script.CameraDirector)
 local ESP = require(script.ESP)
+local Movement = require(script.Movement)
+local Visuals = require(script.Visuals)
 local UI = require(script.UI)
 
 local renderConnection
@@ -27,6 +29,8 @@ local cleanup
 -- Initialize all systems
 local function init()
 	ESP:Init()
+	Movement:Init(Configuration.Movement)
+	Visuals:Init(Configuration)
 
 	-- Reset defaults live in the Configuration module (single source of truth);
 	-- the UI just re-syncs its controls afterward.
@@ -66,9 +70,11 @@ local function init()
 		end
 	end)
 
-	-- Single RenderStepped loop drives both systems
-	renderConnection = RunService.RenderStepped:Connect(function()
+	-- Single RenderStepped loop drives all systems (RenderStepped passes dt)
+	renderConnection = RunService.RenderStepped:Connect(function(dt)
 		ESP:Update(Configuration.ESP)
+		Movement:Update(dt)
+		Visuals:Update()
 
 		local target = CameraDirector:Update(Configuration.Camera, Configuration.Debug)
 
@@ -115,6 +121,8 @@ function cleanup()
 	end
 
 	ESP:Cleanup()
+	Movement:Cleanup()
+	Visuals:Cleanup()
 	UI:Cleanup()
 
 	print("[Vanity-General] Systems cleaned up")
