@@ -976,9 +976,6 @@ Configuration.Movement = {
 	InfJumpEnabled = false,
 	ClickTPEnabled = false,
 	ClickTPKey = Enum.KeyCode.LeftControl, -- hold this + left click to teleport
-	-- Fat Walk: client-side-only wide-body visual (R15 rigs only).
-	FatWalk = false,
-	FatScale = 2,
 }
 
 Configuration.SilentAim = {
@@ -1092,8 +1089,6 @@ do
 			Speed = 16,
 			InfJumpEnabled = false,
 			ClickTPEnabled = false,
-			FatWalk = false,
-			FatScale = 2,
 		},
 		SilentAim = { Enabled = false },
 		Hitbox = { Enabled = false, Size = 5, Transparency = 0.5 },
@@ -5234,20 +5229,6 @@ do
 		end, function(key)
 			return keyConflict(config, key, "clicktp")
 		end)
-
-		local fat = makeGroup(right, "Fat Walk")
-
-		makeToggle(fat, "Enabled", function()
-			return config.Movement.FatWalk
-		end, function()
-			config.Movement.FatWalk = not config.Movement.FatWalk
-		end)
-
-		makeFillSlider(fat, "Fat Scale", 1, 5, function()
-			return config.Movement.FatScale
-		end, function(val)
-			config.Movement.FatScale = val
-		end, false)
 	end
 
 	local function buildSettingsTab(parent, config)
@@ -6267,7 +6248,6 @@ do
 
 	local mv_jumpConnection
 	local mv_clickConnection
-	local fw_original -- { width, depth } captured the first frame Fat Walk turns on
 
 	-- Returns character, root, humanoid for the local player, or nil when any piece
 	-- is missing or dead (mid-respawn, etc).
@@ -6320,37 +6300,6 @@ do
 		return nil
 	end
 
-	-- Fat Walk scales the R15 body width/depth NumberValues (height untouched).
-	-- Purely client-side visual (FilteringEnabled): others see you normally and
-	-- nothing replicates. R6 rigs don't have these values, so it's a no-op there.
-	local function mv_setFatWalk(humanoid, scale)
-		local width = humanoid and humanoid:FindFirstChild("BodyWidthScale")
-		local depth = humanoid and humanoid:FindFirstChild("BodyDepthScale")
-		if not (width and depth) then
-			return
-		end
-		if not fw_original then
-			fw_original = { width = width.Value, depth = depth.Value }
-		end
-		width.Value = scale
-		depth.Value = scale
-	end
-
-	local function mv_restoreFatWalk(humanoid)
-		if not fw_original then
-			return
-		end
-		local width = humanoid and humanoid:FindFirstChild("BodyWidthScale")
-		local depth = humanoid and humanoid:FindFirstChild("BodyDepthScale")
-		if width then
-			width.Value = fw_original.width
-		end
-		if depth then
-			depth.Value = fw_original.depth
-		end
-		fw_original = nil
-	end
-
 	-- Per-frame driver, called from the controller's RenderStepped loop.
 	function Movement:Update(dt, config)
 		local character, root, humanoid = mv_character()
@@ -6393,14 +6342,6 @@ do
 			if surplus > 0 and humanoid.MoveDirection.Magnitude > 0 then
 				root.CFrame = root.CFrame + humanoid.MoveDirection * surplus * dt
 			end
-		end
-
-		-- Fat Walk: re-applied each frame so a respawn keeps the effect; originals
-		-- are restored the first frame the toggle is off (and in Cleanup).
-		if config.FatWalk then
-			mv_setFatWalk(humanoid, config.FatScale or 2)
-		else
-			mv_restoreFatWalk(humanoid)
 		end
 	end
 
@@ -6466,9 +6407,6 @@ do
 		end
 		-- Noclip needs no restore here: it only re-sets CanCollide = false each
 		-- frame, so once Update stops running collision returns naturally.
-		local character = LocalPlayer.Character
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		mv_restoreFatWalk(humanoid)
 	end
 end
 

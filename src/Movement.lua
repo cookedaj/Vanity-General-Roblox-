@@ -30,58 +30,6 @@ local function getCharacter()
 	return character, rootPart, character:FindFirstChildOfClass("Humanoid")
 end
 
--- Fat Walk originals: captured on first application so toggle-off and Cleanup
--- can restore the exact pre-fat scale values.
-local fatOriginals
-
-local function restoreFatWalk()
-	if fatOriginals then
-		-- Parent check guards against restoring a destroyed (pre-respawn) rig
-		if fatOriginals.WidthScale.Parent then
-			fatOriginals.WidthScale.Value = fatOriginals.Width
-		end
-		if fatOriginals.DepthScale.Parent then
-			fatOriginals.DepthScale.Value = fatOriginals.Depth
-		end
-		fatOriginals = nil
-	end
-end
-
--- Scale the local humanoid's body width/depth. Purely client-side: with
--- FilteringEnabled the scale change never replicates, so only we see the fat
--- character. Height is left untouched.
-local function applyFatWalk(humanoid)
-	local widthScale = humanoid:FindFirstChild("BodyWidthScale")
-	local depthScale = humanoid:FindFirstChild("BodyDepthScale")
-	if not widthScale or not depthScale then
-		return
-	end
-
-	-- A different humanoid means we respawned; the fresh rig already has
-	-- default scales, so the stale originals are useless.
-	if fatOriginals and fatOriginals.Humanoid ~= humanoid then
-		fatOriginals = nil
-	end
-
-	if not fatOriginals then
-		fatOriginals = {
-			Humanoid = humanoid,
-			WidthScale = widthScale,
-			DepthScale = depthScale,
-			Width = widthScale.Value,
-			Depth = depthScale.Value,
-		}
-	end
-
-	-- Re-apply every frame in case something (or a respawn) reset the values
-	if widthScale.Value ~= config.FatScale then
-		widthScale.Value = config.FatScale
-	end
-	if depthScale.Value ~= config.FatScale then
-		depthScale.Value = config.FatScale
-	end
-end
-
 -- Fly + Noclip + Speed, driven every frame from the controller's render loop
 function Movement:Update(dt)
 	if not config then
@@ -145,13 +93,6 @@ function Movement:Update(dt)
 			character:PivotTo(character:GetPivot() + moveDirection * (config.Speed - 16) * dt)
 		end
 	end
-
-	-- Fat Walk: widen the local rig; restore the originals when toggled off
-	if config.FatWalk and humanoid then
-		applyFatWalk(humanoid)
-	else
-		restoreFatWalk()
-	end
 end
 
 function Movement:Init(movementConfig)
@@ -204,8 +145,6 @@ function Movement:Init(movementConfig)
 end
 
 function Movement:Cleanup()
-	restoreFatWalk()
-
 	for _, conn in ipairs(connections) do
 		conn:Disconnect()
 	end

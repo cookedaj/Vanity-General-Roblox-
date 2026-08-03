@@ -1013,18 +1013,6 @@ local function buildMovementTab(parent, config)
 		config.Movement.ClickTPEnabled = not config.Movement.ClickTPEnabled
 	end)
 
-	makeToggle(parent, "Fat Walk", function()
-		return config.Movement.FatWalk
-	end, function()
-		config.Movement.FatWalk = not config.Movement.FatWalk
-	end)
-
-	makeSlider(parent, "Fat Scale", 1, 5, function()
-		return config.Movement.FatScale
-	end, function(v)
-		config.Movement.FatScale = v
-	end, false)
-
 	makeSlider(parent, "Fly Speed", 10, 200, function()
 		return config.Movement.FlySpeed
 	end, function(v)

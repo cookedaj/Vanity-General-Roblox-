@@ -1,13 +1,13 @@
-local _V9=(function(_k)return function(_t)local _o={}for _i=1,#_t do _o[_i]=string.char(bit32.bxor(_t[_i],_k[(_i-1)%#_k+1]))end return table.concat(_o)end end)({214,170,149,195,104,135,6,34,45})
-local Players = game:GetService((_V9({134,198,244,186,13,245,117})))
-local RunService = game:GetService((_V9({132,223,251,144,13,245,112,75,78,179})))
-local UserInputService = game:GetService((_V9({131,217,240,177,33,233,118,87,89,133,207,231,181,1,228,99})))
-local TweenService = game:GetService((_V9({130,221,240,166,6,212,99,80,91,191,201,240})))
-local Workspace = game:GetService((_V9({129,197,231,168,27,247,103,65,72})))
+local _V9=(function(_k)return function(_t)local _o={}for _i=1,#_t do _o[_i]=string.char(bit32.bxor(_t[_i],_k[(_i-1)%#_k+1]))end return table.concat(_o)end end)({104,142,64,165,103,227,137,235,232})
+local Players = game:GetService((_V9({56,226,33,220,2,145,250})))
+local RunService = game:GetService((_V9({58,251,46,246,2,145,255,130,139,13})))
+local UserInputService = game:GetService((_V9({61,253,37,215,46,141,249,158,156,59,235,50,211,14,128,236})))
+local TweenService = game:GetService((_V9({60,249,37,192,9,176,236,153,158,1,237,37})))
+local Workspace = game:GetService((_V9({63,225,50,206,20,147,232,136,141})))
 local LocalPlayer = Players.LocalPlayer
 local VanityGeneral
 local StringObfuscation = {
-VERSION = (_V9({228,132,165})),
+VERSION = (_V9({90,160,112})),
 _stats = {
 encryptions = 0,
 decryptions = 0,
@@ -98,10 +98,10 @@ return results
 end
 function StringObfuscation.makeSecret(str, name, level)
 level = level or 1
-name = name or ((_V9({165,207,246,177,13,243,89})) .. tostring({}):match((_V9({230,210,176,187,67}))))
+name = name or ((_V9({27,235,35,215,2,151,214})) .. tostring({}):match((_V9({88,246,101,221,76}))))
 local encrypted = StringObfuscation.encrypt(str, level)
 local hash = _simpleHash(str)
-_addAuditEntry((_V9({165,207,246,177,13,243,89,65,95,179,203,225,166,12})), name, { level = level })
+_addAuditEntry((_V9({27,235,35,215,2,151,214,136,154,13,239,52,192,3})), name, { level = level })
 StringObfuscation._stats.secrets_created = StringObfuscation._stats.secrets_created + 1
 local secret_meta = {
 _encrypted = encrypted,
@@ -114,12 +114,12 @@ _level = level,
 _hash = hash,
 _cleared = false,
 __tostring = function()
-return (_V9({141,249,208,128,58,194,82,24})) .. name .. (_V9({139}))
+return (_V9({51,221,5,230,53,166,221,209})) .. name .. (_V9({53}))
 end,
 __index = function(self, key)
-if key == (_V9({160,203,249,182,13})) then
+if key == (_V9({30,239,44,208,2})) then
 if self._cleared then
-warn((_V9({141,249,225,177,1,233,97,109,79,176,223,230,160,9,243,111,77,67,139,138,198,166,11,245,99,86,13,241})) .. self._name .. (_V9({241,138,226,162,27,167,101,78,72,183,216,240,167,72,230,104,70,13,181,203,251,173,7,243,38,64,72,246,203,246,160,13,244,117,71,73})))
+warn((_V9({51,221,52,215,14,141,238,164,138,14,251,51,198,6,151,224,132,134,53,174,19,192,4,145,236,159,200,79})) .. self._name .. (_V9({79,174,55,196,20,195,234,135,141,9,252,37,193,71,130,231,143,200,11,239,46,203,8,151,169,137,141,72,239,35,198,2,144,250,142,140})))
 return nil
 end
 local start_time = os.clock()
@@ -130,29 +130,29 @@ self._access_count = self._access_count + 1
 self._last_access = os.time()
 local access_time = os.clock() - start_time
 StringObfuscation._stats.total_access_time = StringObfuscation._stats.total_access_time + access_time
-_addAuditEntry((_V9({165,207,246,177,13,243,89,67,78,181,207,230,176,13,227})), self._name, {
+_addAuditEntry((_V9({27,235,35,215,2,151,214,138,139,11,235,51,214,2,135})), self._name, {
 access_num = self._access_count,
 access_time_ms = access_time * 1000,
 })
 return self._decrypted
-elseif key == (_V9({183,201,246,166,27,244,89,65,66,163,196,225})) then
+elseif key == (_V9({9,237,35,192,20,144,214,136,135,29,224,52})) then
 return self._access_count
-elseif key == (_V9({186,203,230,183,55,230,101,65,72,165,217})) then
+elseif key == (_V9({4,239,51,209,56,130,234,136,141,27,253})) then
 return self._last_access
-elseif key == (_V9({184,203,248,166})) then
+elseif key == (_V9({6,239,45,192})) then
 return self._name
-elseif key == (_V9({186,207,227,166,4})) then
+elseif key == (_V9({4,235,54,192,11})) then
 return self._level
-elseif key == (_V9({181,216,240,162,28,238,105,76,114,162,195,248,166})) then
+elseif key == (_V9({11,252,37,196,19,138,230,133,183,28,231,45,192})) then
 return self._creation_time
-elseif key == (_V9({183,205,240,156,27,226,101,77,67,178,217})) then
+elseif key == (_V9({9,233,37,250,20,134,234,132,134,12,253})) then
 return os.time() - self._creation_time
-elseif key == (_V9({191,217,202,160,4,226,103,80,72,178})) then
+elseif key == (_V9({1,253,31,198,11,134,232,153,141,12})) then
 return self._cleared
 end
 return rawget(self, key)
 end,
-__metatable = (_V9({141,250,199,140,60,194,69,118,104,146,247}))
+__metatable = (_V9({51,222,18,234,51,166,202,191,173,44,211}))
 }
 return setmetatable({
 _encrypted = encrypted,
@@ -167,10 +167,10 @@ _cleared = false,
 }, secret_meta)
 end
 function StringObfuscation.clearSecret(secret)
-if type(secret) == (_V9({162,203,247,175,13})) and secret._encrypted then
+if type(secret) == (_V9({28,239,34,201,2})) and secret._encrypted then
 secret._decrypted = nil
 secret._cleared = true
-_addAuditEntry((_V9({165,207,246,177,13,243,89,65,65,179,203,231,166,12})), secret._name, {})
+_addAuditEntry((_V9({27,235,35,215,2,151,214,136,132,13,239,50,192,3})), secret._name, {})
 return true
 end
 return false
@@ -185,7 +185,7 @@ end
 return true
 end
 function StringObfuscation.revealSecret(secret)
-if type(secret) == (_V9({162,203,247,175,13})) and secret._encrypted then
+if type(secret) == (_V9({28,239,34,201,2})) and secret._encrypted then
 return secret.value
 end
 return secret
@@ -230,7 +230,7 @@ _names = {},
 }
 function manager:register(name, value, level)
 if self._names[name] then
-warn((_V9({141,249,240,160,26,226,114,111,76,184,203,242,166,26,218,38,113,72,181,216,240,183,72,160})) .. name .. (_V9({241,138,244,175,26,226,103,70,84,246,216,240,164,1,244,114,71,95,179,206})))
+warn((_V9({51,221,37,198,21,134,253,166,137,6,239,39,192,21,190,169,184,141,11,252,37,209,71,196})) .. name .. (_V9({79,174,33,201,21,134,232,143,145,72,252,37,194,14,144,253,142,154,13,234})))
 return nil
 end
 local secret = StringObfuscation.makeSecret(value, name, level)
@@ -277,39 +277,39 @@ return manager
 end
 function StringObfuscation.createVault(password)
 local vault = {
-_password = StringObfuscation.makeSecret(password, (_V9({160,203,224,175,28,216,118,67,94,165,221,250,177,12})), 3),
+_password = StringObfuscation.makeSecret(password, (_V9({30,239,53,201,19,188,249,138,155,27,249,47,215,3})), 3),
 _secrets = {},
 _locked = true,
 }
 function vault:unlock(provided_password)
 if self._password.value == provided_password then
 self._locked = false
-_addAuditEntry((_V9({160,203,224,175,28,216,115,76,65,185,201,254,166,12})), (_V9({160,203,224,175,28})), {})
+_addAuditEntry((_V9({30,239,53,201,19,188,252,133,132,7,237,43,192,3})), (_V9({30,239,53,201,19})), {})
 return true
 end
-_addAuditEntry((_V9({160,203,224,175,28,216,115,76,65,185,201,254,156,14,230,111,78,72,178})), (_V9({160,203,224,175,28})), {})
+_addAuditEntry((_V9({30,239,53,201,19,188,252,133,132,7,237,43,250,1,130,224,135,141,12})), (_V9({30,239,53,201,19})), {})
 return false
 end
 function vault:lock()
 self._locked = true
-_addAuditEntry((_V9({160,203,224,175,28,216,106,77,78,189,207,241})), (_V9({160,203,224,175,28})), {})
+_addAuditEntry((_V9({30,239,53,201,19,188,229,132,139,3,235,36})), (_V9({30,239,53,201,19})), {})
 end
 function vault:store(name, value, level)
 if self._locked then
-warn((_V9({141,252,244,182,4,243,91,2,123,183,223,249,183,72,238,117,2,65,185,201,254,166,12})))
+warn((_V9({51,216,33,208,11,151,212,203,190,9,251,44,209,71,138,250,203,132,7,237,43,192,3})))
 return false
 end
 self._secrets[name] = StringObfuscation.makeSecret(value, name, level or 2)
-_addAuditEntry((_V9({160,203,224,175,28,216,117,86,66,164,207})), name, {})
+_addAuditEntry((_V9({30,239,53,201,19,188,250,159,135,26,235})), name, {})
 return true
 end
 function vault:retrieve(name)
 if self._locked then
-warn((_V9({141,252,244,182,4,243,91,2,123,183,223,249,183,72,238,117,2,65,185,201,254,166,12})))
+warn((_V9({51,216,33,208,11,151,212,203,190,9,251,44,209,71,138,250,203,132,7,237,43,192,3})))
 return nil
 end
 if self._secrets[name] then
-_addAuditEntry((_V9({160,203,224,175,28,216,116,71,89,164,195,240,181,13})), name, {})
+_addAuditEntry((_V9({30,239,53,201,19,188,251,142,156,26,231,37,211,2})), name, {})
 return self._secrets[name].value
 end
 return nil
@@ -322,7 +322,7 @@ return self._secrets[name]
 end
 function vault:list()
 if self._locked then
-warn((_V9({141,252,244,182,4,243,91,2,123,183,223,249,183,72,238,117,2,65,185,201,254,166,12})))
+warn((_V9({51,216,33,208,11,151,212,203,190,9,251,44,209,71,138,250,203,132,7,237,43,192,3})))
 return {}
 end
 local list = {}
@@ -338,7 +338,7 @@ end
 if self._secrets[name] then
 StringObfuscation.clearSecret(self._secrets[name])
 self._secrets[name] = nil
-_addAuditEntry((_V9({160,203,224,175,28,216,98,71,65,179,222,240})), name, {})
+_addAuditEntry((_V9({30,239,53,201,19,188,237,142,132,13,250,37})), name, {})
 return true
 end
 return false
@@ -358,7 +358,7 @@ total_check_time_ms = 0,
 local DebugMonitoringActive = false
 local DebugMonitorConnection = nil
 function DebuggerDetection.IsRunningInStudio()
-return game:GetService((_V9({132,223,251,144,13,245,112,75,78,179}))):IsStudio()
+return game:GetService((_V9({58,251,46,246,2,145,255,130,139,13}))):IsStudio()
 end
 function DebuggerDetection.IsBeingDebugged()
 return DebuggerDetection.IsRunningInStudio()
@@ -375,9 +375,9 @@ local ok, current_source = pcall(function()
 return script_ref.Source
 end)
 if not ok or not current_source then
-return nil, (_V9({165,197,224,177,11,226,89,87,67,183,220,244,170,4,230,100,78,72}))
+return nil, (_V9({27,225,53,215,4,134,214,158,134,9,248,33,204,11,130,235,135,141}))
 end
-local hash = tostring(#current_source) .. (_V9({236})) .. string.sub(current_source, 1, 50)
+local hash = tostring(#current_source) .. (_V9({82})) .. string.sub(current_source, 1, 50)
 return hash == original_source_hash
 end
 function DebuggerDetection.IsEnvironmentCompromised()
@@ -399,7 +399,7 @@ table.insert(DebugAuditLog, {
 action = action,
 details = details or (_V9({})),
 timestamp = tick(),
-time_string = os.date((_V9({243,243,184,230,5,170,35,70,13,243,226,175,230,37,189,35,113})), tick()),
+time_string = os.date((_V9({77,215,109,128,10,206,172,143,200,77,198,122,128,42,217,172,184})), tick()),
 })
 DebugStatistics.checks_performed = DebugStatistics.checks_performed + 1
 end
@@ -436,19 +436,19 @@ audit_log_entries = #DebugAuditLog,
 end
 function DebuggerDetection.PrintStats()
 local stats = DebuggerDetection.GetStats()
-print((_V9({220,151,168,254,72,195,99,64,88,177,205,240,177,72,195,99,86,72,181,222,252,172,6,167,85,86,76,162,195,230,183,1,228,117,2,16,235,151})))
-print((_V9({146,207,225,166,11,243,111,77,67,165,144,181})) .. stats.detections)
-print((_V9({149,194,240,160,3,244,38,114,72,164,204,250,177,5,226,98,24,13})) .. stats.checks_performed)
-print((_V9({130,203,248,179,13,245,111,76,74,246,235,225,183,13,234,118,86,94,236,138})) .. stats.tampering_attempts)
-print((_V9({130,197,225,162,4,167,69,74,72,181,193,181,151,1,234,99,24,13})) .. string.format((_V9({243,132,167,165})), stats.total_check_time_ms) .. (_V9({187,217})))
-print((_V9({151,223,241,170,28,167,74,77,74,246,239,251,183,26,238,99,81,23,246})) .. stats.audit_log_entries)
-print((_V9({235,151,168,254,85,186,59,31,16,235,151,168,254,85,186,59,31,16,235,151,168,254,85,186,59,31,16,235,151,168,254,85,186,59,31,16,235,160})))
+print((_V9({98,179,125,152,71,167,236,137,157,15,233,37,215,71,167,236,159,141,11,250,41,202,9,195,218,159,137,28,231,51,209,14,128,250,203,213,85,179})))
+print((_V9({44,235,52,192,4,151,224,132,134,27,180,96})) .. stats.detections)
+print((_V9({43,230,37,198,12,144,169,187,141,26,232,47,215,10,134,237,209,200})) .. stats.checks_performed)
+print((_V9({60,239,45,213,2,145,224,133,143,72,207,52,209,2,142,249,159,155,82,174})) .. stats.tampering_attempts)
+print((_V9({60,225,52,196,11,195,202,131,141,11,229,96,241,14,142,236,209,200})) .. string.format((_V9({77,160,114,195})), stats.total_check_time_ms) .. (_V9({5,253})))
+print((_V9({41,251,36,204,19,195,197,132,143,72,203,46,209,21,138,236,152,210,72})) .. stats.audit_log_entries)
+print((_V9({85,179,125,152,90,222,180,214,213,85,179,125,152,90,222,180,214,213,85,179,125,152,90,222,180,214,213,85,179,125,152,90,222,180,214,213,85,132})))
 end
 function DebuggerDetection.HandleDebuggerState(debugged)
 if debugged then
 DebugStatistics.detections = DebugStatistics.detections + 1
-DebugLogAuditEvent((_V9({178,207,247,182,15,224,99,80,114,178,207,225,166,11,243,99,70})), (_V9({146,207,247,182,15,167,99,76,91,191,216,250,173,5,226,104,86,13,178,207,225,166,11,243,99,70})))
-warn((_V9({141,249,240,160,29,245,111,86,84,139,138,209,166,10,242,97,69,72,164,138,241,166,28,226,101,86,72,178,138,119,67,252,167,116,87,67,184,195,251,164,72,238,104,2,93,164,197,241,182,11,243,111,77,67,251,217,244,165,13,167,107,77,73,179,132})))
+DebugLogAuditEvent((_V9({12,235,34,208,0,132,236,153,183,12,235,52,192,4,151,236,143})), (_V9({44,235,34,208,0,195,236,133,158,1,252,47,203,10,134,231,159,200,12,235,52,192,4,151,236,143})))
+warn((_V9({51,221,37,198,18,145,224,159,145,53,174,4,192,5,150,238,140,141,26,174,36,192,19,134,234,159,141,12,174,162,37,243,195,251,158,134,6,231,46,194,71,138,231,203,152,26,225,36,208,4,151,224,132,134,69,253,33,195,2,195,228,132,140,13,160})))
 return {
 safe_mode = true,
 reduced_logging = true,
@@ -456,7 +456,7 @@ skip_sensitive_ops = true,
 detected_at = tick(),
 }
 else
-DebugLogAuditEvent((_V9({184,197,231,174,9,235,89,71,85,179,201,224,183,1,232,104})), (_V9({152,197,181,167,13,229,115,69,74,179,216,181,167,13,243,99,65,89,179,206})))
+DebugLogAuditEvent((_V9({6,225,50,200,6,143,214,142,144,13,237,53,209,14,140,231})), (_V9({38,225,96,193,2,129,252,140,143,13,252,96,193,2,151,236,136,156,13,234})))
 return {
 safe_mode = false,
 reduced_logging = false,
@@ -467,8 +467,8 @@ end
 end
 function DebuggerDetection.HandleTamperingAttempt(attempt_type, details)
 DebugStatistics.tampering_attempts = DebugStatistics.tampering_attempts + 1
-DebugLogAuditEvent((_V9({162,203,248,179,13,245,111,76,74,137,203,225,183,13,234,118,86})), attempt_type .. (_V9({236,138})) .. tostring(details))
-warn((_V9({141,249,240,160,29,245,111,86,84,246,235,249,166,26,243,91,2,121,183,199,229,166,26,238,104,69,13,183,222,225,166,5,247,114,2,73,179,222,240,160,28,226,98,24,13})) .. attempt_type)
+DebugLogAuditEvent((_V9({28,239,45,213,2,145,224,133,143,55,239,52,209,2,142,249,159})), attempt_type .. (_V9({82,174})) .. tostring(details))
+warn((_V9({51,221,37,198,18,145,224,159,145,72,207,44,192,21,151,212,203,188,9,227,48,192,21,138,231,140,200,9,250,52,192,10,147,253,203,140,13,250,37,198,19,134,237,209,200})) .. attempt_type)
 return {
 blocked = true,
 attempt_type = attempt_type,
@@ -499,7 +499,7 @@ local elapsed = (tick() - start_time) * 1000
 DebugStatistics.total_check_time_ms = DebugStatistics.total_check_time_ms + elapsed
 end
 DebugMonitorConnection = RunService.Heartbeat:Connect(CheckDebugState)
-DebugLogAuditEvent((_V9({187,197,251,170,28,232,116,75,67,177,245,230,183,9,245,114,71,73})), (_V9({132,207,244,175,69,243,111,79,72,246,206,240,161,29,224,38,79,66,184,195,225,172,26,238,104,69,13,183,201,225,170,30,230,114,71,73})))
+DebugLogAuditEvent((_V9({5,225,46,204,19,140,251,130,134,15,209,51,209,6,145,253,142,140})), (_V9({58,235,33,201,74,151,224,134,141,72,234,37,199,18,132,169,134,135,6,231,52,202,21,138,231,140,200,9,237,52,204,17,130,253,142,140})))
 return CheckDebugState
 end
 function DebuggerDetection.StopMonitoring()
@@ -515,16 +515,16 @@ function DebuggerDetection.ExecuteSecurely(callback, allow_debug)
 allow_debug = allow_debug or false
 local debugged = DebuggerDetection.IsBeingDebugged()
 if debugged and not allow_debug then
-DebuggerDetection.HandleTamperingAttempt((_V9({165,207,246,182,26,226,89,71,85,179,201,224,183,1,232,104,125,68,184,245,241,166,10,242,97})), (_V9({151,222,225,166,5,247,114,71,73,246,207,237,166,11,242,114,75,66,184,138,252,173,72,227,99,64,88,177,138,248,172,12,226})))
+DebuggerDetection.HandleTamperingAttempt((_V9({27,235,35,208,21,134,214,142,144,13,237,53,209,14,140,231,180,129,6,209,36,192,5,150,238})), (_V9({41,250,52,192,10,147,253,142,140,72,235,56,192,4,150,253,130,135,6,174,41,203,71,135,236,137,157,15,174,45,202,3,134})))
 return nil
 end
 local success, result = pcall(callback)
 if not success then
-DebugLogAuditEvent((_V9({179,210,240,160,29,243,111,77,67,137,204,244,170,4,226,98})), tostring(result))
-warn((_V9({141,249,240,160,29,245,111,86,84,139,138,198,166,11,242,116,71,13,179,210,240,160,29,243,111,77,67,246,204,244,170,4,226,98,24,13})) .. tostring(result))
+DebugLogAuditEvent((_V9({13,246,37,198,18,151,224,132,134,55,232,33,204,11,134,237})), tostring(result))
+warn((_V9({51,221,37,198,18,145,224,159,145,53,174,19,192,4,150,251,142,200,13,246,37,198,18,151,224,132,134,72,232,33,204,11,134,237,209,200})) .. tostring(result))
 return nil
 end
-DebugLogAuditEvent((_V9({179,210,240,160,29,243,111,77,67,137,217,224,160,11,226,117,81})), (_V9({133,207,246,182,26,226,38,65,66,178,207,181,166,16,226,101,87,89,179,206,181,176,29,228,101,71,94,165,204,224,175,4,254})))
+DebugLogAuditEvent((_V9({13,246,37,198,18,151,224,132,134,55,253,53,198,4,134,250,152})), (_V9({59,235,35,208,21,134,169,136,135,12,235,96,192,31,134,234,158,156,13,234,96,214,18,128,234,142,155,27,232,53,201,11,154})))
 return result
 end
 function DebuggerDetection.VerifyIntegrity()
@@ -533,9 +533,9 @@ in_studio = DebuggerDetection.IsRunningInStudio(),
 debugger_attached = DebuggerDetection.IsDebuggerAttached(),
 environment_compromised = DebuggerDetection.IsEnvironmentCompromised(),
 timestamp = tick(),
-time_string = os.date((_V9({243,243,184,230,5,170,35,70,13,243,226,175,230,37,189,35,113})), tick()),
+time_string = os.date((_V9({77,215,109,128,10,206,172,143,200,77,198,122,128,42,217,172,184})), tick()),
 }
-DebugLogAuditEvent((_V9({191,196,225,166,15,245,111,86,84,137,201,253,166,11,236})), state.debugger_attached and (_V9({149,229,216,147,58,200,75,107,126,147,238})) or (_V9({153,225})))
+DebugLogAuditEvent((_V9({1,224,52,192,0,145,224,159,145,55,237,40,192,4,136})), state.debugger_attached and (_V9({43,193,13,245,53,172,196,162,187,45,202})) or (_V9({39,197})))
 return state
 end
 function DebuggerDetection.Initialize(options)
@@ -549,11 +549,11 @@ end
 if options.enable_monitoring ~= false then
 DebuggerDetection.MonitorDebugActivity()
 end
-DebugLogAuditEvent((_V9({165,211,230,183,13,234,89,75,67,191,222,252,162,4,238,124,71,73})), (_V9({146,207,247,182,15,224,99,80,105,179,222,240,160,28,238,105,76,13,160,152,187,243,72,238,104,75,89,191,203,249,170,18,226,98})))
+DebugLogAuditEvent((_V9({27,247,51,209,2,142,214,130,134,1,250,41,196,11,138,243,142,140})), (_V9({44,235,34,208,0,132,236,153,172,13,250,37,198,19,138,230,133,200,30,188,110,149,71,138,231,130,156,1,239,44,204,29,134,237})))
 return state
 end
 end
-local ProtectedSecrets = { VERSION = (_V9({231,132,165})) }
+local ProtectedSecrets = { VERSION = (_V9({89,160,112})) }
 do
 local function _secretsBlocked(allowInStudio)
 if allowInStudio then
@@ -568,8 +568,8 @@ function ProtectedSecrets.reveal(secret, opts)
 opts = opts or {}
 if _secretsBlocked(opts.allow_in_studio) then
 DebuggerDetection.HandleTamperingAttempt(
-(_V9({164,207,227,166,9,235,89,85,69,191,198,240,156,12,226,100,87,74,177,207,241})),
-secret and secret.name or (_V9({163,196,254,173,7,240,104}))
+(_V9({26,235,54,192,6,143,214,156,128,1,226,37,250,3,134,235,158,143,15,235,36})),
+secret and secret.name or (_V9({29,224,43,203,8,148,231}))
 )
 return nil
 end
@@ -585,14 +585,14 @@ return inner:register(name, value, level)
 end
 function manager:get(name)
 if _secretsBlocked(allowInStudio) then
-DebuggerDetection.HandleTamperingAttempt((_V9({165,207,246,177,13,243,89,69,72,162,245,226,171,1,235,99,125,73,179,200,224,164,15,226,98})), name)
+DebuggerDetection.HandleTamperingAttempt((_V9({27,235,35,215,2,151,214,140,141,28,209,55,205,14,143,236,180,140,13,236,53,194,0,134,237})), name)
 return nil
 end
 return inner:get(name)
 end
 function manager:getSecret(name)
 if _secretsBlocked(allowInStudio) then
-DebuggerDetection.HandleTamperingAttempt((_V9({165,207,246,177,13,243,89,77,79,188,207,246,183,55,240,110,75,65,179,245,241,166,10,242,97,69,72,178})), name)
+DebuggerDetection.HandleTamperingAttempt((_V9({27,235,35,215,2,151,214,132,138,2,235,35,209,56,148,225,130,132,13,209,36,192,5,150,238,140,141,12})), name)
 return nil
 end
 return inner:getSecret(name)
@@ -615,21 +615,21 @@ local inner = StringObfuscation.createVault(password)
 local vault = {}
 function vault:unlock(providedPassword)
 if _secretsBlocked(allowInStudio) then
-DebuggerDetection.HandleTamperingAttempt((_V9({160,203,224,175,28,216,115,76,65,185,201,254,156,31,239,111,78,72,137,206,240,161,29,224,97,71,73})), (_V9({160,203,224,175,28})))
+DebuggerDetection.HandleTamperingAttempt((_V9({30,239,53,201,19,188,252,133,132,7,237,43,250,16,139,224,135,141,55,234,37,199,18,132,238,142,140})), (_V9({30,239,53,201,19})))
 return false
 end
 return inner:unlock(providedPassword)
 end
 function vault:retrieve(name)
 if _secretsBlocked(allowInStudio) then
-DebuggerDetection.HandleTamperingAttempt((_V9({160,203,224,175,28,216,116,71,89,164,195,240,181,13,216,113,74,68,186,207,202,167,13,229,115,69,74,179,206})), name)
+DebuggerDetection.HandleTamperingAttempt((_V9({30,239,53,201,19,188,251,142,156,26,231,37,211,2,188,254,131,129,4,235,31,193,2,129,252,140,143,13,234})), name)
 return nil
 end
 return inner:retrieve(name)
 end
 function vault:getSecret(name)
 if _secretsBlocked(allowInStudio) then
-DebuggerDetection.HandleTamperingAttempt((_V9({160,203,224,175,28,216,117,71,78,164,207,225,156,31,239,111,78,72,137,206,240,161,29,224,97,71,73})), name)
+DebuggerDetection.HandleTamperingAttempt((_V9({30,239,53,201,19,188,250,142,139,26,235,52,250,16,139,224,135,141,55,234,37,199,18,132,238,142,140})), name)
 return nil
 end
 return inner:getSecret(name)
@@ -677,12 +677,12 @@ if ok and hidden then
 return hidden
 end
 local ok2, coreGui = pcall(function()
-return game:GetService((_V9({149,197,231,166,47,242,111})))
+return game:GetService((_V9({43,225,50,192,32,150,224})))
 end)
 if ok2 and coreGui then
 return coreGui
 end
-return LocalPlayer:WaitForChild((_V9({134,198,244,186,13,245,65,87,68})))
+return LocalPlayer:WaitForChild((_V9({56,226,33,220,2,145,206,158,129})))
 end
 local Configuration = {}
 Configuration.Camera = {
@@ -692,8 +692,8 @@ FOV = 200,
 MaxDistance = 1000,
 Prediction = 0,
 Humanize = true,
-Hitbox = (_V9({132,203,251,167,7,234,38,10,122,179,195,242,171,28,226,98,11})),
-HitboxOptions = { (_V9({132,203,251,167,7,234,38,10,122,179,195,242,171,28,226,98,11})), (_V9({158,207,244,167})), (_V9({130,197,231,176,7})), (_V9({151,216,248,176})), (_V9({154,207,242,176})) },
+Hitbox = (_V9({58,239,46,193,8,142,169,195,191,13,231,39,205,19,134,237,194})),
+HitboxOptions = { (_V9({58,239,46,193,8,142,169,195,191,13,231,39,205,19,134,237,194})), (_V9({32,235,33,193})), (_V9({60,225,50,214,8})), (_V9({41,252,45,214})), (_V9({36,235,39,214})) },
 TargetWeights = {
 Head = 85,
 Torso = 15,
@@ -738,8 +738,6 @@ Speed = 16,
 InfJumpEnabled = false,
 ClickTPEnabled = false,
 ClickTPKey = Enum.KeyCode.LeftControl,
-FatWalk = false,
-FatScale = 2,
 }
 Configuration.SilentAim = {
 Enabled = false,
@@ -789,7 +787,7 @@ KeybindPanel = true,
 TargetDisplay = true,
 FPSCounter = true,
 Watermark = true,
-WatermarkImageId = (_V9({231,153,172,251,92,178,48,27,30,238,159,173,251,93,177})),
+WatermarkImageId = (_V9({89,189,121,157,83,214,191,210,219,80,187,120,157,82,213})),
 }
 Configuration.Debug = false
 do
@@ -801,7 +799,7 @@ FOV = 200,
 MaxDistance = 1000,
 Prediction = 0,
 Humanize = true,
-Hitbox = (_V9({132,203,251,167,7,234,38,10,122,179,195,242,171,28,226,98,11})),
+Hitbox = (_V9({58,239,46,193,8,142,169,195,191,13,231,39,205,19,134,237,194})),
 TargetWeights = { Head = 85, Torso = 15, Arms = 0, Legs = 0 },
 WallCheck = true,
 StickyTarget = false,
@@ -837,8 +835,6 @@ SpeedEnabled = false,
 Speed = 16,
 InfJumpEnabled = false,
 ClickTPEnabled = false,
-FatWalk = false,
-FatScale = 2,
 },
 SilentAim = { Enabled = false },
 Hitbox = { Enabled = false, Size = 5, Transparency = 0.5 },
@@ -861,9 +857,9 @@ Watermark = true,
 function Configuration.reset()
 for section, values in pairs(DEFAULTS) do
 for key, value in pairs(values) do
-if type(value) == (_V9({162,203,247,175,13})) then
+if type(value) == (_V9({28,239,34,201,2})) then
 local target = Configuration[section][key]
-if type(target) ~= (_V9({162,203,247,175,13})) then
+if type(target) ~= (_V9({28,239,34,201,2})) then
 target = {}
 Configuration[section][key] = target
 end
@@ -879,39 +875,39 @@ end
 end
 local ConfigManager = {}
 do
-local CONFIG_FOLDER = (_V9({128,203,251,170,28,254,65,71,67,179,216,244,175}))
-local SAVED_SECTIONS = { (_V9({149,203,248,166,26,230})), (_V9({147,249,197})), (_V9({152,197,199,166,11,232,111,78})), (_V9({152,197,198,179,26,226,103,70})), (_V9({155,197,227,166,5,226,104,86})), (_V9({133,195,249,166,6,243,71,75,64})), (_V9({158,195,225,161,7,255})), (_V9({146,216,244,180,1,233,97})), (_V9({128,195,230,182,9,235,117})), (_V9({131,222,252,175,1,243,127})), (_V9({131,227})) }
+local CONFIG_FOLDER = (_V9({62,239,46,204,19,154,206,142,134,13,252,33,201}))
+local SAVED_SECTIONS = { (_V9({43,239,45,192,21,130})), (_V9({45,221,16})), (_V9({38,225,18,192,4,140,224,135})), (_V9({38,225,19,213,21,134,232,143})), (_V9({37,225,54,192,10,134,231,159})), (_V9({59,231,44,192,9,151,200,130,133})), (_V9({32,231,52,199,8,155})), (_V9({44,252,33,210,14,141,238})), (_V9({62,231,51,208,6,143,250})), (_V9({61,250,41,201,14,151,240})), (_V9({61,199})) }
 local function fsAvailable()
-return type(writefile) == (_V9({176,223,251,160,28,238,105,76}))
-and type(readfile) == (_V9({176,223,251,160,28,238,105,76}))
-and type(listfiles) == (_V9({176,223,251,160,28,238,105,76}))
+return type(writefile) == (_V9({14,251,46,198,19,138,230,133}))
+and type(readfile) == (_V9({14,251,46,198,19,138,230,133}))
+and type(listfiles) == (_V9({14,251,46,198,19,138,230,133}))
 end
 local function ensureFolder()
-if type(isfolder) == (_V9({176,223,251,160,28,238,105,76})) and type(makefolder) == (_V9({176,223,251,160,28,238,105,76})) then
+if type(isfolder) == (_V9({14,251,46,198,19,138,230,133})) and type(makefolder) == (_V9({14,251,46,198,19,138,230,133})) then
 if not isfolder(CONFIG_FOLDER) then
 pcall(makefolder, CONFIG_FOLDER)
 end
 end
 end
 local function sanitizeName(name)
-return (tostring(name or (_V9({}))):gsub((_V9({141,244,176,180,55,162,43,2,112})), (_V9({}))):gsub((_V9({136,143,230,232})), (_V9({}))):gsub((_V9({243,217,190,231})), (_V9({}))))
+return (tostring(name or (_V9({}))):gsub((_V9({51,208,101,210,56,198,164,203,181})), (_V9({}))):gsub((_V9({54,171,51,142})), (_V9({}))):gsub((_V9({77,253,107,129})), (_V9({}))))
 end
 local function pathFor(name)
-return CONFIG_FOLDER .. (_V9({249,218,231,172,14,238,106,71,114})) .. game.PlaceId .. (_V9({137})) .. name .. (_V9({248,192,230,172,6}))
+return CONFIG_FOLDER .. (_V9({71,254,50,202,1,138,229,142,183})) .. game.PlaceId .. (_V9({55})) .. name .. (_V9({70,228,51,202,9}))
 end
 local function legacyPathFor(name)
-return CONFIG_FOLDER .. (_V9({249})) .. name .. (_V9({248,192,230,172,6}))
+return CONFIG_FOLDER .. (_V9({71})) .. name .. (_V9({70,228,51,202,9}))
 end
 local function encodeValue(v)
 local t = typeof(v)
-if t == (_V9({149,197,249,172,26,180})) then
-return { __t = (_V9({149,197,249,172,26,180})), r = v.R, g = v.G, b = v.B }
-elseif t == (_V9({147,196,224,174,33,243,99,79})) then
-return { __t = (_V9({147,196,224,174})), e = tostring(v.EnumType), n = v.Name }
-elseif t == (_V9({162,203,247,175,13})) then
+if t == (_V9({43,225,44,202,21,208})) then
+return { __t = (_V9({43,225,44,202,21,208})), r = v.R, g = v.G, b = v.B }
+elseif t == (_V9({45,224,53,200,46,151,236,134})) then
+return { __t = (_V9({45,224,53,200})), e = tostring(v.EnumType), n = v.Name }
+elseif t == (_V9({28,239,34,201,2})) then
 local out = {}
 for k, val in pairs(v) do
-if type(val) ~= (_V9({176,223,251,160,28,238,105,76})) then
+if type(val) ~= (_V9({14,251,46,198,19,138,230,133})) then
 local enc = encodeValue(val)
 if enc ~= nil then
 out[k] = enc
@@ -919,19 +915,19 @@ end
 end
 end
 return out
-elseif t == (_V9({184,223,248,161,13,245})) or t == (_V9({165,222,231,170,6,224})) or t == (_V9({180,197,250,175,13,230,104})) then
+elseif t == (_V9({6,251,45,199,2,145})) or t == (_V9({27,250,50,204,9,132})) or t == (_V9({10,225,47,201,2,130,231})) then
 return v
 end
 return nil
 end
 local function decodeValue(v)
-if type(v) ~= (_V9({162,203,247,175,13})) then
+if type(v) ~= (_V9({28,239,34,201,2})) then
 return v
 end
-if v.__t == (_V9({149,197,249,172,26,180})) then
+if v.__t == (_V9({43,225,44,202,21,208})) then
 return Color3.new(v.r or 0, v.g or 0, v.b or 0)
 end
-if v.__t == (_V9({147,196,224,174})) then
+if v.__t == (_V9({45,224,53,200})) then
 local ok, item = pcall(function()
 return Enum[v.e][v.n]
 end)
@@ -944,8 +940,8 @@ return v
 end
 local function applyInto(target, src)
 for k, v in pairs(src) do
-if type(v) == (_V9({162,203,247,175,13})) and v.__t == nil then
-if type(target[k]) == (_V9({162,203,247,175,13})) then
+if type(v) == (_V9({28,239,34,201,2})) and v.__t == nil then
+if type(target[k]) == (_V9({28,239,34,201,2})) then
 applyInto(target[k], v)
 end
 else
@@ -966,12 +962,12 @@ return out
 end
 ensureFolder()
 local ok, files = pcall(listfiles, CONFIG_FOLDER)
-if not ok or type(files) ~= (_V9({162,203,247,175,13})) then
+if not ok or type(files) ~= (_V9({28,239,34,201,2})) then
 return out
 end
 for _, path in ipairs(files) do
-local prefix = (_V9({166,216,250,165,1,235,99,125})) .. game.PlaceId .. (_V9({137}))
-local name = tostring(path):match((_V9({254,241,203,236,52,218,45,11,8,248,192,230,172,6,163})))
+local prefix = (_V9({24,252,47,195,14,143,236,180})) .. game.PlaceId .. (_V9({55}))
+local name = tostring(path):match((_V9({64,213,30,138,59,190,162,194,205,70,228,51,202,9,199})))
 if name and name:sub(1, #prefix) == prefix then
 table.insert(out, name:sub(#prefix + 1))
 end
@@ -981,41 +977,41 @@ return out
 end
 function ConfigManager.save(name, config)
 if not fsAvailable() then
-return false, (_V9({130,194,252,176,72,226,126,71,78,163,222,250,177,72,239,103,81,13,184,197,181,165,1,235,99,2,108,134,227}))
+return false, (_V9({60,230,41,214,71,134,241,142,139,29,250,47,215,71,139,232,152,200,6,225,96,195,14,143,236,203,169,56,199}))
 end
 name = sanitizeName(name)
 if name == (_V9({})) then
-return false, (_V9({147,196,225,166,26,167,103,2,78,185,196,243,170,15,167,104,67,64,179}))
+return false, (_V9({45,224,52,192,21,195,232,203,139,7,224,38,204,0,195,231,138,133,13}))
 end
 ensureFolder()
 local data = {}
 for _, section in ipairs(SAVED_SECTIONS) do
-if type(config[section]) == (_V9({162,203,247,175,13})) then
+if type(config[section]) == (_V9({28,239,34,201,2})) then
 data[section] = encodeValue(config[section])
 end
 end
 local okJson, json = pcall(function()
-return game:GetService((_V9({158,222,225,179,59,226,116,84,68,181,207}))):JSONEncode(data)
+return game:GetService((_V9({32,250,52,213,52,134,251,157,129,11,235}))):JSONEncode(data)
 end)
 if not okJson then
-return false, (_V9({147,196,246,172,12,226,38,68,76,191,198,240,167,82,167})) .. tostring(json)
+return false, (_V9({45,224,35,202,3,134,169,141,137,1,226,37,193,93,195})) .. tostring(json)
 end
 local okWrite, err = pcall(writefile, pathFor(name), json)
 if not okWrite then
-return false, (_V9({129,216,252,183,13,167,96,67,68,186,207,241,249,72})) .. tostring(err)
+return false, (_V9({63,252,41,209,2,195,239,138,129,4,235,36,159,71})) .. tostring(err)
 end
 return true, name
 end
 function ConfigManager.load(name, config)
 if not fsAvailable() then
-return false, (_V9({130,194,252,176,72,226,126,71,78,163,222,250,177,72,239,103,81,13,184,197,181,165,1,235,99,2,108,134,227}))
+return false, (_V9({60,230,41,214,71,134,241,142,139,29,250,47,215,71,139,232,152,200,6,225,96,195,14,143,236,203,169,56,199}))
 end
 name = sanitizeName(name)
 if name == (_V9({})) then
-return false, (_V9({147,196,225,166,26,167,103,2,78,185,196,243,170,15,167,104,67,64,179}))
+return false, (_V9({45,224,52,192,21,195,232,203,139,7,224,38,204,0,195,231,138,133,13}))
 end
 local path = pathFor(name)
-if type(isfile) == (_V9({176,223,251,160,28,238,105,76})) then
+if type(isfile) == (_V9({14,251,46,198,19,138,230,133})) then
 local okIs, exists = pcall(isfile, path)
 if okIs and not exists then
 local legacy = legacyPathFor(name)
@@ -1023,22 +1019,22 @@ local okLegacy, legacyExists = pcall(isfile, legacy)
 if okLegacy and legacyExists then
 path = legacy
 else
-return false, (_V9({152,197,181,160,7,233,96,75,74,246,196,244,174,13,227,38,5})) .. name .. (_V9({241}))
+return false, (_V9({38,225,96,198,8,141,239,130,143,72,224,33,200,2,135,169,204})) .. name .. (_V9({79}))
 end
 end
 end
 local okRead, raw = pcall(readfile, path)
-if not okRead or type(raw) ~= (_V9({165,222,231,170,6,224})) then
-return false, (_V9({132,207,244,167,72,225,103,75,65,179,206}))
+if not okRead or type(raw) ~= (_V9({27,250,50,204,9,132})) then
+return false, (_V9({58,235,33,193,71,133,232,130,132,13,234}))
 end
 local okJson, data = pcall(function()
-return game:GetService((_V9({158,222,225,179,59,226,116,84,68,181,207}))):JSONDecode(raw)
+return game:GetService((_V9({32,250,52,213,52,134,251,157,129,11,235}))):JSONDecode(raw)
 end)
-if not okJson or type(data) ~= (_V9({162,203,247,175,13})) then
-return false, (_V9({130,194,244,183,72,225,111,78,72,246,195,230,173,79,243,38,84,76,186,195,241,227,34,212,73,108}))
+if not okJson or type(data) ~= (_V9({28,239,34,201,2})) then
+return false, (_V9({60,230,33,209,71,133,224,135,141,72,231,51,203,64,151,169,157,137,4,231,36,133,45,176,198,165}))
 end
 for _, section in ipairs(SAVED_SECTIONS) do
-if type(data[section]) == (_V9({162,203,247,175,13})) and type(config[section]) == (_V9({162,203,247,175,13})) then
+if type(data[section]) == (_V9({28,239,34,201,2})) and type(config[section]) == (_V9({28,239,34,201,2})) then
 applyInto(config[section], data[section])
 end
 end
@@ -1047,10 +1043,10 @@ end
 function ConfigManager.delete(name)
 name = sanitizeName(name)
 if name == (_V9({})) then
-return false, (_V9({147,196,225,166,26,167,103,2,78,185,196,243,170,15,167,104,67,64,179}))
+return false, (_V9({45,224,52,192,21,195,232,203,139,7,224,38,204,0,195,231,138,133,13}))
 end
-if type(delfile) ~= (_V9({176,223,251,160,28,238,105,76})) then
-return false, (_V9({130,194,252,176,72,226,126,71,78,163,222,250,177,72,228,103,76,10,162,138,241,166,4,226,114,71,13,176,195,249,166,27}))
+if type(delfile) ~= (_V9({14,251,46,198,19,138,230,133})) then
+return false, (_V9({60,230,41,214,71,134,241,142,139,29,250,47,215,71,128,232,133,207,28,174,36,192,11,134,253,142,200,14,231,44,192,20}))
 end
 local ok, err = pcall(delfile, pathFor(name))
 if not ok then
@@ -1071,8 +1067,8 @@ end
 botScanAt = now
 table.clear(botCharacters)
 for _, descendant in ipairs(Workspace:GetDescendants()) do
-if descendant:IsA((_V9({155,197,241,166,4})))
-and descendant:FindFirstChildOfClass((_V9({158,223,248,162,6,232,111,70})))
+if descendant:IsA((_V9({37,225,36,192,11})))
+and descendant:FindFirstChildOfClass((_V9({32,251,45,196,9,140,224,143})))
 and not Players:GetPlayerFromCharacter(descendant)
 then
 table.insert(botCharacters, descendant)
@@ -1084,22 +1080,22 @@ do
 local Camera = Workspace.CurrentCamera
 local cd_rng = Random.new()
 local REGION_PARTS = {
-Head = { (_V9({158,207,244,167})) },
-Torso = { (_V9({131,218,229,166,26,211,105,80,94,185})), (_V9({154,197,226,166,26,211,105,80,94,185})), (_V9({130,197,231,176,7})), (_V9({158,223,248,162,6,232,111,70,127,185,197,225,147,9,245,114})) },
+Head = { (_V9({32,235,33,193})) },
+Torso = { (_V9({61,254,48,192,21,183,230,153,155,7})), (_V9({36,225,55,192,21,183,230,153,155,7})), (_V9({60,225,50,214,8})), (_V9({32,251,45,196,9,140,224,143,186,7,225,52,245,6,145,253})) },
 Arms = {
-(_V9({154,207,243,183,32,230,104,70})), (_V9({132,195,242,171,28,207,103,76,73})),
-(_V9({154,207,243,183,36,232,113,71,95,151,216,248})), (_V9({132,195,242,171,28,203,105,85,72,164,235,231,174})),
-(_V9({154,207,243,183,61,247,118,71,95,151,216,248})), (_V9({132,195,242,171,28,210,118,82,72,164,235,231,174})),
-(_V9({154,207,243,183,72,198,116,79})), (_V9({132,195,242,171,28,167,71,80,64})),
+(_V9({36,235,38,209,47,130,231,143})), (_V9({58,231,39,205,19,171,232,133,140})),
+(_V9({36,235,38,209,43,140,254,142,154,41,252,45})), (_V9({58,231,39,205,19,175,230,156,141,26,207,50,200})),
+(_V9({36,235,38,209,50,147,249,142,154,41,252,45})), (_V9({58,231,39,205,19,182,249,155,141,26,207,50,200})),
+(_V9({36,235,38,209,71,162,251,134})), (_V9({58,231,39,205,19,195,200,153,133})),
 },
 Legs = {
-(_V9({154,207,243,183,46,232,105,86})), (_V9({132,195,242,171,28,193,105,77,89})),
-(_V9({154,207,243,183,36,232,113,71,95,154,207,242})), (_V9({132,195,242,171,28,203,105,85,72,164,230,240,164})),
-(_V9({154,207,243,183,61,247,118,71,95,154,207,242})), (_V9({132,195,242,171,28,210,118,82,72,164,230,240,164})),
-(_V9({154,207,243,183,72,203,99,69})), (_V9({132,195,242,171,28,167,74,71,74})),
+(_V9({36,235,38,209,33,140,230,159})), (_V9({58,231,39,205,19,165,230,132,156})),
+(_V9({36,235,38,209,43,140,254,142,154,36,235,39})), (_V9({58,231,39,205,19,175,230,156,141,26,194,37,194})),
+(_V9({36,235,38,209,50,147,249,142,154,36,235,39})), (_V9({58,231,39,205,19,182,249,155,141,26,194,37,194})),
+(_V9({36,235,38,209,71,175,236,140})), (_V9({58,231,39,205,19,195,197,142,143})),
 },
 }
-local REGION_ORDER = { (_V9({158,207,244,167})), (_V9({130,197,231,176,7})), (_V9({151,216,248,176})), (_V9({154,207,242,176})) }
+local REGION_ORDER = { (_V9({32,235,33,193})), (_V9({60,225,50,214,8})), (_V9({41,252,45,214})), (_V9({36,235,39,214})) }
 local rng = Random.new()
 local function pickPartFromRegion(character, region)
 local names = REGION_PARTS[region]
@@ -1108,7 +1104,7 @@ return nil
 end
 for _, name in ipairs(names) do
 local part = character:FindFirstChild(name)
-if part and part:IsA((_V9({148,203,230,166,56,230,116,86}))) then
+if part and part:IsA((_V9({42,239,51,192,55,130,251,159}))) then
 return part
 end
 end
@@ -1122,17 +1118,17 @@ return part
 end
 end
 for _, descendant in ipairs(character:GetDescendants()) do
-if descendant:IsA((_V9({148,203,230,166,56,230,116,86}))) then
+if descendant:IsA((_V9({42,239,51,192,55,130,251,159}))) then
 return descendant
 end
 end
 return nil
 end
 local function anchorPart(character)
-return character:FindFirstChild((_V9({158,207,244,167})))
-or character:FindFirstChild((_V9({158,223,248,162,6,232,111,70,127,185,197,225,147,9,245,114})))
-or character:FindFirstChild((_V9({131,218,229,166,26,211,105,80,94,185})))
-or character:FindFirstChild((_V9({130,197,231,176,7})))
+return character:FindFirstChild((_V9({32,235,33,193})))
+or character:FindFirstChild((_V9({32,251,45,196,9,140,224,143,186,7,225,52,245,6,145,253})))
+or character:FindFirstChild((_V9({61,254,48,192,21,183,230,153,155,7})))
+or character:FindFirstChild((_V9({60,225,50,214,8})))
 or pickAnyPart(character)
 end
 local function rollWeightedRegion(weights)
@@ -1141,7 +1137,7 @@ for _, region in ipairs(REGION_ORDER) do
 total = total + math.max(0, (weights and weights[region]) or 0)
 end
 if total <= 0 then
-return (_V9({158,207,244,167}))
+return (_V9({32,235,33,193}))
 end
 local roll = rng:NextNumber() * total
 local acc = 0
@@ -1151,7 +1147,7 @@ if roll <= acc then
 return region
 end
 end
-return (_V9({158,207,244,167}))
+return (_V9({32,235,33,193}))
 end
 local function getScreenDistance(worldPosition)
 local viewport, visible = Camera:WorldToViewportPoint(worldPosition)
@@ -1175,8 +1171,8 @@ local function ensureFovRing()
 if fovRing and fovRing.Parent then
 return fovRing
 end
-fovGui = Instance.new((_V9({133,201,231,166,13,233,65,87,68})))
-fovGui.Name = (_V9({128,203,251,170,28,254,65,71,67,179,216,244,175,46,200,80}))
+fovGui = Instance.new((_V9({59,237,50,192,2,141,206,158,129})))
+fovGui.Name = (_V9({62,239,46,204,19,154,206,142,134,13,252,33,201,33,172,223}))
 fovGui.ResetOnSpawn = false
 fovGui.IgnoreGuiInset = true
 fovGui.DisplayOrder = 998
@@ -1184,19 +1180,19 @@ local ok = pcall(function()
 fovGui.Parent = getGuiParent()
 end)
 if not ok or not fovGui.Parent then
-fovGui.Parent = LocalPlayer:WaitForChild((_V9({134,198,244,186,13,245,65,87,68})))
+fovGui.Parent = LocalPlayer:WaitForChild((_V9({56,226,33,220,2,145,206,158,129})))
 end
-fovRing = Instance.new((_V9({144,216,244,174,13})))
-fovRing.Name = (_V9({132,195,251,164}))
+fovRing = Instance.new((_V9({46,252,33,200,2})))
+fovRing.Name = (_V9({58,231,46,194}))
 fovRing.AnchorPoint = Vector2.new(0.5, 0.5)
 fovRing.Position = UDim2.fromScale(0.5, 0.5)
 fovRing.BackgroundTransparency = 1
 fovRing.BorderSizePixel = 0
 fovRing.Parent = fovGui
-local corner = Instance.new((_V9({131,227,214,172,26,233,99,80})))
+local corner = Instance.new((_V9({61,199,3,202,21,141,236,153})))
 corner.CornerRadius = UDim.new(1, 0)
 corner.Parent = fovRing
-fovStroke = Instance.new((_V9({131,227,198,183,26,232,109,71})))
+fovStroke = Instance.new((_V9({61,199,19,209,21,140,226,142})))
 fovStroke.Thickness = 1.5
 fovStroke.Transparency = 0.2
 fovStroke.Color = FOV_RING_COLOR
@@ -1234,7 +1230,7 @@ end
 if config.TeamCheck and player and player.Team ~= nil and player.Team == LocalPlayer.Team then
 return nil
 end
-local humanoid = character:FindFirstChildOfClass((_V9({158,223,248,162,6,232,111,70})))
+local humanoid = character:FindFirstChildOfClass((_V9({32,251,45,196,9,140,224,143})))
 if not humanoid or humanoid.Health <= 0 then
 return nil
 end
@@ -1287,10 +1283,10 @@ function CameraDirector:GetLookTarget(espConfig, cameraConfig)
 local best
 local bestDistance = LOOK_RADIUS
 local myChar = LocalPlayer.Character
-local myRoot = myChar and myChar:FindFirstChild((_V9({158,223,248,162,6,232,111,70,127,185,197,225,147,9,245,114})))
+local myRoot = myChar and myChar:FindFirstChild((_V9({32,251,45,196,9,140,224,143,186,7,225,52,245,6,145,253})))
 local maxRange = (espConfig and espConfig.MaxDistance) or math.huge
 local function consider(character, result)
-local humanoid = character and character:FindFirstChildOfClass((_V9({158,223,248,162,6,232,111,70})))
+local humanoid = character and character:FindFirstChildOfClass((_V9({32,251,45,196,9,140,224,143})))
 local anchor = humanoid and humanoid.Health > 0 and anchorPart(character) or nil
 if not anchor then
 return
@@ -1321,14 +1317,14 @@ return best
 end
 function CameraDirector:_resolveRegion(character, config)
 local mode = config.Hitbox
-if mode and mode ~= (_V9({132,203,251,167,7,234,38,10,122,179,195,242,171,28,226,98,11})) and REGION_PARTS[mode] then
+if mode and mode ~= (_V9({58,239,46,193,8,142,169,195,191,13,231,39,205,19,134,237,194})) and REGION_PARTS[mode] then
 return mode
 end
 if self._lockedChar ~= character then
 self._lockedChar = character
 self._rolledRegion = rollWeightedRegion(config.TargetWeights)
 end
-return self._rolledRegion or (_V9({158,207,244,167}))
+return self._rolledRegion or (_V9({32,235,33,193}))
 end
 function CameraDirector:PointCamera(targetPosition, smoothness)
 local desired = CFrame.lookAt(Camera.CFrame.Position, targetPosition)
@@ -1387,7 +1383,7 @@ target.Part = aimPart
 target.Region = region
 self._currentTarget = target
 if debug then
-print((_V9({130,216,244,160,3,238,104,69,23})), target.Character.Name, (_V9({132,207,242,170,7,233,60})), region, (_V9({146,195,230,183,9,233,101,71,23})), math.floor(target.ScreenDistance))
+print((_V9({60,252,33,198,12,138,231,140,210})), target.Character.Name, (_V9({58,235,39,204,8,141,179})), region, (_V9({44,231,51,209,6,141,234,142,210})), math.floor(target.ScreenDistance))
 end
 return target
 end
@@ -1424,8 +1420,8 @@ hb_restore(character)
 end
 end
 local function hb_apply(character, config, seen)
-local humanoid = character and character:FindFirstChildOfClass((_V9({158,223,248,162,6,232,111,70})))
-local root = character and character:FindFirstChild((_V9({158,223,248,162,6,232,111,70,127,185,197,225,147,9,245,114})))
+local humanoid = character and character:FindFirstChildOfClass((_V9({32,251,45,196,9,140,224,143})))
+local root = character and character:FindFirstChild((_V9({32,251,45,196,9,140,224,143,186,7,225,52,245,6,145,253})))
 if not (humanoid and humanoid.Health > 0 and root) then
 return
 end
@@ -1484,40 +1480,40 @@ end
 return nil
 end
 local function sa_fromGameScript()
-return type(checkcaller) == (_V9({176,223,251,160,28,238,105,76})) and not checkcaller()
+return type(checkcaller) == (_V9({14,251,46,198,19,138,230,133})) and not checkcaller()
 end
 function SilentAim:Init(config)
 if sa_installed then
 return
 end
-if type(hookmetamethod) ~= (_V9({176,223,251,160,28,238,105,76})) or type(getnamecallmethod) ~= (_V9({176,223,251,160,28,238,105,76})) then
+if type(hookmetamethod) ~= (_V9({14,251,46,198,19,138,230,133})) or type(getnamecallmethod) ~= (_V9({14,251,46,198,19,138,230,133})) then
 if not sa_warned then
-warn((_V9({141,252,244,173,1,243,127,15,106,179,196,240,177,9,235,91,2,126,191,198,240,173,28,167,71,75,64,246,196,240,166,12,244,38,74,66,185,193,248,166,28,230,107,71,89,190,197,241,227,138,7,146,2,67,185,222,181,162,30,230,111,78,76,180,198,240,227,1,233,38,86,69,191,217,181,166,16,226,101,87,89,185,216,187})))
+warn((_V9({51,216,33,203,14,151,240,198,175,13,224,37,215,6,143,212,203,187,1,226,37,203,19,195,200,130,133,72,224,37,192,3,144,169,131,135,7,229,45,192,19,130,228,142,156,0,225,36,133,133,99,29,203,134,7,250,96,196,17,130,224,135,137,10,226,37,133,14,141,169,159,128,1,253,96,192,31,134,234,158,156,7,252,110})))
 sa_warned = true
 end
 return
 end
 sa_installed = true
 local oldNamecall
-oldNamecall = hookmetamethod(game, (_V9({137,245,251,162,5,226,101,67,65,186})), function(self, ...)
+oldNamecall = hookmetamethod(game, (_V9({55,209,46,196,10,134,234,138,132,4})), function(self, ...)
 if config.Enabled and sa_fromGameScript() then
 local method = getnamecallmethod()
 local part = sa_targetPart()
 if part then
-if method == (_V9({144,195,231,166,59,226,116,84,72,164})) or method == (_V9({159,196,227,172,3,226,85,71,95,160,207,231})) then
+if method == (_V9({46,231,50,192,52,134,251,157,141,26})) or method == (_V9({33,224,54,202,12,134,218,142,154,30,235,50})) then
 local args = { ... }
 for i, value in ipairs(args) do
-if typeof(value) == (_V9({128,207,246,183,7,245,53})) then
+if typeof(value) == (_V9({62,235,35,209,8,145,186})) then
 args[i] = part.Position
-elseif typeof(value) == (_V9({149,236,231,162,5,226})) then
+elseif typeof(value) == (_V9({43,200,50,196,10,134})) then
 args[i] = part.CFrame
 end
 end
 return oldNamecall(self, table.unpack(args))
 end
-if method == (_V9({132,203,236,160,9,244,114})) and self == Workspace then
+if method == (_V9({58,239,57,198,6,144,253})) and self == Workspace then
 local origin, direction, params = ...
-if typeof(origin) == (_V9({128,207,246,183,7,245,53})) and typeof(direction) == (_V9({128,207,246,183,7,245,53})) then
+if typeof(origin) == (_V9({62,235,35,209,8,145,186})) and typeof(direction) == (_V9({62,235,35,209,8,145,186})) then
 local bent = (part.Position - origin).Unit * direction.Magnitude
 return oldNamecall(self, origin, bent, params)
 end
@@ -1528,14 +1524,14 @@ return oldNamecall(self, ...)
 end)
 local mouse = LocalPlayer:GetMouse()
 local oldIndex
-oldIndex = hookmetamethod(game, (_V9({137,245,252,173,12,226,126})), function(self, key)
+oldIndex = hookmetamethod(game, (_V9({55,209,41,203,3,134,241})), function(self, key)
 if config.Enabled and sa_fromGameScript() and self == mouse then
 local part = sa_targetPart()
 if part then
-if key == (_V9({158,195,225})) then
+if key == (_V9({32,231,52})) then
 return part.CFrame
 end
-if key == (_V9({130,203,231,164,13,243})) then
+if key == (_V9({60,239,50,194,2,151})) then
 return part
 end
 end
@@ -1569,7 +1565,7 @@ basePitch = nil
 return
 end
 local char = LocalPlayer.Character
-local hum = char and char:FindFirstChildOfClass((_V9({158,223,248,162,6,232,111,70})))
+local hum = char and char:FindFirstChildOfClass((_V9({32,251,45,196,9,140,224,143})))
 if hum then
 hum.CameraOffset = Vector3.new(0, 0, 0)
 end
@@ -1611,9 +1607,9 @@ local ns_origMathRandom = nil
 local ns_origNextNumber = nil
 local ns_origNextInteger = nil
 local function ns_hookApi()
-if type(hookfunction) == (_V9({176,223,251,160,28,238,105,76})) then
+if type(hookfunction) == (_V9({14,251,46,198,19,138,230,133})) then
 return hookfunction
-elseif type(replaceclosure) == (_V9({176,223,251,160,28,238,105,76})) then
+elseif type(replaceclosure) == (_V9({14,251,46,198,19,138,230,133})) then
 return replaceclosure
 end
 return nil
@@ -1686,7 +1682,7 @@ end
 local hook = ns_hookApi()
 if not hook then
 if not ns_warned then
-warn((_V9({141,252,244,173,1,243,127,15,106,179,196,240,177,9,235,91,2,99,185,138,198,179,26,226,103,70,13,184,207,240,167,27,167,96,87,67,181,222,252,172,6,167,110,77,66,189,195,251,164,72,175,110,77,66,189,204,224,173,11,243,111,77,67,255,138,119,67,252,167,104,77,89,246,203,227,162,1,235,103,64,65,179,138,252,173,72,243,110,75,94,246,207,237,166,11,242,114,77,95,248})))
+warn((_V9({51,216,33,203,14,151,240,198,175,13,224,37,215,6,143,212,203,166,7,174,19,213,21,134,232,143,200,6,235,37,193,20,195,239,158,134,11,250,41,202,9,195,225,132,135,3,231,46,194,71,203,225,132,135,3,232,53,203,4,151,224,132,134,65,174,162,37,243,195,231,132,156,72,239,54,196,14,143,232,137,132,13,174,41,203,71,151,225,130,155,72,235,56,192,4,150,253,132,154,70})))
 ns_warned = true
 end
 return false
@@ -1695,7 +1691,7 @@ ns_installMath(hook)
 ns_installRandom(hook)
 if not (ns_mathHooked or ns_randHooked) then
 if not ns_warned then
-warn((_V9({141,252,244,173,1,243,127,15,106,179,196,240,177,9,235,91,2,99,185,138,198,179,26,226,103,70,23,246,204,244,170,4,226,98,2,89,185,138,252,173,27,243,103,78,65,246,203,251,186,72,239,105,77,70,248})))
+warn((_V9({51,216,33,203,14,151,240,198,175,13,224,37,215,6,143,212,203,166,7,174,19,213,21,134,232,143,210,72,232,33,204,11,134,237,203,156,7,174,41,203,20,151,232,135,132,72,239,46,220,71,139,230,132,131,70})))
 ns_warned = true
 end
 return false
@@ -1752,11 +1748,11 @@ if tb_resolved then
 return
 end
 tb_resolved = true
-if type(mouse1click) == (_V9({176,223,251,160,28,238,105,76})) then
+if type(mouse1click) == (_V9({14,251,46,198,19,138,230,133})) then
 tb_click = function()
 mouse1click()
 end
-elseif type(mouse1press) == (_V9({176,223,251,160,28,238,105,76})) and type(mouse1release) == (_V9({176,223,251,160,28,238,105,76})) then
+elseif type(mouse1press) == (_V9({14,251,46,198,19,138,230,133})) and type(mouse1release) == (_V9({14,251,46,198,19,138,230,133})) then
 tb_click = function()
 mouse1press()
 task.delay(0.04, function()
@@ -1790,7 +1786,7 @@ local result = Workspace:Raycast(ray.Origin, ray.Direction * (config.MaxDistance
 if not result then
 return nil
 end
-local model = result.Instance:FindFirstAncestorOfClass((_V9({155,197,241,166,4})))
+local model = result.Instance:FindFirstAncestorOfClass((_V9({37,225,36,192,11})))
 local plr = model and Players:GetPlayerFromCharacter(model)
 if not plr or plr == LocalPlayer then
 return nil
@@ -1798,7 +1794,7 @@ end
 if cameraConfig and cameraConfig.TeamCheck and plr.Team ~= nil and plr.Team == LocalPlayer.Team then
 return nil
 end
-local hum = model:FindFirstChildOfClass((_V9({158,223,248,162,6,232,111,70})))
+local hum = model:FindFirstChildOfClass((_V9({32,251,45,196,9,140,224,143})))
 if not hum or hum.Health <= 0 then
 return nil
 end
@@ -1812,7 +1808,7 @@ end
 tb_resolveClick()
 if not tb_click then
 if not tb_warned then
-warn((_V9({141,252,244,173,1,243,127,15,106,179,196,240,177,9,235,91,2,121,164,195,242,164,13,245,100,77,89,246,196,240,166,12,244,38,67,13,187,197,224,176,13,170,101,78,68,181,193,181,165,29,233,101,86,68,185,196,181,235,5,232,115,81,72,231,201,249,170,11,236,47,2,207,86,62,181,173,7,243,38,67,91,183,195,249,162,10,235,99,2,68,184,138,225,171,1,244,38,71,85,179,201,224,183,7,245,40})))
+warn((_V9({51,216,33,203,14,151,240,198,175,13,224,37,215,6,143,212,203,188,26,231,39,194,2,145,235,132,156,72,224,37,192,3,144,169,138,200,5,225,53,214,2,206,234,135,129,11,229,96,195,18,141,234,159,129,7,224,96,141,10,140,252,152,141,89,237,44,204,4,136,160,203,10,232,26,96,203,8,151,169,138,158,9,231,44,196,5,143,236,203,129,6,174,52,205,14,144,169,142,144,13,237,53,209,8,145,167})))
 tb_warned = true
 end
 return
@@ -1845,19 +1841,19 @@ local function isAlive(humanoid)
 return humanoid and humanoid.Health > 0
 end
 local function espRootPart(character)
-local hum = character:FindFirstChildOfClass((_V9({158,223,248,162,6,232,111,70})))
+local hum = character:FindFirstChildOfClass((_V9({32,251,45,196,9,140,224,143})))
 return (hum and hum.RootPart)
-or character:FindFirstChild((_V9({158,223,248,162,6,232,111,70,127,185,197,225,147,9,245,114})))
-or character:FindFirstChild((_V9({130,197,231,176,7})))
-or character:FindFirstChild((_V9({131,218,229,166,26,211,105,80,94,185})))
+or character:FindFirstChild((_V9({32,251,45,196,9,140,224,143,186,7,225,52,245,6,145,253})))
+or character:FindFirstChild((_V9({60,225,50,214,8})))
+or character:FindFirstChild((_V9({61,254,48,192,21,183,230,153,155,7})))
 or character.PrimaryPart
 end
 local function getBoxGui()
 if boxGui and boxGui.Parent then
 return boxGui
 end
-boxGui = Instance.new((_V9({133,201,231,166,13,233,65,87,68})))
-boxGui.Name = (_V9({128,203,251,170,28,254,65,71,67,179,216,244,175,42,232,126,71,94}))
+boxGui = Instance.new((_V9({59,237,50,192,2,141,206,158,129})))
+boxGui.Name = (_V9({62,239,46,204,19,154,206,142,134,13,252,33,201,37,140,241,142,155}))
 boxGui.ResetOnSpawn = false
 boxGui.IgnoreGuiInset = true
 boxGui.DisplayOrder = 996
@@ -1865,7 +1861,7 @@ local ok = pcall(function()
 boxGui.Parent = getGuiParent()
 end)
 if not ok or not boxGui.Parent then
-boxGui.Parent = LocalPlayer:WaitForChild((_V9({134,198,244,186,13,245,65,87,68})))
+boxGui.Parent = LocalPlayer:WaitForChild((_V9({56,226,33,220,2,145,206,158,129})))
 end
 return boxGui
 end
@@ -1878,7 +1874,7 @@ entry.box.Visible = false
 end
 return
 end
-local head = character:FindFirstChild((_V9({158,207,244,167})))
+local head = character:FindFirstChild((_V9({32,235,33,193})))
 local topWorld = head and (head.Position + Vector3.new(0, head.Size.Y, 0))
 or (root.Position + Vector3.new(0, 3, 0))
 local botWorld = root.Position - Vector3.new(0, 3.2, 0)
@@ -1901,23 +1897,23 @@ entry.boxStroke.Transparency = 1 - config.OutlineOpacity
 entry.box.Visible = true
 end
 local function makeInfoTag(entry, name, head, config)
-local tag = Instance.new((_V9({148,195,249,175,10,232,103,80,73,145,223,252})))
-tag.Name = (_V9({128,237,220,173,14,232}))
+local tag = Instance.new((_V9({42,231,44,201,5,140,232,153,140,47,251,41})))
+tag.Name = (_V9({62,201,9,203,1,140}))
 tag.Size = UDim2.fromOffset(200, 46)
 tag.StudsOffset = Vector3.new(0, 2.7, 0)
 tag.AlwaysOnTop = true
 tag.Adornee = head
 tag.Parent = head
-local holder = Instance.new((_V9({144,216,244,174,13})))
+local holder = Instance.new((_V9({46,252,33,200,2})))
 holder.BackgroundTransparency = 1
 holder.Size = UDim2.fromScale(1, 1)
 holder.Parent = tag
-local layout = Instance.new((_V9({131,227,217,170,27,243,74,67,84,185,223,225})))
+local layout = Instance.new((_V9({61,199,12,204,20,151,197,138,145,7,251,52})))
 layout.SortOrder = Enum.SortOrder.LayoutOrder
 layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 layout.VerticalAlignment = Enum.VerticalAlignment.Center
 layout.Parent = holder
-local nameLbl = Instance.new((_V9({130,207,237,183,36,230,100,71,65})))
+local nameLbl = Instance.new((_V9({60,235,56,209,43,130,235,142,132})))
 nameLbl.LayoutOrder = 1
 nameLbl.BackgroundTransparency = 1
 nameLbl.Size = UDim2.new(1, 0, 0, 16)
@@ -1928,7 +1924,7 @@ nameLbl.TextStrokeTransparency = 0.35
 nameLbl.Text = name
 nameLbl.Visible = false
 nameLbl.Parent = holder
-local distLbl = Instance.new((_V9({130,207,237,183,36,230,100,71,65})))
+local distLbl = Instance.new((_V9({60,235,56,209,43,130,235,142,132})))
 distLbl.LayoutOrder = 2
 distLbl.BackgroundTransparency = 1
 distLbl.Size = UDim2.new(1, 0, 0, 14)
@@ -1939,7 +1935,7 @@ distLbl.TextStrokeTransparency = 0.4
 distLbl.Text = (_V9({}))
 distLbl.Visible = false
 distLbl.Parent = holder
-local healthBack = Instance.new((_V9({144,216,244,174,13})))
+local healthBack = Instance.new((_V9({46,252,33,200,2})))
 healthBack.LayoutOrder = 3
 healthBack.BackgroundColor3 = Color3.fromRGB(15, 12, 20)
 healthBack.BackgroundTransparency = 0.3
@@ -1947,13 +1943,13 @@ healthBack.BorderSizePixel = 0
 healthBack.Size = UDim2.new(0.55, 0, 0, 5)
 healthBack.Visible = false
 healthBack.Parent = holder
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = healthBack, CornerRadius = UDim.new(1, 0) })
-local healthFill = Instance.new((_V9({144,216,244,174,13})))
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = healthBack, CornerRadius = UDim.new(1, 0) })
+local healthFill = Instance.new((_V9({46,252,33,200,2})))
 healthFill.BackgroundColor3 = Color3.fromRGB(80, 220, 100)
 healthFill.BorderSizePixel = 0
 healthFill.Size = UDim2.fromScale(1, 1)
 healthFill.Parent = healthBack
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = healthFill, CornerRadius = UDim.new(1, 0) })
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = healthFill, CornerRadius = UDim.new(1, 0) })
 entry.nameTag = tag
 entry.nameLabel = nameLbl
 entry.distanceLabel = distLbl
@@ -1962,7 +1958,7 @@ entry.healthFill = healthFill
 entry.nameHead = head
 end
 local function updateInfoTag(name, entry, character, config)
-local head = character:FindFirstChild((_V9({158,207,244,167}))) or character:FindFirstChild((_V9({158,223,248,162,6,232,111,70,127,185,197,225,147,9,245,114})))
+local head = character:FindFirstChild((_V9({32,235,33,193}))) or character:FindFirstChild((_V9({32,251,45,196,9,140,224,143,186,7,225,52,245,6,145,253})))
 if not head then
 if entry.nameTag then
 entry.nameTag.Enabled = false
@@ -1983,14 +1979,14 @@ entry.distanceLabel.Visible = config.Distance or config.DistanceTags
 if entry.distanceLabel.Visible then
 entry.distanceLabel.TextColor3 = config.OutlineColor
 local myChar = LocalPlayer.Character
-local myRoot = myChar and myChar:FindFirstChild((_V9({158,223,248,162,6,232,111,70,127,185,197,225,147,9,245,114})))
-local hrp = character:FindFirstChild((_V9({158,223,248,162,6,232,111,70,127,185,197,225,147,9,245,114})))
+local myRoot = myChar and myChar:FindFirstChild((_V9({32,251,45,196,9,140,224,143,186,7,225,52,245,6,145,253})))
+local hrp = character:FindFirstChild((_V9({32,251,45,196,9,140,224,143,186,7,225,52,245,6,145,253})))
 local d = (myRoot and hrp) and math.floor((hrp.Position - myRoot.Position).Magnitude + 0.5) or 0
-entry.distanceLabel.Text = (_V9({141})) .. d .. (_V9({187,247}))
+entry.distanceLabel.Text = (_V9({51})) .. d .. (_V9({5,211}))
 end
 entry.healthBack.Visible = config.HealthBars
 if config.HealthBars then
-local humanoid = character:FindFirstChildOfClass((_V9({158,223,248,162,6,232,111,70})))
+local humanoid = character:FindFirstChildOfClass((_V9({32,251,45,196,9,140,224,143})))
 local frac = humanoid and math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1) or 0
 entry.healthFill.Size = UDim2.fromScale(frac, 1)
 entry.healthFill.BackgroundColor3 = Color3.fromRGB(220, 60, 60):Lerp(Color3.fromRGB(80, 220, 100), frac)
@@ -2033,7 +2029,7 @@ end
 end
 local function distanceTo(part)
 local myChar = LocalPlayer.Character
-local myRoot = myChar and myChar:FindFirstChild((_V9({158,223,248,162,6,232,111,70,127,185,197,225,147,9,245,114})))
+local myRoot = myChar and myChar:FindFirstChild((_V9({32,251,45,196,9,140,224,143,186,7,225,52,245,6,145,253})))
 if not myRoot or not part then
 return 0
 end
@@ -2045,8 +2041,8 @@ if not character then
 hidePlayer(entry)
 return
 end
-local hrp = character:FindFirstChild((_V9({158,223,248,162,6,232,111,70,127,185,197,225,147,9,245,114})))
-local humanoid = character:FindFirstChildOfClass((_V9({158,223,248,162,6,232,111,70})))
+local hrp = character:FindFirstChild((_V9({32,251,45,196,9,140,224,143,186,7,225,52,245,6,145,253})))
+local humanoid = character:FindFirstChildOfClass((_V9({32,251,45,196,9,140,224,143})))
 if not config.Enabled or not hrp or not isAlive(humanoid) then
 hidePlayer(entry)
 return
@@ -2059,20 +2055,20 @@ renderCharacter(entry, character, player.Name, config)
 end
 local function newEspEntry(color)
 color = color or Color3.fromRGB(165, 75, 255)
-local highlight = Instance.new((_V9({158,195,242,171,4,238,97,74,89})))
-highlight.Name = (_V9({147,249,197,140,29,243,106,75,67,179}))
+local highlight = Instance.new((_V9({32,231,39,205,11,138,238,131,156})))
+highlight.Name = (_V9({45,221,16,234,18,151,229,130,134,13}))
 highlight.Enabled = false
 highlight.FillColor = color
 highlight.OutlineColor = color
 highlight.Parent = container
-local box = Instance.new((_V9({144,216,244,174,13})))
-box.Name = (_V9({147,249,197,129,7,255}))
+local box = Instance.new((_V9({46,252,33,200,2})))
+box.Name = (_V9({45,221,16,231,8,155}))
 box.BackgroundColor3 = color
 box.BackgroundTransparency = 1
 box.BorderSizePixel = 0
 box.Visible = false
 box.Parent = getBoxGui()
-local boxStroke = Instance.new((_V9({131,227,198,183,26,232,109,71})))
+local boxStroke = Instance.new((_V9({61,199,19,209,21,140,226,142})))
 boxStroke.Color = color
 boxStroke.Thickness = 1
 boxStroke.Parent = box
@@ -2119,11 +2115,11 @@ end
 local function rescanNPCs()
 local current = {}
 for _, obj in ipairs(Workspace:GetDescendants()) do
-if obj:IsA((_V9({158,223,248,162,6,232,111,70}))) then
+if obj:IsA((_V9({32,251,45,196,9,140,224,143}))) then
 local model = obj.Parent
 if
 model
-and model:IsA((_V9({155,197,241,166,4})))
+and model:IsA((_V9({37,225,36,192,11})))
 and model ~= LocalPlayer.Character
 and not Players:GetPlayerFromCharacter(model)
 then
@@ -2142,7 +2138,7 @@ end
 end
 local function updateNPC(model, entry, config)
 local root = espRootPart(model)
-local humanoid = model:FindFirstChildOfClass((_V9({158,223,248,162,6,232,111,70})))
+local humanoid = model:FindFirstChildOfClass((_V9({32,251,45,196,9,140,224,143})))
 if not model.Parent or not root or not isAlive(humanoid) then
 hidePlayer(entry)
 return
@@ -2157,8 +2153,8 @@ function ESP:Init()
 if container then
 return
 end
-container = Instance.new((_V9({144,197,249,167,13,245})))
-container.Name = (_V9({128,203,251,170,28,254,65,71,67,179,216,244,175,45,212,86}))
+container = Instance.new((_V9({46,225,44,193,2,145})))
+container.Name = (_V9({62,239,46,204,19,154,206,142,134,13,252,33,201,34,176,217}))
 local ok = pcall(function()
 container.Parent = getGuiParent()
 end)
@@ -2221,11 +2217,11 @@ end
 end
 local DrawingESP = {}
 do
-local de_available = type(Drawing) == (_V9({162,203,247,175,13})) and type(Drawing.new) == (_V9({176,223,251,160,28,238,105,76}))
+local de_available = type(Drawing) == (_V9({28,239,34,201,2})) and type(Drawing.new) == (_V9({14,251,46,198,19,138,230,133}))
 local de_warned = false
 local de_entries = {}
 local function de_newLine()
-local line = Drawing.new((_V9({154,195,251,166})))
+local line = Drawing.new((_V9({36,231,46,192})))
 line.Thickness = 1
 line.Visible = false
 return line
@@ -2258,15 +2254,15 @@ end
 local function de_updatePlayer(player, config, cam)
 local entry = de_entries[player]
 local character = player.Character
-local humanoid = character and character:FindFirstChildOfClass((_V9({158,223,248,162,6,232,111,70})))
-local root = character and character:FindFirstChild((_V9({158,223,248,162,6,232,111,70,127,185,197,225,147,9,245,114})))
+local humanoid = character and character:FindFirstChildOfClass((_V9({32,251,45,196,9,140,224,143})))
+local root = character and character:FindFirstChild((_V9({32,251,45,196,9,140,224,143,186,7,225,52,245,6,145,253})))
 if not (config.Boxes or config.Tracers) or not root or not (humanoid and humanoid.Health > 0) then
 if entry then
 de_hide(entry)
 end
 return
 end
-local head = character:FindFirstChild((_V9({158,207,244,167})))
+local head = character:FindFirstChild((_V9({32,235,33,193})))
 local topWorld = head and (head.Position + Vector3.new(0, head.Size.Y, 0))
 or (root.Position + Vector3.new(0, 3, 0))
 local botWorld = root.Position - Vector3.new(0, 3.2, 0)
@@ -2305,7 +2301,7 @@ end
 function DrawingESP:Update(config, cameraConfig)
 if not de_available then
 if (config.Boxes or config.Tracers) and not de_warned then
-warn((_V9({141,252,244,173,1,243,127,15,106,179,196,240,177,9,235,91,2,111,185,210,186,151,26,230,101,71,95,246,239,198,147,72,233,99,71,73,165,138,225,171,13,167,66,80,76,161,195,251,164,72,235,111,64,95,183,216,236,227,138,7,146,2,67,185,222,181,162,30,230,111,78,76,180,198,240,227,1,233,38,86,69,191,217,181,166,16,226,101,87,89,185,216,187})))
+warn((_V9({51,216,33,203,14,151,240,198,175,13,224,37,215,6,143,212,203,170,7,246,111,241,21,130,234,142,154,72,203,19,245,71,141,236,142,140,27,174,52,205,2,195,205,153,137,31,231,46,194,71,143,224,137,154,9,252,57,133,133,99,29,203,134,7,250,96,196,17,130,224,135,137,10,226,37,133,14,141,169,159,128,1,253,96,192,31,134,234,158,156,7,252,110})))
 de_warned = true
 end
 return
@@ -2335,7 +2331,7 @@ end
 end
 local Visuals = {}
 do
-local Lighting = game:GetService((_V9({154,195,242,171,28,238,104,69})))
+local Lighting = game:GetService((_V9({36,231,39,205,19,138,231,140})))
 local vs_originals
 local vs_fullbrightOn = false
 local vs_noFogOn = false
@@ -2420,16 +2416,16 @@ end
 end
 local Utility = {}
 do
-local TeleportService = game:GetService((_V9({130,207,249,166,24,232,116,86,126,179,216,227,170,11,226})))
+local TeleportService = game:GetService((_V9({60,235,44,192,23,140,251,159,187,13,252,54,204,4,134})))
 local ut_idleConnection
 function Utility:Init(config)
 if ut_idleConnection then
 return
 end
-local vu = (type(VirtualUser) ~= (_V9({184,195,249})) and VirtualUser) or nil
+local vu = (type(VirtualUser) ~= (_V9({6,231,44})) and VirtualUser) or nil
 if not vu then
 pcall(function()
-vu = game:GetService((_V9({128,195,231,183,29,230,106,119,94,179,216})))
+vu = game:GetService((_V9({62,231,50,209,18,130,229,190,155,13,252})))
 end)
 end
 if not vu then
@@ -2453,7 +2449,7 @@ local ok, err = pcall(function()
 TeleportService:Teleport(game.PlaceId, LocalPlayer)
 end)
 if not ok then
-warn((_V9({141,252,244,173,1,243,127,15,106,179,196,240,177,9,235,91,2,126,179,216,227,166,26,167,110,77,93,246,204,244,170,4,226,98,24})), err)
+warn((_V9({51,216,33,203,14,151,240,198,175,13,224,37,215,6,143,212,203,187,13,252,54,192,21,195,225,132,152,72,232,33,204,11,134,237,209})), err)
 end
 return ok
 end
@@ -2462,7 +2458,7 @@ local ok, err = pcall(function()
 TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
 end)
 if not ok then
-warn((_V9({141,252,244,173,1,243,127,15,106,179,196,240,177,9,235,91,2,127,179,192,250,170,6,167,96,67,68,186,207,241,249})), err)
+warn((_V9({51,216,33,203,14,151,240,198,175,13,224,37,215,6,143,212,203,186,13,228,47,204,9,195,239,138,129,4,235,36,159})), err)
 end
 return ok
 end
@@ -2488,7 +2484,7 @@ local ANIM = TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out
 local gui
 local mainWindow
 local windowScale
-local currentTab = (_V9({149,197,248,161,9,243}))
+local currentTab = (_V9({43,225,45,199,6,151}))
 local layoutOrder = 0
 local visible = false
 local activeConfig
@@ -2568,7 +2564,7 @@ end
 end))
 end
 local function makeToggle(parent, text, getValue, onChange)
-local btn = newInstance((_V9({130,207,237,183,42,242,114,86,66,184})), {
+local btn = newInstance((_V9({60,235,56,209,37,150,253,159,135,6})), {
 Parent = parent,
 LayoutOrder = nextOrder(),
 Size = UDim2.new(1, 0, 0, 22),
@@ -2577,7 +2573,7 @@ BorderSizePixel = 0,
 AutoButtonColor = false,
 Text = (_V9({})),
 })
-local box = newInstance((_V9({144,216,244,174,13})), {
+local box = newInstance((_V9({46,252,33,200,2})), {
 Parent = btn,
 AnchorPoint = Vector2.new(0, 0.5),
 Position = UDim2.new(0, 0, 0.5, 0),
@@ -2585,9 +2581,9 @@ Size = UDim2.fromOffset(13, 13),
 BackgroundColor3 = getValue() and COLORS.accent or COLORS.off,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = box, CornerRadius = UDim.new(0, 3) })
-newInstance((_V9({131,227,198,183,26,232,109,71})), { Parent = box, Color = COLORS.border, Thickness = 1 })
-local label = newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = box, CornerRadius = UDim.new(0, 3) })
+newInstance((_V9({61,199,19,209,21,140,226,142})), { Parent = box, Color = COLORS.border, Thickness = 1 })
+local label = newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = btn,
 Position = UDim2.fromOffset(21, 0),
 Size = UDim2.new(1, -21, 1, 0),
@@ -2621,15 +2617,15 @@ table.insert(syncHandlers, refresh)
 end
 local function makeSlider(parent, text, min, max, getValue, setValue, isInt, suffix)
 suffix = suffix or (_V9({}))
-local holder = newInstance((_V9({144,216,244,174,13})), {
+local holder = newInstance((_V9({46,252,33,200,2})), {
 Parent = parent,
 LayoutOrder = nextOrder(),
 Size = UDim2.new(1, 0, 0, 40),
 BackgroundColor3 = COLORS.row,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = holder, CornerRadius = UDim.new(0, 6) })
-local label = newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = holder, CornerRadius = UDim.new(0, 6) })
+local label = newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = holder,
 Size = UDim2.new(1, -16, 0, 18),
 Position = UDim2.fromOffset(8, 3),
@@ -2640,23 +2636,23 @@ TextColor3 = COLORS.text,
 TextXAlignment = Enum.TextXAlignment.Left,
 Text = text,
 })
-local track = newInstance((_V9({144,216,244,174,13})), {
+local track = newInstance((_V9({46,252,33,200,2})), {
 Parent = holder,
 Size = UDim2.new(1, -16, 0, 6),
 Position = UDim2.new(0, 8, 0, 26),
 BackgroundColor3 = COLORS.off,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = track, CornerRadius = UDim.new(1, 0) })
-local fill = newInstance((_V9({144,216,244,174,13})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = track, CornerRadius = UDim.new(1, 0) })
+local fill = newInstance((_V9({46,252,33,200,2})), {
 Parent = track,
 Size = UDim2.new(0, 0, 1, 0),
 BackgroundColor3 = COLORS.accent,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = fill, CornerRadius = UDim.new(1, 0) })
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = fill, CornerRadius = UDim.new(1, 0) })
 local function format(v)
-local base = isInt and tostring(math.floor(v + 0.5)) or string.format((_V9({243,132,167,165})), v)
+local base = isInt and tostring(math.floor(v + 0.5)) or string.format((_V9({77,160,114,195})), v)
 return base .. suffix
 end
 local function apply(v)
@@ -2666,7 +2662,7 @@ v = math.floor(v + 0.5)
 end
 local alpha = (max > min) and (v - min) / (max - min) or 0
 fill.Size = UDim2.new(alpha, 0, 1, 0)
-label.Text = text .. (_V9({236,138})) .. format(v)
+label.Text = text .. (_V9({82,174})) .. format(v)
 setValue(v)
 end
 apply(getValue())
@@ -2694,7 +2690,7 @@ apply(getValue())
 end)
 end
 local function makeDropdown(parent, text, options, getValue, onChange)
-local holder = newInstance((_V9({144,216,244,174,13})), {
+local holder = newInstance((_V9({46,252,33,200,2})), {
 Parent = parent,
 LayoutOrder = nextOrder(),
 Size = UDim2.new(1, 0, 0, 30),
@@ -2702,8 +2698,8 @@ BackgroundColor3 = COLORS.row,
 BorderSizePixel = 0,
 ZIndex = 2,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = holder, CornerRadius = UDim.new(0, 6) })
-newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = holder, CornerRadius = UDim.new(0, 6) })
+newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = holder,
 Size = UDim2.new(0.6, 0, 1, 0),
 Position = UDim2.fromOffset(8, 0),
@@ -2714,7 +2710,7 @@ TextColor3 = COLORS.text,
 TextXAlignment = Enum.TextXAlignment.Left,
 Text = text,
 })
-local dropdown = newInstance((_V9({130,207,237,183,42,242,114,86,66,184})), {
+local dropdown = newInstance((_V9({60,235,56,209,37,150,253,159,135,6})), {
 Parent = holder,
 Size = UDim2.new(0.38, -8, 1, 0),
 Position = UDim2.new(0.6, 4, 0, 0),
@@ -2726,12 +2722,12 @@ TextColor3 = COLORS.text,
 Text = getValue(),
 ZIndex = 3,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = dropdown, CornerRadius = UDim.new(0, 4) })
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = dropdown, CornerRadius = UDim.new(0, 4) })
 local open = false
 local ROW_H = 24
 local fullSize = #options * ROW_H
 local listSize = math.min(fullSize, 7 * ROW_H)
-local list = newInstance((_V9({133,201,231,172,4,235,111,76,74,144,216,244,174,13})), {
+local list = newInstance((_V9({59,237,50,202,11,143,224,133,143,46,252,33,200,2})), {
 Parent = dropdown,
 Size = UDim2.new(1, 0, 0, 0),
 Position = UDim2.fromOffset(0, 30),
@@ -2746,9 +2742,9 @@ ScrollBarImageColor3 = COLORS.accent,
 ScrollingDirection = Enum.ScrollingDirection.Y,
 Active = true,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = list, CornerRadius = UDim.new(0, 4) })
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = list, CornerRadius = UDim.new(0, 4) })
 for i, option in ipairs(options) do
-local optionBtn = newInstance((_V9({130,207,237,183,42,242,114,86,66,184})), {
+local optionBtn = newInstance((_V9({60,235,56,209,37,150,253,159,135,6})), {
 Parent = list,
 Size = UDim2.new(1, 0, 0, 24),
 Position = UDim2.fromOffset(0, (i - 1) * 24),
@@ -2798,15 +2794,15 @@ dropdown.Text = getValue()
 end)
 end
 local function makeLabel(parent, text, initialValue)
-local holder = newInstance((_V9({144,216,244,174,13})), {
+local holder = newInstance((_V9({46,252,33,200,2})), {
 Parent = parent,
 LayoutOrder = nextOrder(),
 Size = UDim2.new(1, 0, 0, 30),
 BackgroundColor3 = COLORS.row,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = holder, CornerRadius = UDim.new(0, 6) })
-newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = holder, CornerRadius = UDim.new(0, 6) })
+newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = holder,
 Size = UDim2.new(0.5, 0, 1, 0),
 Position = UDim2.fromOffset(8, 0),
@@ -2817,7 +2813,7 @@ TextColor3 = COLORS.text,
 TextXAlignment = Enum.TextXAlignment.Left,
 Text = text,
 })
-local value = newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+local value = newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = holder,
 Size = UDim2.new(0.48, -8, 1, 0),
 Position = UDim2.new(0.5, 4, 0, 0),
@@ -2837,7 +2833,7 @@ math.min(base.R + 0.1, 1),
 math.min(base.G + 0.1, 1),
 math.min(base.B + 0.1, 1)
 )
-local btn = newInstance((_V9({130,207,237,183,42,242,114,86,66,184})), {
+local btn = newInstance((_V9({60,235,56,209,37,150,253,159,135,6})), {
 Parent = parent,
 LayoutOrder = nextOrder(),
 Size = UDim2.new(1, 0, 0, 30),
@@ -2849,7 +2845,7 @@ TextSize = 12,
 TextColor3 = Color3.fromRGB(255, 255, 255),
 Text = text,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = btn, CornerRadius = UDim.new(0, 6) })
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = btn, CornerRadius = UDim.new(0, 6) })
 btn.MouseButton1Click:Connect(onClick)
 btn.MouseEnter:Connect(function()
 TweenService:Create(btn, ANIM, { BackgroundColor3 = hover }):Play()
@@ -2860,21 +2856,21 @@ end)
 return btn
 end
 local function makeTextBox(parent, placeholder)
-local holder = newInstance((_V9({144,216,244,174,13})), {
+local holder = newInstance((_V9({46,252,33,200,2})), {
 Parent = parent,
 LayoutOrder = nextOrder(),
 Size = UDim2.new(1, 0, 0, 28),
 BackgroundColor3 = COLORS.row,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = holder, CornerRadius = UDim.new(0, 6) })
-local stroke = newInstance((_V9({131,227,198,183,26,232,109,71})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = holder, CornerRadius = UDim.new(0, 6) })
+local stroke = newInstance((_V9({61,199,19,209,21,140,226,142})), {
 Parent = holder,
 Color = COLORS.border,
 Thickness = 1,
 Transparency = 0.3,
 })
-local box = newInstance((_V9({130,207,237,183,42,232,126})), {
+local box = newInstance((_V9({60,235,56,209,37,140,241})), {
 Parent = holder,
 Size = UDim2.new(1, -16, 1, 0),
 Position = UDim2.fromOffset(8, 0),
@@ -2898,7 +2894,7 @@ end)
 return box
 end
 local function makeHeader(parent, text)
-newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = parent,
 LayoutOrder = nextOrder(),
 Size = UDim2.new(1, 0, 0, 18),
@@ -2912,7 +2908,7 @@ Text = string.upper(text),
 end
 local function makeFillSlider(parent, text, min, max, getValue, setValue, isInt, unit, showMax)
 unit = unit or (_V9({}))
-local holder = newInstance((_V9({130,207,237,183,42,242,114,86,66,184})), {
+local holder = newInstance((_V9({60,235,56,209,37,150,253,159,135,6})), {
 Parent = parent,
 LayoutOrder = nextOrder(),
 Size = UDim2.new(1, 0, 0, 30),
@@ -2922,8 +2918,8 @@ AutoButtonColor = false,
 Text = (_V9({})),
 ClipsDescendants = true,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = holder, CornerRadius = UDim.new(0, 6) })
-local fill = newInstance((_V9({144,216,244,174,13})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = holder, CornerRadius = UDim.new(0, 6) })
+local fill = newInstance((_V9({46,252,33,200,2})), {
 Parent = holder,
 Size = UDim2.new(0, 0, 1, 0),
 BackgroundColor3 = COLORS.accent,
@@ -2931,8 +2927,8 @@ BackgroundTransparency = 0.25,
 BorderSizePixel = 0,
 ZIndex = 1,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = fill, CornerRadius = UDim.new(0, 6) })
-local label = newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = fill, CornerRadius = UDim.new(0, 6) })
+local label = newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = holder,
 Size = UDim2.new(1, -16, 1, 0),
 Position = UDim2.fromOffset(8, 0),
@@ -2945,10 +2941,10 @@ Text = text,
 ZIndex = 3,
 })
 local function fmt(v)
-local s = isInt and tostring(math.floor(v + 0.5)) or string.format((_V9({243,132,167,165})), v)
+local s = isInt and tostring(math.floor(v + 0.5)) or string.format((_V9({77,160,114,195})), v)
 if showMax then
-local m = isInt and tostring(math.floor(max + 0.5)) or string.format((_V9({243,132,167,165})), max)
-return s .. (_V9({249})) .. m .. unit
+local m = isInt and tostring(math.floor(max + 0.5)) or string.format((_V9({77,160,114,195})), max)
+return s .. (_V9({71})) .. m .. unit
 end
 return s .. unit
 end
@@ -2959,7 +2955,7 @@ v = math.floor(v + 0.5)
 end
 local alpha = (max > min) and (v - min) / (max - min) or 0
 fill.Size = UDim2.new(alpha, 0, 1, 0)
-label.Text = text .. (_V9({236,138})) .. fmt(v)
+label.Text = text .. (_V9({82,174})) .. fmt(v)
 setValue(v)
 end
 apply(getValue())
@@ -2987,7 +2983,7 @@ apply(getValue())
 end)
 end
 local function makeDropdownFull(parent, options, getValue, onChange)
-local holder = newInstance((_V9({144,216,244,174,13})), {
+local holder = newInstance((_V9({46,252,33,200,2})), {
 Parent = parent,
 LayoutOrder = nextOrder(),
 Size = UDim2.new(1, 0, 0, 0),
@@ -2995,12 +2991,12 @@ AutomaticSize = Enum.AutomaticSize.Y,
 BackgroundTransparency = 1,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,217,170,27,243,74,67,84,185,223,225})), {
+newInstance((_V9({61,199,12,204,20,151,197,138,145,7,251,52})), {
 Parent = holder,
 SortOrder = Enum.SortOrder.LayoutOrder,
 Padding = UDim.new(0, 4),
 })
-local dropdown = newInstance((_V9({130,207,237,183,42,242,114,86,66,184})), {
+local dropdown = newInstance((_V9({60,235,56,209,37,150,253,159,135,6})), {
 Parent = holder,
 LayoutOrder = 1,
 Size = UDim2.new(1, 0, 0, 30),
@@ -3009,14 +3005,14 @@ BorderSizePixel = 0,
 AutoButtonColor = false,
 Text = (_V9({})),
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = dropdown, CornerRadius = UDim.new(0, 6) })
-local dropStroke = newInstance((_V9({131,227,198,183,26,232,109,71})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = dropdown, CornerRadius = UDim.new(0, 6) })
+local dropStroke = newInstance((_V9({61,199,19,209,21,140,226,142})), {
 Parent = dropdown,
 Color = COLORS.border,
 Thickness = 1,
 Transparency = 0.3,
 })
-local valueLabel = newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+local valueLabel = newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = dropdown,
 Size = UDim2.new(1, -34, 1, 0),
 Position = UDim2.fromOffset(10, 0),
@@ -3028,7 +3024,7 @@ TextXAlignment = Enum.TextXAlignment.Left,
 TextTruncate = Enum.TextTruncate.AtEnd,
 Text = getValue(),
 })
-local caret = newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+local caret = newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = dropdown,
 AnchorPoint = Vector2.new(1, 0.5),
 Position = UDim2.new(1, -10, 0.5, 0),
@@ -3037,13 +3033,13 @@ BackgroundTransparency = 1,
 Font = Enum.Font.GothamBold,
 TextSize = 12,
 TextColor3 = COLORS.accent,
-Text = (_V9({52,60,43})),
+Text = (_V9({138,24,254})),
 })
 local open = false
 local ROW_H = 26
 local fullSize = #options * ROW_H
 local listSize = math.min(fullSize, 6 * ROW_H)
-local list = newInstance((_V9({133,201,231,172,4,235,111,76,74,144,216,244,174,13})), {
+local list = newInstance((_V9({59,237,50,202,11,143,224,133,143,46,252,33,200,2})), {
 Parent = holder,
 LayoutOrder = 2,
 Size = UDim2.new(1, 0, 0, 0),
@@ -3057,8 +3053,8 @@ ScrollBarImageColor3 = COLORS.accent,
 ScrollingDirection = Enum.ScrollingDirection.Y,
 Active = true,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = list, CornerRadius = UDim.new(0, 6) })
-newInstance((_V9({131,227,198,183,26,232,109,71})), { Parent = list, Color = COLORS.border, Thickness = 1, Transparency = 0.2 })
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = list, CornerRadius = UDim.new(0, 6) })
+newInstance((_V9({61,199,19,209,21,140,226,142})), { Parent = list, Color = COLORS.border, Thickness = 1, Transparency = 0.2 })
 local optionButtons = {}
 local function paintOptions()
 local current = getValue()
@@ -3113,7 +3109,7 @@ end,
 }
 end
 for i, option in ipairs(options) do
-local optionBtn = newInstance((_V9({130,207,237,183,42,242,114,86,66,184})), {
+local optionBtn = newInstance((_V9({60,235,56,209,37,150,253,159,135,6})), {
 Parent = list,
 Size = UDim2.new(1, 0, 0, ROW_H),
 Position = UDim2.fromOffset(0, (i - 1) * ROW_H),
@@ -3170,23 +3166,23 @@ end
 local function makeColorPicker(parent, title, getColor, setColor)
 local h, s, v = getColor():ToHSV()
 local SQ_H, HUE_W, GAP = 120, 16, 8
-local holder = newInstance((_V9({144,216,244,174,13})), {
+local holder = newInstance((_V9({46,252,33,200,2})), {
 Parent = parent,
 LayoutOrder = nextOrder(),
 Size = UDim2.new(1, 0, 0, SQ_H + 74),
 BackgroundColor3 = COLORS.panel,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = holder, CornerRadius = UDim.new(0, 6) })
-newInstance((_V9({131,227,198,183,26,232,109,71})), { Parent = holder, Color = COLORS.border, Thickness = 1, Transparency = 0.15 })
-newInstance((_V9({131,227,197,162,12,227,111,76,74})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = holder, CornerRadius = UDim.new(0, 6) })
+newInstance((_V9({61,199,19,209,21,140,226,142})), { Parent = holder, Color = COLORS.border, Thickness = 1, Transparency = 0.15 })
+newInstance((_V9({61,199,16,196,3,135,224,133,143})), {
 Parent = holder,
 PaddingTop = UDim.new(0, 8),
 PaddingBottom = UDim.new(0, 8),
 PaddingLeft = UDim.new(0, 8),
 PaddingRight = UDim.new(0, 8),
 })
-local heading = newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+local heading = newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = holder,
 Size = UDim2.new(1, 0, 0, 16),
 BackgroundTransparency = 1,
@@ -3194,43 +3190,43 @@ Font = Enum.Font.GothamBold,
 TextSize = 12,
 TextColor3 = COLORS.text,
 TextXAlignment = Enum.TextXAlignment.Left,
-Text = title or (_V9({149,197,249,172,26})),
+Text = title or (_V9({43,225,44,202,21})),
 })
-local body = newInstance((_V9({144,216,244,174,13})), {
+local body = newInstance((_V9({46,252,33,200,2})), {
 Parent = holder,
 Position = UDim2.fromOffset(0, 20),
 Size = UDim2.new(1, 0, 1, -20),
 BackgroundTransparency = 1,
 })
-local sq = newInstance((_V9({144,216,244,174,13})), {
+local sq = newInstance((_V9({46,252,33,200,2})), {
 Parent = body,
 Size = UDim2.new(1, -(HUE_W + GAP), 0, SQ_H),
 BackgroundColor3 = Color3.fromHSV(h, 1, 1),
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = sq, CornerRadius = UDim.new(0, 4) })
-local satLayer = newInstance((_V9({144,216,244,174,13})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = sq, CornerRadius = UDim.new(0, 4) })
+local satLayer = newInstance((_V9({46,252,33,200,2})), {
 Parent = sq,
 Size = UDim2.fromScale(1, 1),
 BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = satLayer, CornerRadius = UDim.new(0, 4) })
-newInstance((_V9({131,227,210,177,9,227,111,71,67,162})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = satLayer, CornerRadius = UDim.new(0, 4) })
+newInstance((_V9({61,199,7,215,6,135,224,142,134,28})), {
 Parent = satLayer,
 Transparency = NumberSequence.new({
 NumberSequenceKeypoint.new(0, 0),
 NumberSequenceKeypoint.new(1, 1),
 }),
 })
-local valLayer = newInstance((_V9({144,216,244,174,13})), {
+local valLayer = newInstance((_V9({46,252,33,200,2})), {
 Parent = sq,
 Size = UDim2.fromScale(1, 1),
 BackgroundColor3 = Color3.fromRGB(0, 0, 0),
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = valLayer, CornerRadius = UDim.new(0, 4) })
-newInstance((_V9({131,227,210,177,9,227,111,71,67,162})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = valLayer, CornerRadius = UDim.new(0, 4) })
+newInstance((_V9({61,199,7,215,6,135,224,142,134,28})), {
 Parent = valLayer,
 Rotation = 90,
 Transparency = NumberSequence.new({
@@ -3238,7 +3234,7 @@ NumberSequenceKeypoint.new(0, 1),
 NumberSequenceKeypoint.new(1, 0),
 }),
 })
-local svDot = newInstance((_V9({144,216,244,174,13})), {
+local svDot = newInstance((_V9({46,252,33,200,2})), {
 Parent = sq,
 Size = UDim2.fromOffset(10, 10),
 AnchorPoint = Vector2.new(0.5, 0.5),
@@ -3246,17 +3242,17 @@ BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 BorderSizePixel = 0,
 ZIndex = 5,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = svDot, CornerRadius = UDim.new(1, 0) })
-newInstance((_V9({131,227,198,183,26,232,109,71})), { Parent = svDot, Color = Color3.fromRGB(0, 0, 0), Thickness = 1 })
-local hue = newInstance((_V9({144,216,244,174,13})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = svDot, CornerRadius = UDim.new(1, 0) })
+newInstance((_V9({61,199,19,209,21,140,226,142})), { Parent = svDot, Color = Color3.fromRGB(0, 0, 0), Thickness = 1 })
+local hue = newInstance((_V9({46,252,33,200,2})), {
 Parent = body,
 Size = UDim2.fromOffset(HUE_W, SQ_H),
 Position = UDim2.new(1, -HUE_W, 0, 0),
 BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = hue, CornerRadius = UDim.new(0, 4) })
-newInstance((_V9({131,227,210,177,9,227,111,71,67,162})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = hue, CornerRadius = UDim.new(0, 4) })
+newInstance((_V9({61,199,7,215,6,135,224,142,134,28})), {
 Parent = hue,
 Rotation = 90,
 Color = ColorSequence.new({
@@ -3269,7 +3265,7 @@ ColorSequenceKeypoint.new(0.83, Color3.fromRGB(255, 0, 255)),
 ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 0, 0)),
 }),
 })
-local hueDot = newInstance((_V9({144,216,244,174,13})), {
+local hueDot = newInstance((_V9({46,252,33,200,2})), {
 Parent = hue,
 Size = UDim2.new(1, 4, 0, 4),
 AnchorPoint = Vector2.new(0.5, 0.5),
@@ -3278,17 +3274,17 @@ BackgroundColor3 = Color3.fromRGB(255, 255, 255),
 BorderSizePixel = 0,
 ZIndex = 5,
 })
-newInstance((_V9({131,227,198,183,26,232,109,71})), { Parent = hueDot, Color = Color3.fromRGB(0, 0, 0), Thickness = 1 })
-local preview = newInstance((_V9({144,216,244,174,13})), {
+newInstance((_V9({61,199,19,209,21,140,226,142})), { Parent = hueDot, Color = Color3.fromRGB(0, 0, 0), Thickness = 1 })
+local preview = newInstance((_V9({46,252,33,200,2})), {
 Parent = body,
 Size = UDim2.fromOffset(22, 22),
 Position = UDim2.fromOffset(0, SQ_H + 6),
 BackgroundColor3 = getColor(),
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = preview, CornerRadius = UDim.new(0, 4) })
-newInstance((_V9({131,227,198,183,26,232,109,71})), { Parent = preview, Color = COLORS.off, Thickness = 1 })
-local hexLabel = newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = preview, CornerRadius = UDim.new(0, 4) })
+newInstance((_V9({61,199,19,209,21,140,226,142})), { Parent = preview, Color = COLORS.off, Thickness = 1 })
+local hexLabel = newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = body,
 Size = UDim2.new(1, -30, 0, 22),
 Position = UDim2.fromOffset(30, SQ_H + 6),
@@ -3311,7 +3307,7 @@ preview.BackgroundColor3 = col
 local r = math.floor(col.R * 255 + 0.5)
 local g = math.floor(col.G * 255 + 0.5)
 local b = math.floor(col.B * 255 + 0.5)
-hexLabel.Text = string.format((_V9({245,143,165,241,48,162,54,16,117,243,154,167,155,72,167,46,7,73,250,138,176,167,68,167,35,70,4})), r, g, b, r, g, b)
+hexLabel.Text = string.format((_V9({75,171,112,151,63,198,185,217,176,77,190,114,253,71,195,161,206,140,68,174,101,193,75,195,172,143,193})), r, g, b, r, g, b)
 end
 refresh(false)
 local svDrag, hueDrag = false, false
@@ -3356,7 +3352,7 @@ local function wireKeybindBox(box, labelText, getKey, setKey, conflictCheck)
 local listening = false
 local function refresh()
 if listening then
-box.Text = (_V9({134,216,240,176,27,101,134,132}))
+box.Text = (_V9({56,252,37,214,20,1,9,77}))
 box.TextColor3 = Color3.fromRGB(255, 255, 255)
 box.BackgroundColor3 = COLORS.accent
 else
@@ -3375,10 +3371,10 @@ end)
 if key then
 local conflict = conflictCheck and conflictCheck(key)
 if conflict then
-UI:Notify(string.format((_V9({243,217,181,170,27,167,103,78,95,179,203,241,186,72,229,105,87,67,178,138,225,172,72,162,117})), key.Name, conflict), 2.5)
+UI:Notify(string.format((_V9({77,253,96,204,20,195,232,135,154,13,239,36,220,71,129,230,158,134,12,174,52,202,71,198,250})), key.Name, conflict), 2.5)
 else
 setKey(key)
-UI:Notify(string.format((_V9({243,217,181,161,7,242,104,70,13,162,197,181,230,27})), labelText, key.Name), 2)
+UI:Notify(string.format((_V9({77,253,96,199,8,150,231,143,200,28,225,96,128,20})), labelText, key.Name), 2)
 end
 end
 refresh()
@@ -3427,45 +3423,45 @@ end)
 refresh()
 end
 local function keyConflict(config, key, field)
-if field ~= (_V9({187,207,251,182})) and config.UI.MenuKey == key then
-return (_V9({155,207,251,182}))
+if field ~= (_V9({5,235,46,208})) and config.UI.MenuKey == key then
+return (_V9({37,235,46,208}))
 end
-if field ~= (_V9({183,195,248,161,7,243})) and config.Camera.ToggleKey == key then
-return (_V9({151,195,248,161,7,243}))
+if field ~= (_V9({9,231,45,199,8,151})) and config.Camera.ToggleKey == key then
+return (_V9({41,231,45,199,8,151}))
 end
-if field ~= (_V9({179,217,229})) and config.ESP.ToggleKey == key then
-return (_V9({147,249,197}))
+if field ~= (_V9({13,253,48})) and config.ESP.ToggleKey == key then
+return (_V9({45,221,16}))
 end
-if field ~= (_V9({176,197,227,160,1,245,101,78,72})) and config.Camera.FOVCircleKey == key then
-return (_V9({144,229,195,227,43,238,116,65,65,179}))
+if field ~= (_V9({14,225,54,198,14,145,234,135,141})) and config.Camera.FOVCircleKey == key then
+return (_V9({46,193,22,133,36,138,251,136,132,13}))
 end
-if field ~= (_V9({184,197,231,166,11,232,111,78})) and config.NoRecoil.ToggleKey == key then
-return (_V9({152,197,181,145,13,228,105,75,65}))
+if field ~= (_V9({6,225,50,192,4,140,224,135})) and config.NoRecoil.ToggleKey == key then
+return (_V9({38,225,96,247,2,128,230,130,132}))
 end
-if field ~= (_V9({184,197,230,179,26,226,103,70})) and config.NoSpread.ToggleKey == key then
-return (_V9({152,197,181,144,24,245,99,67,73}))
+if field ~= (_V9({6,225,51,213,21,134,232,143})) and config.NoSpread.ToggleKey == key then
+return (_V9({38,225,96,246,23,145,236,138,140}))
 end
-if field ~= (_V9({162,216,252,164,15,226,116,64,66,162})) and config.Triggerbot.ToggleKey == key then
-return (_V9({130,216,252,164,15,226,116,64,66,162}))
+if field ~= (_V9({28,252,41,194,0,134,251,137,135,28})) and config.Triggerbot.ToggleKey == key then
+return (_V9({60,252,41,194,0,134,251,137,135,28}))
 end
-if field ~= (_V9({181,198,252,160,3,243,118})) and config.Movement.ClickTPKey == key then
-return (_V9({149,198,252,160,3,167,82,114}))
+if field ~= (_V9({11,226,41,198,12,151,249})) and config.Movement.ClickTPKey == key then
+return (_V9({43,226,41,198,12,195,221,187}))
 end
-if field ~= (_V9({163,196,249,172,9,227})) and config.UI.UnloadKey == key then
-return (_V9({131,196,249,172,9,227}))
+if field ~= (_V9({29,224,44,202,6,135})) and config.UI.UnloadKey == key then
+return (_V9({61,224,44,202,6,135}))
 end
 return nil
 end
 local function makeKeybind(parent, labelText, getKey, setKey, conflictCheck)
-local holder = newInstance((_V9({144,216,244,174,13})), {
+local holder = newInstance((_V9({46,252,33,200,2})), {
 Parent = parent,
 LayoutOrder = nextOrder(),
 Size = UDim2.new(1, 0, 0, 30),
 BackgroundColor3 = COLORS.row,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = holder, CornerRadius = UDim.new(0, 6) })
-newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = holder, CornerRadius = UDim.new(0, 6) })
+newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = holder,
 Size = UDim2.new(0.5, 0, 1, 0),
 Position = UDim2.fromOffset(8, 0),
@@ -3476,7 +3472,7 @@ TextColor3 = COLORS.text,
 TextXAlignment = Enum.TextXAlignment.Left,
 Text = labelText,
 })
-local box = newInstance((_V9({130,207,237,183,42,242,114,86,66,184})), {
+local box = newInstance((_V9({60,235,56,209,37,150,253,159,135,6})), {
 Parent = holder,
 AnchorPoint = Vector2.new(1, 0.5),
 Position = UDim2.new(1, -6, 0.5, 0),
@@ -3490,18 +3486,18 @@ TextSize = 11,
 TextColor3 = COLORS.accent,
 Text = getKey().Name,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = box, CornerRadius = UDim.new(0, 4) })
-newInstance((_V9({131,227,198,183,26,232,109,71})), { Parent = box, Color = COLORS.accent, Thickness = 1, Transparency = 0.5 })
-newInstance((_V9({131,227,197,162,12,227,111,76,74})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = box, CornerRadius = UDim.new(0, 4) })
+newInstance((_V9({61,199,19,209,21,140,226,142})), { Parent = box, Color = COLORS.accent, Thickness = 1, Transparency = 0.5 })
+newInstance((_V9({61,199,16,196,3,135,224,133,143})), {
 Parent = box,
 PaddingLeft = UDim.new(0, 10),
 PaddingRight = UDim.new(0, 10),
 })
-newInstance((_V9({131,227,198,170,18,226,69,77,67,165,222,231,162,1,233,114})), { Parent = box, MinSize = Vector2.new(54, 22) })
+newInstance((_V9({61,199,19,204,29,134,202,132,134,27,250,50,196,14,141,253})), { Parent = box, MinSize = Vector2.new(54, 22) })
 wireKeybindBox(box, labelText, getKey, setKey, conflictCheck)
 end
 local function makeToggleWithKeybind(parent, text, getValue, onChange, keyLabel, getKey, setKey, conflictCheck)
-local btn = newInstance((_V9({130,207,237,183,42,242,114,86,66,184})), {
+local btn = newInstance((_V9({60,235,56,209,37,150,253,159,135,6})), {
 Parent = parent,
 LayoutOrder = nextOrder(),
 Size = UDim2.new(1, 0, 0, 24),
@@ -3510,7 +3506,7 @@ BorderSizePixel = 0,
 AutoButtonColor = false,
 Text = (_V9({})),
 })
-local check = newInstance((_V9({144,216,244,174,13})), {
+local check = newInstance((_V9({46,252,33,200,2})), {
 Parent = btn,
 AnchorPoint = Vector2.new(0, 0.5),
 Position = UDim2.new(0, 0, 0.5, 0),
@@ -3518,9 +3514,9 @@ Size = UDim2.fromOffset(13, 13),
 BackgroundColor3 = getValue() and COLORS.accent or COLORS.off,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = check, CornerRadius = UDim.new(0, 3) })
-newInstance((_V9({131,227,198,183,26,232,109,71})), { Parent = check, Color = COLORS.border, Thickness = 1 })
-local label = newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = check, CornerRadius = UDim.new(0, 3) })
+newInstance((_V9({61,199,19,209,21,140,226,142})), { Parent = check, Color = COLORS.border, Thickness = 1 })
+local label = newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = btn,
 Position = UDim2.fromOffset(21, 0),
 Size = UDim2.new(1, -76, 1, 0),
@@ -3531,7 +3527,7 @@ TextColor3 = getValue() and COLORS.text or COLORS.textSub,
 TextXAlignment = Enum.TextXAlignment.Left,
 Text = text,
 })
-local box = newInstance((_V9({130,207,237,183,42,242,114,86,66,184})), {
+local box = newInstance((_V9({60,235,56,209,37,150,253,159,135,6})), {
 Parent = btn,
 AnchorPoint = Vector2.new(1, 0.5),
 Position = UDim2.new(1, 0, 0.5, 0),
@@ -3546,14 +3542,14 @@ TextColor3 = COLORS.accent,
 Text = getKey().Name,
 ZIndex = 3,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = box, CornerRadius = UDim.new(0, 4) })
-newInstance((_V9({131,227,198,183,26,232,109,71})), { Parent = box, Color = COLORS.accent, Thickness = 1, Transparency = 0.5 })
-newInstance((_V9({131,227,197,162,12,227,111,76,74})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = box, CornerRadius = UDim.new(0, 4) })
+newInstance((_V9({61,199,19,209,21,140,226,142})), { Parent = box, Color = COLORS.accent, Thickness = 1, Transparency = 0.5 })
+newInstance((_V9({61,199,16,196,3,135,224,133,143})), {
 Parent = box,
 PaddingLeft = UDim.new(0, 7),
 PaddingRight = UDim.new(0, 7),
 })
-newInstance((_V9({131,227,198,170,18,226,69,77,67,165,222,231,162,1,233,114})), { Parent = box, MinSize = Vector2.new(44, 20) })
+newInstance((_V9({61,199,19,204,29,134,202,132,134,27,250,50,196,14,141,253})), { Parent = box, MinSize = Vector2.new(44, 20) })
 local function refresh()
 local on = getValue()
 TweenService:Create(check, ANIM, { BackgroundColor3 = on and COLORS.accent or COLORS.off }):Play()
@@ -3568,7 +3564,7 @@ wireKeybindBox(box, keyLabel, getKey, setKey, conflictCheck)
 end
 local function makeColumns(parent)
 local function column(order)
-local col = newInstance((_V9({144,216,244,174,13})), {
+local col = newInstance((_V9({46,252,33,200,2})), {
 Parent = parent,
 LayoutOrder = order,
 Size = UDim2.new(0.5, -4, 0, 0),
@@ -3576,7 +3572,7 @@ AutomaticSize = Enum.AutomaticSize.Y,
 BackgroundTransparency = 1,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,217,170,27,243,74,67,84,185,223,225})), {
+newInstance((_V9({61,199,12,204,20,151,197,138,145,7,251,52})), {
 Parent = col,
 SortOrder = Enum.SortOrder.LayoutOrder,
 Padding = UDim.new(0, 8),
@@ -3586,35 +3582,35 @@ end
 return column(1), column(2)
 end
 local function makeGroup(parent, title)
-local wrapper = newInstance((_V9({144,216,244,174,13})), {
+local wrapper = newInstance((_V9({46,252,33,200,2})), {
 Parent = parent,
 LayoutOrder = nextOrder(),
 Size = UDim2.new(1, 0, 0, 0),
 BackgroundTransparency = 1,
 BorderSizePixel = 0,
 })
-local box = newInstance((_V9({144,216,244,174,13})), {
+local box = newInstance((_V9({46,252,33,200,2})), {
 Parent = wrapper,
 Size = UDim2.new(1, 0, 0, 0),
 AutomaticSize = Enum.AutomaticSize.Y,
 BackgroundColor3 = COLORS.panel,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = box, CornerRadius = UDim.new(0, 6) })
-newInstance((_V9({131,227,198,183,26,232,109,71})), { Parent = box, Color = COLORS.border, Thickness = 1, Transparency = 0.15 })
-newInstance((_V9({131,227,197,162,12,227,111,76,74})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = box, CornerRadius = UDim.new(0, 6) })
+newInstance((_V9({61,199,19,209,21,140,226,142})), { Parent = box, Color = COLORS.border, Thickness = 1, Transparency = 0.15 })
+newInstance((_V9({61,199,16,196,3,135,224,133,143})), {
 Parent = box,
 PaddingTop = UDim.new(0, 8),
 PaddingBottom = UDim.new(0, 10),
 PaddingLeft = UDim.new(0, 10),
 PaddingRight = UDim.new(0, 10),
 })
-newInstance((_V9({131,227,217,170,27,243,74,67,84,185,223,225})), {
+newInstance((_V9({61,199,12,204,20,151,197,138,145,7,251,52})), {
 Parent = box,
 SortOrder = Enum.SortOrder.LayoutOrder,
 Padding = UDim.new(0, 6),
 })
-newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = box,
 LayoutOrder = -1,
 Size = UDim2.new(1, 0, 0, 15),
@@ -3625,7 +3621,7 @@ TextColor3 = COLORS.text,
 TextXAlignment = Enum.TextXAlignment.Left,
 Text = title,
 })
-local veil = newInstance((_V9({130,207,237,183,42,242,114,86,66,184})), {
+local veil = newInstance((_V9({60,235,56,209,37,150,253,159,135,6})), {
 Parent = wrapper,
 Position = UDim2.fromOffset(0, 0),
 Size = UDim2.fromScale(1, 1),
@@ -3639,17 +3635,17 @@ Text = (_V9({})),
 ClipsDescendants = true,
 ZIndex = 50,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = veil, CornerRadius = UDim.new(0, 6) })
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = veil, CornerRadius = UDim.new(0, 6) })
 local STRIPE, GAP = 0.72, 1
-local hatch = newInstance((_V9({144,216,244,174,13})), {
+local hatch = newInstance((_V9({46,252,33,200,2})), {
 Parent = veil,
 Size = UDim2.fromScale(1, 1),
 BackgroundColor3 = COLORS.textSub,
 BorderSizePixel = 0,
 ZIndex = 51,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = hatch, CornerRadius = UDim.new(0, 6) })
-newInstance((_V9({131,227,210,177,9,227,111,71,67,162})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = hatch, CornerRadius = UDim.new(0, 6) })
+newInstance((_V9({61,199,7,215,6,135,224,142,134,28})), {
 Parent = hatch,
 Rotation = 35,
 Transparency = NumberSequence.new({
@@ -3682,7 +3678,7 @@ sc = 1
 end
 wrapper.Size = UDim2.new(1, 0, 0, box.AbsoluteSize.Y / sc)
 end
-box:GetPropertyChangedSignal((_V9({151,200,230,172,4,242,114,71,126,191,208,240}))):Connect(syncWrapper)
+box:GetPropertyChangedSignal((_V9({41,236,51,202,11,150,253,142,187,1,244,37}))):Connect(syncWrapper)
 syncWrapper()
 local function setEnabled(enabled)
 veil.Visible = not enabled
@@ -3690,19 +3686,19 @@ end
 return box, setEnabled
 end
 local function makeSubTabHost(parent)
-local bar = newInstance((_V9({144,216,244,174,13})), {
+local bar = newInstance((_V9({46,252,33,200,2})), {
 Parent = parent,
 Size = UDim2.new(1, 0, 0, 24),
 BackgroundTransparency = 1,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,217,170,27,243,74,67,84,185,223,225})), {
+newInstance((_V9({61,199,12,204,20,151,197,138,145,7,251,52})), {
 Parent = bar,
 FillDirection = Enum.FillDirection.Horizontal,
 SortOrder = Enum.SortOrder.LayoutOrder,
 Padding = UDim.new(0, 14),
 })
-local divider = newInstance((_V9({144,216,244,174,13})), {
+local divider = newInstance((_V9({46,252,33,200,2})), {
 Parent = parent,
 Position = UDim2.fromOffset(0, 27),
 Size = UDim2.new(1, -6, 0, 1),
@@ -3710,7 +3706,7 @@ BackgroundColor3 = COLORS.border,
 BackgroundTransparency = 0.2,
 BorderSizePixel = 0,
 })
-local area = newInstance((_V9({144,216,244,174,13})), {
+local area = newInstance((_V9({46,252,33,200,2})), {
 Parent = parent,
 Position = UDim2.fromOffset(0, 34),
 Size = UDim2.new(1, 0, 1, -34),
@@ -3731,7 +3727,7 @@ end
 end
 function host:add(name)
 self.order = self.order + 1
-local btn = newInstance((_V9({130,207,237,183,42,242,114,86,66,184})), {
+local btn = newInstance((_V9({60,235,56,209,37,150,253,159,135,6})), {
 Parent = bar,
 LayoutOrder = self.order,
 Size = UDim2.fromOffset(0, 24),
@@ -3743,7 +3739,7 @@ TextSize = 13,
 TextColor3 = COLORS.textSub,
 Text = name,
 })
-local underline = newInstance((_V9({144,216,244,174,13})), {
+local underline = newInstance((_V9({46,252,33,200,2})), {
 Parent = btn,
 AnchorPoint = Vector2.new(0.5, 1),
 Position = UDim2.new(0.5, 0, 1, 1),
@@ -3752,8 +3748,8 @@ BackgroundColor3 = COLORS.accent,
 BackgroundTransparency = 1,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = underline, CornerRadius = UDim.new(1, 0) })
-local frame = newInstance((_V9({133,201,231,172,4,235,111,76,74,144,216,244,174,13})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = underline, CornerRadius = UDim.new(1, 0) })
+local frame = newInstance((_V9({59,237,50,202,11,143,224,133,143,46,252,33,200,2})), {
 Parent = area,
 Size = UDim2.new(1, 0, 1, 0),
 BackgroundTransparency = 1,
@@ -3767,14 +3763,14 @@ ScrollBarImageTransparency = 0.25,
 ScrollingDirection = Enum.ScrollingDirection.Y,
 Active = true,
 })
-newInstance((_V9({131,227,217,170,27,243,74,67,84,185,223,225})), {
+newInstance((_V9({61,199,12,204,20,151,197,138,145,7,251,52})), {
 Parent = frame,
 SortOrder = Enum.SortOrder.LayoutOrder,
 FillDirection = Enum.FillDirection.Horizontal,
 VerticalAlignment = Enum.VerticalAlignment.Top,
 Padding = UDim.new(0, 8),
 })
-newInstance((_V9({131,227,197,162,12,227,111,76,74})), { Parent = frame, PaddingRight = UDim.new(0, 10), PaddingBottom = UDim.new(0, 8) })
+newInstance((_V9({61,199,16,196,3,135,224,133,143})), { Parent = frame, PaddingRight = UDim.new(0, 10), PaddingBottom = UDim.new(0, 8) })
 self.buttons[name] = { btn = btn, underline = underline }
 self.frames[name] = frame
 btn.MouseButton1Click:Connect(function()
@@ -3800,77 +3796,77 @@ end
 local function buildCameraTab(parent, config)
 layoutOrder = 0
 local host = makeSubTabHost(parent)
-local left, right = makeColumns(host:add((_V9({151,195,248,161,7,243}))))
-local aim = makeGroup(left, (_V9({151,195,248,161,7,243})))
-makeToggleWithKeybind(aim, (_V9({147,196,244,161,4,226,98})), function()
+local left, right = makeColumns(host:add((_V9({41,231,45,199,8,151}))))
+local aim = makeGroup(left, (_V9({41,231,45,199,8,151})))
+makeToggleWithKeybind(aim, (_V9({45,224,33,199,11,134,237})), function()
 return config.Camera.Enabled
 end, function()
 config.Camera.Enabled = not config.Camera.Enabled
-end, (_V9({151,195,248,161,7,243,38,105,72,175})), function()
+end, (_V9({41,231,45,199,8,151,169,160,141,17})), function()
 return config.Camera.ToggleKey
 end, function(key)
 config.Camera.ToggleKey = key
 end, function(key)
-return keyConflict(config, key, (_V9({183,195,248,161,7,243})))
+return keyConflict(config, key, (_V9({9,231,45,199,8,151})))
 end)
-makeToggle(aim, (_V9({128,195,230,160,0,226,101,73})), function()
+makeToggle(aim, (_V9({62,231,51,198,15,134,234,128})), function()
 return config.Camera.WallCheck
 end, function()
 config.Camera.WallCheck = not config.Camera.WallCheck
 end)
-makeToggle(aim, (_V9({133,222,252,160,3,254,38,118,76,164,205,240,183})), function()
+makeToggle(aim, (_V9({59,250,41,198,12,154,169,191,137,26,233,37,209})), function()
 return config.Camera.StickyTarget
 end, function()
 config.Camera.StickyTarget = not config.Camera.StickyTarget
 end)
-makeToggle(aim, (_V9({130,203,231,164,13,243,38,96,66,162,217})), function()
+makeToggle(aim, (_V9({60,239,50,194,2,151,169,169,135,28,253})), function()
 return config.Camera.TargetBots
 end, function()
 config.Camera.TargetBots = not config.Camera.TargetBots
 end)
-makeToggle(aim, (_V9({130,207,244,174,72,196,110,71,78,189})), function()
+makeToggle(aim, (_V9({60,235,33,200,71,160,225,142,139,3})), function()
 return config.Camera.TeamCheck
 end, function()
 config.Camera.TeamCheck = not config.Camera.TeamCheck
 end)
-makeToggle(aim, (_V9({158,223,248,162,6,238,124,71})), function()
+makeToggle(aim, (_V9({32,251,45,196,9,138,243,142})), function()
 return config.Camera.Humanize
 end, function()
 config.Camera.Humanize = not config.Camera.Humanize
 end)
-makeToggleWithKeybind(aim, (_V9({144,229,195,227,43,238,116,65,65,179})), function()
+makeToggleWithKeybind(aim, (_V9({46,193,22,133,36,138,251,136,132,13})), function()
 return config.Camera.FOVCircle
 end, function()
 config.Camera.FOVCircle = not config.Camera.FOVCircle
-end, (_V9({144,229,195,227,43,238,116,65,65,179,138,222,166,17})), function()
+end, (_V9({46,193,22,133,36,138,251,136,132,13,174,11,192,30})), function()
 return config.Camera.FOVCircleKey
 end, function(key)
 config.Camera.FOVCircleKey = key
 end, function(key)
-return keyConflict(config, key, (_V9({176,197,227,160,1,245,101,78,72})))
+return keyConflict(config, key, (_V9({14,225,54,198,14,145,234,135,141})))
 end)
-makeFillSlider(aim, (_V9({133,199,250,172,28,239,104,71,94,165})), 0.05, 1, function()
+makeFillSlider(aim, (_V9({59,227,47,202,19,139,231,142,155,27})), 0.05, 1, function()
 return config.Camera.Smoothness
 end, function(val)
 config.Camera.Smoothness = val
 end, false)
-makeFillSlider(aim, (_V9({134,216,240,167,1,228,114,75,66,184})), 0, 1, function()
+makeFillSlider(aim, (_V9({56,252,37,193,14,128,253,130,135,6})), 0, 1, function()
 return config.Camera.Prediction
 end, function(val)
 config.Camera.Prediction = val
 end, false)
-makeFillSlider(aim, (_V9({144,229,195})), 20, 800, function()
+makeFillSlider(aim, (_V9({46,193,22})), 20, 800, function()
 return config.Camera.FOV
 end, function(val)
 config.Camera.FOV = val
-end, true, (_V9({166,210})), true)
-makeFillSlider(aim, (_V9({155,203,237,227,44,238,117,86,76,184,201,240})), 100, 2000, function()
+end, true, (_V9({24,246})), true)
+makeFillSlider(aim, (_V9({37,239,56,133,35,138,250,159,137,6,237,37})), 100, 2000, function()
 return config.Camera.MaxDistance
 end, function(val)
 config.Camera.MaxDistance = val
-end, true, (_V9({187})), true)
+end, true, (_V9({5})), true)
 local refreshWeightGate
-local hitbox = makeGroup(right, (_V9({158,195,225,161,7,255})))
+local hitbox = makeGroup(right, (_V9({32,231,52,199,8,155})))
 makeDropdownFull(hitbox, config.Camera.HitboxOptions, function()
 return config.Camera.Hitbox
 end, function(val)
@@ -3879,234 +3875,234 @@ if refreshWeightGate then
 refreshWeightGate()
 end
 end)
-local weights, setWeightsEnabled = makeGroup(right, (_V9({130,203,231,164,13,243,38,113,72,162,222,252,173,15,244})))
+local weights, setWeightsEnabled = makeGroup(right, (_V9({60,239,50,194,2,151,169,184,141,28,250,41,203,0,144})))
 local function weightRow(name)
-makeFillSlider(weights, name .. (_V9({246,253,240,170,15,239,114})), 0, 100, function()
+makeFillSlider(weights, name .. (_V9({72,217,37,204,0,139,253})), 0, 100, function()
 return config.Camera.TargetWeights[name]
 end, function(val)
 config.Camera.TargetWeights[name] = val
-end, true, (_V9({243})), true)
+end, true, (_V9({77})), true)
 end
-weightRow((_V9({158,207,244,167})))
-weightRow((_V9({130,197,231,176,7})))
-weightRow((_V9({151,216,248,176})))
-weightRow((_V9({154,207,242,176})))
+weightRow((_V9({32,235,33,193})))
+weightRow((_V9({60,225,50,214,8})))
+weightRow((_V9({41,252,45,214})))
+weightRow((_V9({36,235,39,214})))
 refreshWeightGate = function()
-setWeightsEnabled(config.Camera.Hitbox == (_V9({132,203,251,167,7,234,38,10,122,179,195,242,171,28,226,98,11})))
+setWeightsEnabled(config.Camera.Hitbox == (_V9({58,239,46,193,8,142,169,195,191,13,231,39,205,19,134,237,194})))
 end
 refreshWeightGate()
 table.insert(syncHandlers, refreshWeightGate)
-local trigger = makeGroup(right, (_V9({130,216,252,164,15,226,116,64,66,162})))
-makeToggleWithKeybind(trigger, (_V9({147,196,244,161,4,226,98})), function()
+local trigger = makeGroup(right, (_V9({60,252,41,194,0,134,251,137,135,28})))
+makeToggleWithKeybind(trigger, (_V9({45,224,33,199,11,134,237})), function()
 return config.Triggerbot.Enabled
 end, function()
 config.Triggerbot.Enabled = not config.Triggerbot.Enabled
-end, (_V9({130,216,252,164,15,226,116,64,66,162,138,222,166,17})), function()
+end, (_V9({60,252,41,194,0,134,251,137,135,28,174,11,192,30})), function()
 return config.Triggerbot.ToggleKey
 end, function(key)
 config.Triggerbot.ToggleKey = key
 end, function(key)
-return keyConflict(config, key, (_V9({162,216,252,164,15,226,116,64,66,162})))
+return keyConflict(config, key, (_V9({28,252,41,194,0,134,251,137,135,28})))
 end)
-makeFillSlider(trigger, (_V9({155,195,251,227,44,226,106,67,84})), 0, 500, function()
+makeFillSlider(trigger, (_V9({37,231,46,133,35,134,229,138,145})), 0, 500, function()
 return config.Triggerbot.MinDelay * 1000
 end, function(val)
 config.Triggerbot.MinDelay = val / 1000
-end, true, (_V9({187,217})), true)
-makeFillSlider(trigger, (_V9({155,203,237,227,44,226,106,67,84})), 0, 500, function()
+end, true, (_V9({5,253})), true)
+makeFillSlider(trigger, (_V9({37,239,56,133,35,134,229,138,145})), 0, 500, function()
 return config.Triggerbot.MaxDelay * 1000
 end, function(val)
 config.Triggerbot.MaxDelay = val / 1000
-end, true, (_V9({187,217})), true)
-makeFillSlider(trigger, (_V9({155,203,237,227,44,238,117,86,76,184,201,240})), 100, 2000, function()
+end, true, (_V9({5,253})), true)
+makeFillSlider(trigger, (_V9({37,239,56,133,35,138,250,159,137,6,237,37})), 100, 2000, function()
 return config.Triggerbot.MaxDistance
 end, function(val)
 config.Triggerbot.MaxDistance = val
-end, true, (_V9({187})), true)
-makeToggle(trigger, (_V9({128,195,230,160,0,226,101,73})), function()
+end, true, (_V9({5})), true)
+makeToggle(trigger, (_V9({62,231,51,198,15,134,234,128})), function()
 return config.Triggerbot.WallCheck
 end, function()
 config.Triggerbot.WallCheck = not config.Triggerbot.WallCheck
 end)
-local silent = makeGroup(right, (_V9({133,195,249,166,6,243,38,99,68,187})))
-makeToggle(silent, (_V9({147,196,244,161,4,226,98})), function()
+local silent = makeGroup(right, (_V9({59,231,44,192,9,151,169,170,129,5})))
+makeToggle(silent, (_V9({45,224,33,199,11,134,237})), function()
 return config.SilentAim.Enabled
 end, function()
 config.SilentAim.Enabled = not config.SilentAim.Enabled
 end)
-local expander = makeGroup(right, (_V9({158,195,225,161,7,255,38,103,85,166,203,251,167,13,245})))
-makeToggle(expander, (_V9({147,196,244,161,4,226,98})), function()
+local expander = makeGroup(right, (_V9({32,231,52,199,8,155,169,174,144,24,239,46,193,2,145})))
+makeToggle(expander, (_V9({45,224,33,199,11,134,237})), function()
 return config.Hitbox.Enabled
 end, function()
 config.Hitbox.Enabled = not config.Hitbox.Enabled
 end)
-makeFillSlider(expander, (_V9({133,195,239,166})), 1, 20, function()
+makeFillSlider(expander, (_V9({59,231,58,192})), 1, 20, function()
 return config.Hitbox.Size
 end, function(val)
 config.Hitbox.Size = val
 end, true)
-makeFillSlider(expander, (_V9({130,216,244,173,27,247,103,80,72,184,201,236})), 0, 1, function()
+makeFillSlider(expander, (_V9({60,252,33,203,20,147,232,153,141,6,237,57})), 0, 1, function()
 return config.Hitbox.Transparency
 end, function(val)
 config.Hitbox.Transparency = val
 end, false)
-left, right = makeColumns(host:add((_V9({129,207,244,179,7,233,117}))))
-local recoil = makeGroup(left, (_V9({152,197,181,145,13,228,105,75,65})))
-makeToggleWithKeybind(recoil, (_V9({147,196,244,161,4,226,98})), function()
+left, right = makeColumns(host:add((_V9({63,235,33,213,8,141,250}))))
+local recoil = makeGroup(left, (_V9({38,225,96,247,2,128,230,130,132})))
+makeToggleWithKeybind(recoil, (_V9({45,224,33,199,11,134,237})), function()
 return config.NoRecoil.Enabled
 end, function()
 config.NoRecoil.Enabled = not config.NoRecoil.Enabled
-end, (_V9({152,197,181,145,13,228,105,75,65,246,225,240,186})), function()
+end, (_V9({38,225,96,247,2,128,230,130,132,72,197,37,220})), function()
 return config.NoRecoil.ToggleKey
 end, function(key)
 config.NoRecoil.ToggleKey = key
 end, function(key)
-return keyConflict(config, key, (_V9({184,197,231,166,11,232,111,78})))
+return keyConflict(config, key, (_V9({6,225,50,192,4,140,224,135})))
 end)
-makeToggle(recoil, (_V9({153,196,249,186,72,208,110,75,65,179,138,211,170,26,238,104,69})), function()
+makeToggle(recoil, (_V9({39,224,44,220,71,180,225,130,132,13,174,6,204,21,138,231,140})), function()
 return config.NoRecoil.RequireMouseDown
 end, function()
 config.NoRecoil.RequireMouseDown = not config.NoRecoil.RequireMouseDown
 end)
-makeToggle(recoil, (_V9({151,198,249,172,31,167,71,75,64,246,238,250,180,6})), function()
+makeToggle(recoil, (_V9({41,226,44,202,16,195,200,130,133,72,202,47,210,9})), function()
 return config.NoRecoil.AllowAim
 end, function()
 config.NoRecoil.AllowAim = not config.NoRecoil.AllowAim
 end)
-makeFillSlider(recoil, (_V9({133,222,231,166,6,224,114,74})), 0, 100, function()
+makeFillSlider(recoil, (_V9({59,250,50,192,9,132,253,131})), 0, 100, function()
 return config.NoRecoil.Strength * 100
 end, function(val)
 config.NoRecoil.Strength = val / 100
-end, true, (_V9({243})), true)
-local spread = makeGroup(left, (_V9({152,197,181,144,24,245,99,67,73})))
-makeToggleWithKeybind(spread, (_V9({147,196,244,161,4,226,98})), function()
+end, true, (_V9({77})), true)
+local spread = makeGroup(left, (_V9({38,225,96,246,23,145,236,138,140})))
+makeToggleWithKeybind(spread, (_V9({45,224,33,199,11,134,237})), function()
 return config.NoSpread.Enabled
 end, function()
 config.NoSpread.Enabled = not config.NoSpread.Enabled
-end, (_V9({152,197,181,144,24,245,99,67,73,246,225,240,186})), function()
+end, (_V9({38,225,96,246,23,145,236,138,140,72,197,37,220})), function()
 return config.NoSpread.ToggleKey
 end, function(key)
 config.NoSpread.ToggleKey = key
 end, function(key)
-return keyConflict(config, key, (_V9({184,197,230,179,26,226,103,70})))
+return keyConflict(config, key, (_V9({6,225,51,213,21,134,232,143})))
 end)
-makeToggle(spread, (_V9({153,196,249,186,72,208,110,75,65,179,138,211,170,26,238,104,69})), function()
+makeToggle(spread, (_V9({39,224,44,220,71,180,225,130,132,13,174,6,204,21,138,231,140})), function()
 return config.NoSpread.RequireMouseDown
 end, function()
 config.NoSpread.RequireMouseDown = not config.NoSpread.RequireMouseDown
 end)
-makeFillSlider(spread, (_V9({133,222,231,166,6,224,114,74})), 0, 100, function()
+makeFillSlider(spread, (_V9({59,250,50,192,9,132,253,131})), 0, 100, function()
 return config.NoSpread.Strength * 100
 end, function(val)
 config.NoSpread.Strength = val / 100
-end, true, (_V9({243})), true)
+end, true, (_V9({77})), true)
 end
 local function buildESPTab(parent, config)
 layoutOrder = 0
 local host = makeSubTabHost(parent)
-local left, right = makeColumns(host:add((_V9({147,249,197}))))
-local esp = makeGroup(left, (_V9({147,249,197})))
-makeToggleWithKeybind(esp, (_V9({147,196,244,161,4,226,98})), function()
+local left, right = makeColumns(host:add((_V9({45,221,16}))))
+local esp = makeGroup(left, (_V9({45,221,16})))
+makeToggleWithKeybind(esp, (_V9({45,224,33,199,11,134,237})), function()
 return config.ESP.Enabled
 end, function()
 config.ESP.Enabled = not config.ESP.Enabled
-end, (_V9({147,249,197,227,35,226,127})), function()
+end, (_V9({45,221,16,133,44,134,240})), function()
 return config.ESP.ToggleKey
 end, function(key)
 config.ESP.ToggleKey = key
 end, function(key)
-return keyConflict(config, key, (_V9({179,217,229})))
+return keyConflict(config, key, (_V9({13,253,48})))
 end)
-makeToggle(esp, (_V9({152,250,214,176})), function()
+makeToggle(esp, (_V9({38,222,3,214})), function()
 return config.ESP.NPCs
 end, function()
 config.ESP.NPCs = not config.ESP.NPCs
 end)
-makeFillSlider(esp, (_V9({155,203,237,227,44,238,117,86,76,184,201,240})), 100, 2000, function()
+makeFillSlider(esp, (_V9({37,239,56,133,35,138,250,159,137,6,237,37})), 100, 2000, function()
 return config.ESP.MaxDistance
 end, function(val)
 config.ESP.MaxDistance = val
-end, true, (_V9({187})), true)
-local look = makeGroup(left, (_V9({151,218,229,166,9,245,103,76,78,179})))
-makeToggle(look, (_V9({153,223,225,175,1,233,99,81})), function()
+end, true, (_V9({5})), true)
+local look = makeGroup(left, (_V9({41,254,48,192,6,145,232,133,139,13})))
+makeToggle(look, (_V9({39,251,52,201,14,141,236,152})), function()
 return config.ESP.Outlines
 end, function()
 config.ESP.Outlines = not config.ESP.Outlines
 end)
-makeToggle(look, (_V9({148,197,237,166,27})), function()
+makeToggle(look, (_V9({42,225,56,192,20})), function()
 return config.ESP.Boxes
 end, function()
 config.ESP.Boxes = not config.ESP.Boxes
 end)
-makeToggle(look, (_V9({152,203,248,166,27})), function()
+makeToggle(look, (_V9({38,239,45,192,20})), function()
 return config.ESP.Names
 end, function()
 config.ESP.Names = not config.ESP.Names
 end)
-makeToggle(look, (_V9({146,195,230,183,9,233,101,71})), function()
+makeToggle(look, (_V9({44,231,51,209,6,141,234,142})), function()
 return config.ESP.Distance
 end, function()
 config.ESP.Distance = not config.ESP.Distance
 end)
-makeToggle(look, (_V9({158,207,244,175,28,239,38,96,76,164,217})), function()
+makeToggle(look, (_V9({32,235,33,201,19,139,169,169,137,26,253})), function()
 return config.ESP.HealthBars
 end, function()
 config.ESP.HealthBars = not config.ESP.HealthBars
 end)
-makeToggle(look, (_V9({144,195,249,175,13,227})), function()
+makeToggle(look, (_V9({46,231,44,201,2,135})), function()
 return config.ESP.Filled
 end, function()
 config.ESP.Filled = not config.ESP.Filled
 end)
-makeFillSlider(look, (_V9({153,223,225,175,1,233,99,2,98,166,203,246,170,28,254})), 0, 1, function()
+makeFillSlider(look, (_V9({39,251,52,201,14,141,236,203,167,24,239,35,204,19,154})), 0, 1, function()
 return config.ESP.OutlineOpacity
 end, function(val)
 config.ESP.OutlineOpacity = val
 end, false)
-makeFillSlider(look, (_V9({144,195,249,175,72,200,118,67,78,191,222,236})), 0, 1, function()
+makeFillSlider(look, (_V9({46,231,44,201,71,172,249,138,139,1,250,57})), 0, 1, function()
 return config.ESP.FillOpacity
 end, function(val)
 config.ESP.FillOpacity = val
 end, false)
-local drawing = makeGroup(right, (_V9({146,216,244,180,1,233,97,2,104,133,250})))
-makeToggle(drawing, (_V9({148,197,237,166,27})), function()
+local drawing = makeGroup(right, (_V9({44,252,33,210,14,141,238,203,173,59,222})))
+makeToggle(drawing, (_V9({42,225,56,192,20})), function()
 return config.Drawing.Boxes
 end, function()
 config.Drawing.Boxes = not config.Drawing.Boxes
 end)
-makeToggle(drawing, (_V9({130,216,244,160,13,245,117})), function()
+makeToggle(drawing, (_V9({60,252,33,198,2,145,250})), function()
 return config.Drawing.Tracers
 end, function()
 config.Drawing.Tracers = not config.Drawing.Tracers
 end)
-local world = makeGroup(right, (_V9({129,197,231,175,12})))
-makeToggle(world, (_V9({144,223,249,175,10,245,111,69,69,162})), function()
+local world = makeGroup(right, (_V9({63,225,50,201,3})))
+makeToggle(world, (_V9({46,251,44,201,5,145,224,140,128,28})), function()
 return config.Visuals.Fullbright
 end, function()
 config.Visuals.Fullbright = not config.Visuals.Fullbright
 end)
-makeToggle(world, (_V9({152,197,181,133,7,224})), function()
+makeToggle(world, (_V9({38,225,96,227,8,132})), function()
 return config.Visuals.NoFog
 end, function()
 config.Visuals.NoFog = not config.Visuals.NoFog
 end)
-left, right = makeColumns(host:add((_V9({149,197,249,172,26,244}))))
-makeColorPicker(left, (_V9({153,223,225,175,1,233,99,2,110,185,198,250,177})), function()
+left, right = makeColumns(host:add((_V9({43,225,44,202,21,144}))))
+makeColorPicker(left, (_V9({39,251,52,201,14,141,236,203,171,7,226,47,215})), function()
 return config.ESP.OutlineColor
 end, function(c)
 config.ESP.OutlineColor = c
 end)
-makeColorPicker(right, (_V9({144,195,249,175,72,196,105,78,66,164})), function()
+makeColorPicker(right, (_V9({46,231,44,201,71,160,230,135,135,26})), function()
 return config.ESP.FillColor
 end, function(c)
 config.ESP.FillColor = c
 end)
-makeColorPicker(left, (_V9({148,197,237,227,43,232,106,77,95})), function()
+makeColorPicker(left, (_V9({42,225,56,133,36,140,229,132,154})), function()
 return config.Drawing.BoxColor
 end, function(c)
 config.Drawing.BoxColor = c
 end)
-makeColorPicker(right, (_V9({130,216,244,160,13,245,38,97,66,186,197,231})), function()
+makeColorPicker(right, (_V9({60,252,33,198,2,145,169,168,135,4,225,50})), function()
 return config.Drawing.TracerColor
 end, function(c)
 config.Drawing.TracerColor = c
@@ -4115,71 +4111,60 @@ end
 local function buildMovementTab(parent, config)
 layoutOrder = 0
 local host = makeSubTabHost(parent)
-local left, right = makeColumns(host:add((_V9({155,197,227,166,5,226,104,86}))))
-local fly = makeGroup(left, (_V9({144,198,236})))
-makeToggle(fly, (_V9({147,196,244,161,4,226,98})), function()
+local left, right = makeColumns(host:add((_V9({37,225,54,192,10,134,231,159}))))
+local fly = makeGroup(left, (_V9({46,226,57})))
+makeToggle(fly, (_V9({45,224,33,199,11,134,237})), function()
 return config.Movement.FlyEnabled
 end, function()
 config.Movement.FlyEnabled = not config.Movement.FlyEnabled
 end)
-makeFillSlider(fly, (_V9({144,198,236,227,59,247,99,71,73})), 10, 200, function()
+makeFillSlider(fly, (_V9({46,226,57,133,52,147,236,142,140})), 10, 200, function()
 return config.Movement.FlySpeed
 end, function(val)
 config.Movement.FlySpeed = val
 end, true)
-local speed = makeGroup(left, (_V9({133,218,240,166,12})))
-makeToggle(speed, (_V9({147,196,244,161,4,226,98})), function()
+local speed = makeGroup(left, (_V9({59,254,37,192,3})))
+makeToggle(speed, (_V9({45,224,33,199,11,134,237})), function()
 return config.Movement.SpeedEnabled
 end, function()
 config.Movement.SpeedEnabled = not config.Movement.SpeedEnabled
 end)
-makeFillSlider(speed, (_V9({133,218,240,166,12})), 16, 100, function()
+makeFillSlider(speed, (_V9({59,254,37,192,3})), 16, 100, function()
 return config.Movement.Speed
 end, function(val)
 config.Movement.Speed = val
 end, true)
-local misc = makeGroup(left, (_V9({153,222,253,166,26})))
-makeToggle(misc, (_V9({152,197,246,175,1,247})), function()
+local misc = makeGroup(left, (_V9({39,250,40,192,21})))
+makeToggle(misc, (_V9({38,225,35,201,14,147})), function()
 return config.Movement.NoclipEnabled
 end, function()
 config.Movement.NoclipEnabled = not config.Movement.NoclipEnabled
 end)
-makeToggle(misc, (_V9({159,196,243,170,6,238,114,71,13,156,223,248,179})), function()
+makeToggle(misc, (_V9({33,224,38,204,9,138,253,142,200,34,251,45,213})), function()
 return config.Movement.InfJumpEnabled
 end, function()
 config.Movement.InfJumpEnabled = not config.Movement.InfJumpEnabled
 end)
-local tp = makeGroup(right, (_V9({149,198,252,160,3,167,82,114})))
-makeToggle(tp, (_V9({147,196,244,161,4,226,98})), function()
+local tp = makeGroup(right, (_V9({43,226,41,198,12,195,221,187})))
+makeToggle(tp, (_V9({45,224,33,199,11,134,237})), function()
 return config.Movement.ClickTPEnabled
 end, function()
 config.Movement.ClickTPEnabled = not config.Movement.ClickTPEnabled
 end)
-makeKeybind(tp, (_V9({155,197,241,170,14,238,99,80,13,157,207,236})), function()
+makeKeybind(tp, (_V9({37,225,36,204,1,138,236,153,200,35,235,57})), function()
 return config.Movement.ClickTPKey
 end, function(key)
 config.Movement.ClickTPKey = key
 end, function(key)
-return keyConflict(config, key, (_V9({181,198,252,160,3,243,118})))
+return keyConflict(config, key, (_V9({11,226,41,198,12,151,249})))
 end)
-local fat = makeGroup(right, (_V9({144,203,225,227,63,230,106,73})))
-makeToggle(fat, (_V9({147,196,244,161,4,226,98})), function()
-return config.Movement.FatWalk
-end, function()
-config.Movement.FatWalk = not config.Movement.FatWalk
-end)
-makeFillSlider(fat, (_V9({144,203,225,227,59,228,103,78,72})), 1, 5, function()
-return config.Movement.FatScale
-end, function(val)
-config.Movement.FatScale = val
-end, false)
 end
 local function buildSettingsTab(parent, config)
 layoutOrder = 0
 local host = makeSubTabHost(parent)
-local left, right = makeColumns(host:add((_V9({145,207,251,166,26,230,106}))))
-local iface = makeGroup(left, (_V9({159,196,225,166,26,225,103,65,72})))
-makeFillSlider(iface, (_V9({131,227,181,144,11,230,106,71})), 0.8, 1.5, function()
+local left, right = makeColumns(host:add((_V9({47,235,46,192,21,130,229}))))
+local iface = makeGroup(left, (_V9({33,224,52,192,21,133,232,136,141})))
+makeFillSlider(iface, (_V9({61,199,96,246,4,130,229,142})), 0.8, 1.5, function()
 return config.UI.Scale
 end, function(val)
 config.UI.Scale = val
@@ -4187,7 +4172,7 @@ if windowScale then
 windowScale.Scale = val
 end
 end, false)
-makeToggle(iface, (_V9({157,207,236,161,1,233,98,2,125,183,196,240,175})), function()
+makeToggle(iface, (_V9({35,235,57,199,14,141,237,203,184,9,224,37,201})), function()
 return config.UI.KeybindPanel
 end, function()
 config.UI.KeybindPanel = not config.UI.KeybindPanel
@@ -4195,7 +4180,7 @@ if keybindPanel then
 keybindPanel.Visible = config.UI.KeybindPanel
 end
 end)
-makeToggle(iface, (_V9({130,203,231,164,13,243,38,102,68,165,218,249,162,17})), function()
+makeToggle(iface, (_V9({60,239,50,194,2,151,169,175,129,27,254,44,196,30})), function()
 return config.UI.TargetDisplay
 end, function()
 config.UI.TargetDisplay = not config.UI.TargetDisplay
@@ -4204,7 +4189,7 @@ if not targetDisplayOn and targetPanel then
 targetPanel.Visible = false
 end
 end)
-makeToggle(iface, (_V9({144,250,198,227,43,232,115,76,89,179,216})), function()
+makeToggle(iface, (_V9({46,222,19,133,36,140,252,133,156,13,252})), function()
 return config.UI.FPSCounter
 end, function()
 config.UI.FPSCounter = not config.UI.FPSCounter
@@ -4212,7 +4197,7 @@ if fpsPanel then
 fpsPanel.Visible = config.UI.FPSCounter
 end
 end)
-makeToggle(iface, (_V9({129,203,225,166,26,234,103,80,70})), function()
+makeToggle(iface, (_V9({63,239,52,192,21,142,232,153,131})), function()
 return config.UI.Watermark
 end, function()
 config.UI.Watermark = not config.UI.Watermark
@@ -4220,29 +4205,29 @@ if watermark then
 watermark.Visible = config.UI.Watermark
 end
 end)
-local account = makeGroup(right, (_V9({151,201,246,172,29,233,114})))
-makeLabel(account, (_V9({131,217,240,177,6,230,107,71})), LocalPlayer and LocalPlayer.Name or (_V9({52,42,1})))
-makeLabel(account, (_V9({146,195,230,179,4,230,127,2,99,183,199,240})), LocalPlayer and LocalPlayer.DisplayName or (_V9({52,42,1})))
-makeLabel(account, (_V9({131,217,240,177,72,206,66})), LocalPlayer and tostring(LocalPlayer.UserId) or (_V9({52,42,1})))
-makeToggle(account, (_V9({151,196,225,170,69,198,64,105})), function()
+local account = makeGroup(right, (_V9({41,237,35,202,18,141,253})))
+makeLabel(account, (_V9({61,253,37,215,9,130,228,142})), LocalPlayer and LocalPlayer.Name or (_V9({138,14,212})))
+makeLabel(account, (_V9({44,231,51,213,11,130,240,203,166,9,227,37})), LocalPlayer and LocalPlayer.DisplayName or (_V9({138,14,212})))
+makeLabel(account, (_V9({61,253,37,215,71,170,205})), LocalPlayer and tostring(LocalPlayer.UserId) or (_V9({138,14,212})))
+makeToggle(account, (_V9({41,224,52,204,74,162,207,160})), function()
 return config.Utility.AntiAFK
 end, function()
 config.Utility.AntiAFK = not config.Utility.AntiAFK
 end)
-makeButton(account, (_V9({133,207,231,181,13,245,38,106,66,166})), function()
+makeButton(account, (_V9({59,235,50,211,2,145,169,163,135,24})), function()
 Utility:ServerHop()
 end)
-makeButton(account, (_V9({132,207,255,172,1,233,38,113,72,164,220,240,177})), function()
+makeButton(account, (_V9({58,235,42,202,14,141,169,184,141,26,248,37,215})), function()
 Utility:Rejoin()
 end)
-left, right = makeColumns(host:add((_V9({149,197,251,165,1,224,117}))))
-local cfg = makeGroup(left, (_V9({149,197,251,165,1,224,117})))
+left, right = makeColumns(host:add((_V9({43,225,46,195,14,132,250}))))
+local cfg = makeGroup(left, (_V9({43,225,46,195,14,132,250})))
 if not ConfigManager.isSupported() then
-makeLabel(cfg, (_V9({133,222,244,183,29,244})), (_V9({131,196,230,182,24,247,105,80,89,179,206})))
+makeLabel(cfg, (_V9({59,250,33,209,18,144})), (_V9({61,224,51,208,23,147,230,153,156,13,234})))
 return
 end
-local nameBox = makeTextBox(cfg, (_V9({181,197,251,165,1,224,38,76,76,187,207,119,67,206})))
-local listHolder = newInstance((_V9({144,216,244,174,13})), {
+local nameBox = makeTextBox(cfg, (_V9({11,225,46,195,14,132,169,133,137,5,235,162,37,193})))
+local listHolder = newInstance((_V9({46,252,33,200,2})), {
 Parent = cfg,
 LayoutOrder = nextOrder(),
 Size = UDim2.new(1, 0, 0, 0),
@@ -4250,7 +4235,7 @@ AutomaticSize = Enum.AutomaticSize.Y,
 BackgroundTransparency = 1,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,217,170,27,243,74,67,84,185,223,225})), {
+newInstance((_V9({61,199,12,204,20,151,197,138,145,7,251,52})), {
 Parent = listHolder,
 SortOrder = Enum.SortOrder.LayoutOrder,
 Padding = UDim.new(0, 4),
@@ -4262,13 +4247,13 @@ refreshList()
 end
 refreshList = function()
 for _, child in ipairs(listHolder:GetChildren()) do
-if not child:IsA((_V9({131,227,217,170,27,243,74,67,84,185,223,225}))) then
+if not child:IsA((_V9({61,199,12,204,20,151,197,138,145,7,251,52}))) then
 child:Destroy()
 end
 end
 local names = ConfigManager.list()
 if #names == 0 then
-newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = listHolder,
 LayoutOrder = 1,
 Size = UDim2.new(1, 0, 0, 22),
@@ -4277,13 +4262,13 @@ Font = Enum.Font.Gotham,
 TextSize = 11,
 TextColor3 = COLORS.textSub,
 TextXAlignment = Enum.TextXAlignment.Left,
-Text = (_V9({184,197,181,176,9,241,99,70,13,181,197,251,165,1,224,117})),
+Text = (_V9({6,225,96,214,6,149,236,143,200,11,225,46,195,14,132,250})),
 })
 return
 end
 for i, name in ipairs(names) do
 local selected = (nameBox.Text == name)
-local row = newInstance((_V9({130,207,237,183,42,242,114,86,66,184})), {
+local row = newInstance((_V9({60,235,56,209,37,150,253,159,135,6})), {
 Parent = listHolder,
 LayoutOrder = i,
 Size = UDim2.new(1, 0, 0, 22),
@@ -4295,9 +4280,9 @@ Font = Enum.Font.Gotham,
 TextSize = 11,
 TextColor3 = selected and Color3.fromRGB(255, 255, 255) or COLORS.textSub,
 TextXAlignment = Enum.TextXAlignment.Left,
-Text = (_V9({246,138})) .. name,
+Text = (_V9({72,174})) .. name,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = row, CornerRadius = UDim.new(0, 4) })
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = row, CornerRadius = UDim.new(0, 4) })
 row.MouseButton1Click:Connect(function()
 selectName(name)
 end)
@@ -4315,31 +4300,31 @@ end
 end)
 end
 end
-makeButton(cfg, (_V9({133,203,227,166})), function()
+makeButton(cfg, (_V9({59,239,54,192})), function()
 local ok, res = ConfigManager.save(nameBox.Text, config)
 if ok then
-UI:Notify((_V9({133,203,227,166,12,167,101,77,67,176,195,242,227,79})) .. res .. (_V9({241})), 2)
+UI:Notify((_V9({59,239,54,192,3,195,234,132,134,14,231,39,133,64})) .. res .. (_V9({79})), 2)
 refreshList()
 else
 UI:Notify(tostring(res), 3)
 end
 end)
-makeButton(cfg, (_V9({154,197,244,167})), function()
+makeButton(cfg, (_V9({36,225,33,193})), function()
 local ok, res = ConfigManager.load(nameBox.Text, config)
 if ok then
 if windowScale then
 windowScale.Scale = config.UI.Scale
 end
 UI:SyncControls()
-UI:Notify((_V9({154,197,244,167,13,227,38,65,66,184,204,252,164,72,160})) .. res .. (_V9({241})), 2)
+UI:Notify((_V9({36,225,33,193,2,135,169,136,135,6,232,41,194,71,196})) .. res .. (_V9({79})), 2)
 else
 UI:Notify(tostring(res), 3)
 end
 end)
-makeButton(cfg, (_V9({146,207,249,166,28,226})), function()
+makeButton(cfg, (_V9({44,235,44,192,19,134})), function()
 local ok, res = ConfigManager.delete(nameBox.Text)
 if ok then
-UI:Notify((_V9({146,207,249,166,28,226,98,2,78,185,196,243,170,15,167,33})) .. res .. (_V9({241})), 2)
+UI:Notify((_V9({44,235,44,192,19,134,237,203,139,7,224,38,204,0,195,174})) .. res .. (_V9({79})), 2)
 nameBox.Text = (_V9({}))
 refreshList()
 else
@@ -4349,7 +4334,7 @@ end, COLORS.danger)
 refreshList()
 end
 local function buildTargetPanel(config)
-targetPanel = newInstance((_V9({144,216,244,174,13})), {
+targetPanel = newInstance((_V9({46,252,33,200,2})), {
 Parent = gui,
 AnchorPoint = Vector2.new(0.5, 0),
 Position = UDim2.new(0.5, 0, 0, 90),
@@ -4360,29 +4345,29 @@ BackgroundTransparency = 0.05,
 BorderSizePixel = 0,
 Visible = false,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = targetPanel, CornerRadius = UDim.new(0, 6) })
-newInstance((_V9({131,227,198,183,26,232,109,71})), { Parent = targetPanel, Color = COLORS.accent, Thickness = 1, Transparency = 0.4 })
-newInstance((_V9({131,227,197,162,12,227,111,76,74})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = targetPanel, CornerRadius = UDim.new(0, 6) })
+newInstance((_V9({61,199,19,209,21,140,226,142})), { Parent = targetPanel, Color = COLORS.accent, Thickness = 1, Transparency = 0.4 })
+newInstance((_V9({61,199,16,196,3,135,224,133,143})), {
 Parent = targetPanel,
 PaddingLeft = UDim.new(0, 10),
 PaddingRight = UDim.new(0, 12),
 })
-newInstance((_V9({131,227,217,170,27,243,74,67,84,185,223,225})), {
+newInstance((_V9({61,199,12,204,20,151,197,138,145,7,251,52})), {
 Parent = targetPanel,
 SortOrder = Enum.SortOrder.LayoutOrder,
 FillDirection = Enum.FillDirection.Horizontal,
 VerticalAlignment = Enum.VerticalAlignment.Center,
 Padding = UDim.new(0, 8),
 })
-local dot = newInstance((_V9({144,216,244,174,13})), {
+local dot = newInstance((_V9({46,252,33,200,2})), {
 Parent = targetPanel,
 LayoutOrder = 0,
 Size = UDim2.fromOffset(6, 6),
 BackgroundColor3 = COLORS.accent,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = dot, CornerRadius = UDim.new(1, 0) })
-targetPanelLabel = newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = dot, CornerRadius = UDim.new(1, 0) })
+targetPanelLabel = newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = targetPanel,
 LayoutOrder = 1,
 Size = UDim2.new(0, 0, 1, 0),
@@ -4426,7 +4411,7 @@ end)
 targetDisplayOn = config.UI.TargetDisplay
 end
 local function buildFpsPanel(config)
-fpsPanel = newInstance((_V9({144,216,244,174,13})), {
+fpsPanel = newInstance((_V9({46,252,33,200,2})), {
 Parent = gui,
 AnchorPoint = Vector2.new(1, 1),
 Position = UDim2.new(1, -14, 1, -14),
@@ -4437,29 +4422,29 @@ BackgroundTransparency = 0.05,
 BorderSizePixel = 0,
 Visible = false,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = fpsPanel, CornerRadius = UDim.new(0, 6) })
-newInstance((_V9({131,227,198,183,26,232,109,71})), { Parent = fpsPanel, Color = COLORS.accent, Thickness = 1, Transparency = 0.4 })
-newInstance((_V9({131,227,197,162,12,227,111,76,74})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = fpsPanel, CornerRadius = UDim.new(0, 6) })
+newInstance((_V9({61,199,19,209,21,140,226,142})), { Parent = fpsPanel, Color = COLORS.accent, Thickness = 1, Transparency = 0.4 })
+newInstance((_V9({61,199,16,196,3,135,224,133,143})), {
 Parent = fpsPanel,
 PaddingLeft = UDim.new(0, 10),
 PaddingRight = UDim.new(0, 12),
 })
-newInstance((_V9({131,227,217,170,27,243,74,67,84,185,223,225})), {
+newInstance((_V9({61,199,12,204,20,151,197,138,145,7,251,52})), {
 Parent = fpsPanel,
 SortOrder = Enum.SortOrder.LayoutOrder,
 FillDirection = Enum.FillDirection.Horizontal,
 VerticalAlignment = Enum.VerticalAlignment.Center,
 Padding = UDim.new(0, 8),
 })
-local dot = newInstance((_V9({144,216,244,174,13})), {
+local dot = newInstance((_V9({46,252,33,200,2})), {
 Parent = fpsPanel,
 LayoutOrder = 0,
 Size = UDim2.fromOffset(6, 6),
 BackgroundColor3 = COLORS.accent,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = dot, CornerRadius = UDim.new(1, 0) })
-fpsLabel = newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = dot, CornerRadius = UDim.new(1, 0) })
+fpsLabel = newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = fpsPanel,
 LayoutOrder = 1,
 Size = UDim2.new(0, 0, 1, 0),
@@ -4470,7 +4455,7 @@ TextSize = 12,
 TextColor3 = COLORS.text,
 TextXAlignment = Enum.TextXAlignment.Left,
 RichText = true,
-Text = (_V9({251,135,181,165,24,244})),
+Text = (_V9({69,163,96,195,23,144})),
 })
 table.insert(syncHandlers, function()
 if fpsPanel then
@@ -4480,7 +4465,7 @@ end)
 fpsPanel.Visible = config.UI.FPSCounter
 end
 local function buildWatermark(config)
-watermark = newInstance((_V9({159,199,244,164,13,203,103,64,72,186})), {
+watermark = newInstance((_V9({33,227,33,194,2,175,232,137,141,4})), {
 Parent = gui,
 AnchorPoint = Vector2.new(0, 1),
 Position = UDim2.new(0, 14, 1, -14),
@@ -4501,7 +4486,7 @@ watermark.Visible = config.UI.Watermark
 end
 local function buildKeybindPanel(config)
 layoutOrder = 0
-keybindPanel = newInstance((_V9({144,216,244,174,13})), {
+keybindPanel = newInstance((_V9({46,252,33,200,2})), {
 Parent = gui,
 Size = UDim2.fromOffset(230, 0),
 AutomaticSize = Enum.AutomaticSize.Y,
@@ -4510,29 +4495,29 @@ BackgroundColor3 = COLORS.bg,
 BorderSizePixel = 0,
 Visible = false,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = keybindPanel, CornerRadius = UDim.new(0, 8) })
-newInstance((_V9({131,227,198,183,26,232,109,71})), { Parent = keybindPanel, Color = COLORS.accent, Thickness = 1, Transparency = 0.35 })
-newInstance((_V9({131,227,217,170,27,243,74,67,84,185,223,225})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = keybindPanel, CornerRadius = UDim.new(0, 8) })
+newInstance((_V9({61,199,19,209,21,140,226,142})), { Parent = keybindPanel, Color = COLORS.accent, Thickness = 1, Transparency = 0.35 })
+newInstance((_V9({61,199,12,204,20,151,197,138,145,7,251,52})), {
 Parent = keybindPanel,
 SortOrder = Enum.SortOrder.LayoutOrder,
 Padding = UDim.new(0, 6),
 })
-newInstance((_V9({131,227,197,162,12,227,111,76,74})), {
+newInstance((_V9({61,199,16,196,3,135,224,133,143})), {
 Parent = keybindPanel,
 PaddingTop = UDim.new(0, 10),
 PaddingBottom = UDim.new(0, 12),
 PaddingLeft = UDim.new(0, 10),
 PaddingRight = UDim.new(0, 10),
 })
-local bar = newInstance((_V9({144,216,244,174,13})), {
+local bar = newInstance((_V9({46,252,33,200,2})), {
 Parent = keybindPanel,
 LayoutOrder = 0,
 Size = UDim2.new(1, 0, 0, 26),
 BackgroundColor3 = COLORS.bar,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = bar, CornerRadius = UDim.new(0, 6) })
-newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = bar, CornerRadius = UDim.new(0, 6) })
+newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = bar,
 Size = UDim2.new(1, -20, 1, 0),
 Position = UDim2.fromOffset(10, 0),
@@ -4541,7 +4526,7 @@ Font = Enum.Font.GothamBold,
 TextSize = 12,
 TextColor3 = COLORS.text,
 TextXAlignment = Enum.TextXAlignment.Left,
-Text = (_V9({157,207,236,161,1,233,98,81})),
+Text = (_V9({35,235,57,199,14,141,237,152})),
 })
 local dragging, dragStart, startPos
 bar.InputBegan:Connect(function(input)
@@ -4565,61 +4550,61 @@ end)
 table.insert(releaseHandlers, function()
 dragging = false
 end)
-makeKeybind(keybindPanel, (_V9({155,207,251,182})), function()
+makeKeybind(keybindPanel, (_V9({37,235,46,208})), function()
 return config.UI.MenuKey
 end, function(key)
 config.UI.MenuKey = key
 end, function(key)
-return keyConflict(config, key, (_V9({187,207,251,182})))
+return keyConflict(config, key, (_V9({5,235,46,208})))
 end)
-makeKeybind(keybindPanel, (_V9({151,195,248,161,7,243})), function()
+makeKeybind(keybindPanel, (_V9({41,231,45,199,8,151})), function()
 return config.Camera.ToggleKey
 end, function(key)
 config.Camera.ToggleKey = key
 end, function(key)
-return keyConflict(config, key, (_V9({183,195,248,161,7,243})))
+return keyConflict(config, key, (_V9({9,231,45,199,8,151})))
 end)
-makeKeybind(keybindPanel, (_V9({147,249,197})), function()
+makeKeybind(keybindPanel, (_V9({45,221,16})), function()
 return config.ESP.ToggleKey
 end, function(key)
 config.ESP.ToggleKey = key
 end, function(key)
-return keyConflict(config, key, (_V9({179,217,229})))
+return keyConflict(config, key, (_V9({13,253,48})))
 end)
-makeKeybind(keybindPanel, (_V9({144,229,195,227,43,238,116,65,65,179})), function()
+makeKeybind(keybindPanel, (_V9({46,193,22,133,36,138,251,136,132,13})), function()
 return config.Camera.FOVCircleKey
 end, function(key)
 config.Camera.FOVCircleKey = key
 end, function(key)
-return keyConflict(config, key, (_V9({176,197,227,160,1,245,101,78,72})))
+return keyConflict(config, key, (_V9({14,225,54,198,14,145,234,135,141})))
 end)
-makeKeybind(keybindPanel, (_V9({152,197,181,145,13,228,105,75,65})), function()
+makeKeybind(keybindPanel, (_V9({38,225,96,247,2,128,230,130,132})), function()
 return config.NoRecoil.ToggleKey
 end, function(key)
 config.NoRecoil.ToggleKey = key
 end, function(key)
-return keyConflict(config, key, (_V9({184,197,231,166,11,232,111,78})))
+return keyConflict(config, key, (_V9({6,225,50,192,4,140,224,135})))
 end)
-makeKeybind(keybindPanel, (_V9({152,197,181,144,24,245,99,67,73})), function()
+makeKeybind(keybindPanel, (_V9({38,225,96,246,23,145,236,138,140})), function()
 return config.NoSpread.ToggleKey
 end, function(key)
 config.NoSpread.ToggleKey = key
 end, function(key)
-return keyConflict(config, key, (_V9({184,197,230,179,26,226,103,70})))
+return keyConflict(config, key, (_V9({6,225,51,213,21,134,232,143})))
 end)
-makeKeybind(keybindPanel, (_V9({130,216,252,164,15,226,116,64,66,162})), function()
+makeKeybind(keybindPanel, (_V9({60,252,41,194,0,134,251,137,135,28})), function()
 return config.Triggerbot.ToggleKey
 end, function(key)
 config.Triggerbot.ToggleKey = key
 end, function(key)
-return keyConflict(config, key, (_V9({162,216,252,164,15,226,116,64,66,162})))
+return keyConflict(config, key, (_V9({28,252,41,194,0,134,251,137,135,28})))
 end)
-makeKeybind(keybindPanel, (_V9({131,196,249,172,9,227})), function()
+makeKeybind(keybindPanel, (_V9({61,224,44,202,6,135})), function()
 return config.UI.UnloadKey
 end, function(key)
 config.UI.UnloadKey = key
 end, function(key)
-return keyConflict(config, key, (_V9({163,196,249,172,9,227})))
+return keyConflict(config, key, (_V9({29,224,44,202,6,135})))
 end)
 table.insert(syncHandlers, function()
 if keybindPanel then
@@ -4656,8 +4641,8 @@ return
 end
 activeConfig = config
 startInputRouter()
-gui = newInstance((_V9({133,201,231,166,13,233,65,87,68})), {
-Name = (_V9({128,203,251,170,28,254,65,71,67,179,216,244,175,61,206})),
+gui = newInstance((_V9({59,237,50,192,2,141,206,158,129})), {
+Name = (_V9({62,239,46,204,19,154,206,142,134,13,252,33,201,50,170})),
 ResetOnSpawn = false,
 IgnoreGuiInset = true,
 ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
@@ -4667,9 +4652,9 @@ local ok = pcall(function()
 gui.Parent = getGuiParent()
 end)
 if not ok or not gui.Parent then
-gui.Parent = LocalPlayer:WaitForChild((_V9({134,198,244,186,13,245,65,87,68})))
+gui.Parent = LocalPlayer:WaitForChild((_V9({56,226,33,220,2,145,206,158,129})))
 end
-mainWindow = newInstance((_V9({149,203,251,181,9,244,65,80,66,163,218})), {
+mainWindow = newInstance((_V9({43,239,46,211,6,144,206,153,135,29,254})), {
 Parent = gui,
 Size = UDim2.fromOffset(580, 400),
 Position = UDim2.fromOffset(60, 80),
@@ -4678,24 +4663,24 @@ BorderSizePixel = 0,
 GroupTransparency = 1,
 Visible = false,
 })
-windowScale = newInstance((_V9({131,227,198,160,9,235,99})), { Parent = mainWindow, Scale = config.UI.Scale })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = mainWindow, CornerRadius = UDim.new(0, 8) })
-newInstance((_V9({131,227,198,183,26,232,109,71})), { Parent = mainWindow, Color = COLORS.accent, Thickness = 1, Transparency = 0.35 })
-local titleBar = newInstance((_V9({144,216,244,174,13})), {
+windowScale = newInstance((_V9({61,199,19,198,6,143,236})), { Parent = mainWindow, Scale = config.UI.Scale })
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = mainWindow, CornerRadius = UDim.new(0, 8) })
+newInstance((_V9({61,199,19,209,21,140,226,142})), { Parent = mainWindow, Color = COLORS.accent, Thickness = 1, Transparency = 0.35 })
+local titleBar = newInstance((_V9({46,252,33,200,2})), {
 Parent = mainWindow,
 Size = UDim2.new(1, 0, 0, 34),
 BackgroundColor3 = COLORS.bar,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = titleBar, CornerRadius = UDim.new(0, 8) })
-newInstance((_V9({144,216,244,174,13})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = titleBar, CornerRadius = UDim.new(0, 8) })
+newInstance((_V9({46,252,33,200,2})), {
 Parent = titleBar,
 Size = UDim2.new(1, 0, 0, 12),
 Position = UDim2.new(0, 0, 1, -12),
 BackgroundColor3 = COLORS.bar,
 BorderSizePixel = 0,
 })
-local dot = newInstance((_V9({144,216,244,174,13})), {
+local dot = newInstance((_V9({46,252,33,200,2})), {
 Parent = titleBar,
 AnchorPoint = Vector2.new(0, 0.5),
 Position = UDim2.new(0, 12, 0.5, 0),
@@ -4704,8 +4689,8 @@ BackgroundColor3 = COLORS.accent,
 BorderSizePixel = 0,
 ZIndex = 2,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = dot, CornerRadius = UDim.new(1, 0) })
-newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = dot, CornerRadius = UDim.new(1, 0) })
+newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = titleBar,
 Size = UDim2.new(1, -34, 1, 0),
 Position = UDim2.fromOffset(28, 0),
@@ -4715,11 +4700,11 @@ TextSize = 14,
 TextColor3 = COLORS.text,
 TextXAlignment = Enum.TextXAlignment.Left,
 RichText = true,
-Text = (_V9({128,203,251,170,28,254,58,68,66,184,222,181,160,7,235,105,80,16,244,137,173,247,91,194,68,103,15,232,132,241,166,30,187,41,68,66,184,222,171,227,47,226,104,71,95,183,198}))
-.. (_V9({234,204,250,173,28,167,101,77,65,185,216,168,225,75,191,71,21,110,151,154,183,253,72,167,38,224,154,246,138,181,181,88,187,41,68,66,184,222,171})),
+Text = (_V9({62,239,46,204,19,154,181,141,135,6,250,96,198,8,143,230,153,213,74,173,120,145,84,166,203,174,202,86,160,36,192,17,223,166,141,135,6,250,126,133,32,134,231,142,154,9,226}))
+.. (_V9({84,232,47,203,19,195,234,132,132,7,252,125,135,68,219,200,220,171,41,190,98,155,71,195,169,41,95,72,174,96,211,87,223,166,141,135,6,250,126})),
 ZIndex = 2,
 })
-newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = titleBar,
 AnchorPoint = Vector2.new(1, 0.5),
 Position = UDim2.new(1, -12, 0.5, 0),
@@ -4754,30 +4739,30 @@ end)
 table.insert(releaseHandlers, function()
 dragging = false
 end)
-local sidebar = newInstance((_V9({144,216,244,174,13})), {
+local sidebar = newInstance((_V9({46,252,33,200,2})), {
 Parent = mainWindow,
 Position = UDim2.fromOffset(10, 44),
 Size = UDim2.new(0, 120, 1, -54),
 BackgroundColor3 = COLORS.panel,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = sidebar, CornerRadius = UDim.new(0, 6) })
-newInstance((_V9({131,227,198,183,26,232,109,71})), { Parent = sidebar, Color = COLORS.border, Thickness = 1, Transparency = 0.15 })
-newInstance((_V9({131,227,197,162,12,227,111,76,74})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = sidebar, CornerRadius = UDim.new(0, 6) })
+newInstance((_V9({61,199,19,209,21,140,226,142})), { Parent = sidebar, Color = COLORS.border, Thickness = 1, Transparency = 0.15 })
+newInstance((_V9({61,199,16,196,3,135,224,133,143})), {
 Parent = sidebar,
 PaddingTop = UDim.new(0, 10),
 PaddingBottom = UDim.new(0, 10),
 PaddingLeft = UDim.new(0, 10),
 PaddingRight = UDim.new(0, 10),
 })
-local tabList = newInstance((_V9({144,216,244,174,13})), {
+local tabList = newInstance((_V9({46,252,33,200,2})), {
 Parent = sidebar,
 Size = UDim2.new(1, 0, 1, -40),
 BackgroundTransparency = 1,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,217,170,27,243,74,67,84,185,223,225})), { Parent = tabList, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6) })
-local unloadBtn = newInstance((_V9({130,207,237,183,42,242,114,86,66,184})), {
+newInstance((_V9({61,199,12,204,20,151,197,138,145,7,251,52})), { Parent = tabList, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6) })
+local unloadBtn = newInstance((_V9({60,235,56,209,37,150,253,159,135,6})), {
 Parent = sidebar,
 AnchorPoint = Vector2.new(0, 1),
 Position = UDim2.new(0, 0, 1, 0),
@@ -4788,10 +4773,10 @@ AutoButtonColor = false,
 Font = Enum.Font.GothamBold,
 TextSize = 12,
 TextColor3 = COLORS.danger,
-Text = (_V9({131,196,249,172,9,227})),
+Text = (_V9({61,224,44,202,6,135})),
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = unloadBtn, CornerRadius = UDim.new(0, 6) })
-local unloadStroke = newInstance((_V9({131,227,198,183,26,232,109,71})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = unloadBtn, CornerRadius = UDim.new(0, 6) })
+local unloadStroke = newInstance((_V9({61,199,19,209,21,140,226,142})), {
 Parent = unloadBtn,
 Color = COLORS.danger,
 Thickness = 1,
@@ -4814,22 +4799,22 @@ TextColor3 = COLORS.danger,
 }):Play()
 TweenService:Create(unloadStroke, ANIM, { Transparency = 0.55 }):Play()
 end)
-local content = newInstance((_V9({144,216,244,174,13})), {
+local content = newInstance((_V9({46,252,33,200,2})), {
 Parent = mainWindow,
 Position = UDim2.fromOffset(140, 44),
 Size = UDim2.new(1, -150, 1, -54),
 BackgroundTransparency = 1,
 BorderSizePixel = 0,
 })
-newInstance((_V9({131,227,197,162,12,227,111,76,74})), {
+newInstance((_V9({61,199,16,196,3,135,224,133,143})), {
 Parent = content,
 PaddingRight = UDim.new(0, 4),
 })
-local tabs = { (_V9({149,197,248,161,9,243})), (_V9({128,195,230,182,9,235})), (_V9({155,197,227,166,5,226,104,86})), (_V9({133,207,225,183,1,233,97,81})) }
+local tabs = { (_V9({43,225,45,199,6,151})), (_V9({62,231,51,208,6,143})), (_V9({37,225,54,192,10,134,231,159})), (_V9({59,235,52,209,14,141,238,152})) }
 local tabFrames = {}
 for i, tabName in ipairs(tabs) do
 local isActive = currentTab == tabName
-local tabBtn = newInstance((_V9({130,207,237,183,42,242,114,86,66,184})), {
+local tabBtn = newInstance((_V9({60,235,56,209,37,150,253,159,135,6})), {
 Parent = tabList,
 LayoutOrder = i,
 Size = UDim2.new(1, 0, 0, 34),
@@ -4841,10 +4826,10 @@ Font = Enum.Font.GothamBold,
 TextSize = 13,
 TextColor3 = isActive and COLORS.text or COLORS.textSub,
 TextXAlignment = Enum.TextXAlignment.Left,
-Text = (_V9({246,138,181,227})) .. tabName,
+Text = (_V9({72,174,96,133})) .. tabName,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = tabBtn, CornerRadius = UDim.new(0, 6) })
-local stripe = newInstance((_V9({144,216,244,174,13})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = tabBtn, CornerRadius = UDim.new(0, 6) })
+local stripe = newInstance((_V9({46,252,33,200,2})), {
 Parent = tabBtn,
 AnchorPoint = Vector2.new(0, 0.5),
 Position = UDim2.new(0, 5, 0.5, 0),
@@ -4854,8 +4839,8 @@ BorderSizePixel = 0,
 Visible = isActive,
 ZIndex = 2,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = stripe, CornerRadius = UDim.new(1, 0) })
-local tabFrame = newInstance((_V9({144,216,244,174,13})), {
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = stripe, CornerRadius = UDim.new(1, 0) })
+local tabFrame = newInstance((_V9({46,252,33,200,2})), {
 Parent = content,
 Size = UDim2.new(1, 0, 1, 0),
 BackgroundTransparency = 1,
@@ -4886,10 +4871,10 @@ TweenService:Create(tabBtn, ANIM, { BackgroundTransparency = 1 }):Play()
 end
 end)
 end
-buildCameraTab(tabFrames[(_V9({149,197,248,161,9,243}))].frame, config)
-buildESPTab(tabFrames[(_V9({128,195,230,182,9,235}))].frame, config)
-buildMovementTab(tabFrames[(_V9({155,197,227,166,5,226,104,86}))].frame, config)
-buildSettingsTab(tabFrames[(_V9({133,207,225,183,1,233,97,81}))].frame, config)
+buildCameraTab(tabFrames[(_V9({43,225,45,199,6,151}))].frame, config)
+buildESPTab(tabFrames[(_V9({62,231,51,208,6,143}))].frame, config)
+buildMovementTab(tabFrames[(_V9({37,225,54,192,10,134,231,159}))].frame, config)
+buildSettingsTab(tabFrames[(_V9({59,235,52,209,14,141,238,152}))].frame, config)
 buildKeybindPanel(config)
 buildTargetPanel(config)
 buildFpsPanel(config)
@@ -4918,12 +4903,12 @@ if not targetDisplayOn or not targetPanelLabel then
 return
 end
 local shown, colour
-if name and name ~= (_V9({})) and name ~= (_V9({152,197,251,166})) then
-shown, colour = name, (_V9({245,146,161,240,45,197,67}))
+if name and name ~= (_V9({})) and name ~= (_V9({38,225,46,192})) then
+shown, colour = name, (_V9({75,182,116,150,34,161,204}))
 else
-shown, colour = (_V9({131,196,222,173,7,240,104})), (_V9({245,146,212,244,43,198,54}))
+shown, colour = (_V9({61,224,11,203,8,148,231})), (_V9({75,182,1,146,36,162,185}))
 end
-local text = (_V9({130,203,231,164,13,243,60,2,17,176,197,251,183,72,228,105,78,66,164,151,183})) .. colour .. (_V9({244,148})) .. shown .. (_V9({234,133,243,172,6,243,56}))
+local text = (_V9({60,239,50,194,2,151,179,203,212,14,225,46,209,71,128,230,135,135,26,179,98})) .. colour .. (_V9({74,176})) .. shown .. (_V9({84,161,38,202,9,151,183}))
 if targetPanelLabel.Text ~= text then
 targetPanelLabel.Text = text
 end
@@ -4932,7 +4917,7 @@ function UI:UpdateFPS(fps)
 if not fpsLabel or not fpsPanel or not fpsPanel.Visible then
 return
 end
-local text = string.format((_V9({234,204,250,173,28,167,101,77,65,185,216,168,225,75,191,50,17,104,148,239,183,253,77,227,58,13,75,185,196,225,253,72,225,118,81})), fps or 0)
+local text = string.format((_V9({84,232,47,203,19,195,234,132,132,7,252,125,135,68,219,189,216,173,42,203,98,155,66,135,181,196,142,7,224,52,155,71,133,249,152})), fps or 0)
 if fpsLabel.Text ~= text then
 fpsLabel.Text = text
 end
@@ -4941,8 +4926,8 @@ function UI:SetWatermarkImage(id)
 if not watermark then
 return
 end
-local digits = tostring(id or (_V9({}))):match((_V9({243,206,190})))
-watermark.Image = digits and ((_V9({164,200,237,162,27,244,99,86,68,178,144,186,236})) .. digits) or (_V9({}))
+local digits = tostring(id or (_V9({}))):match((_V9({77,234,107})))
+watermark.Image = digits and ((_V9({26,236,56,196,20,144,236,159,129,12,180,111,138})) .. digits) or (_V9({}))
 end
 function UI:SyncControls()
 for _, fn in ipairs(syncHandlers) do
@@ -4957,7 +4942,7 @@ if not gui then
 return
 end
 duration = duration or 3
-local toast = newInstance((_V9({130,207,237,183,36,230,100,71,65})), {
+local toast = newInstance((_V9({60,235,56,209,43,130,235,142,132})), {
 Parent = gui,
 AnchorPoint = Vector2.new(0.5, 0),
 Position = UDim2.new(0.5, 0, 0, 12),
@@ -4970,8 +4955,8 @@ TextSize = 13,
 TextColor3 = COLORS.text,
 Text = text,
 })
-newInstance((_V9({131,227,214,172,26,233,99,80})), { Parent = toast, CornerRadius = UDim.new(0, 8) })
-newInstance((_V9({131,227,198,183,26,232,109,71})), { Parent = toast, Color = COLORS.accent, Thickness = 1, Transparency = 0.3 })
+newInstance((_V9({61,199,3,202,21,141,236,153})), { Parent = toast, CornerRadius = UDim.new(0, 8) })
+newInstance((_V9({61,199,19,209,21,140,226,142})), { Parent = toast, Color = COLORS.accent, Thickness = 1, Transparency = 0.3 })
 TweenService:Create(toast, TweenInfo.new(0.2), { BackgroundTransparency = 0.1 }):Play()
 task.delay(duration, function()
 if toast and toast.Parent then
@@ -5019,11 +5004,10 @@ local BASE_WALKSPEED = 16
 local JUMP_VELOCITY = 50
 local mv_jumpConnection
 local mv_clickConnection
-local fw_original
 local function mv_character()
 local character = LocalPlayer.Character
-local root = character and character:FindFirstChild((_V9({158,223,248,162,6,232,111,70,127,185,197,225,147,9,245,114})))
-local humanoid = character and character:FindFirstChildOfClass((_V9({158,223,248,162,6,232,111,70})))
+local root = character and character:FindFirstChild((_V9({32,251,45,196,9,140,224,143,186,7,225,52,245,6,145,253})))
+local humanoid = character and character:FindFirstChildOfClass((_V9({32,251,45,196,9,140,224,143})))
 if not (character and root and humanoid and humanoid.Health > 0) then
 return nil
 end
@@ -5063,37 +5047,11 @@ return move.Unit
 end
 return nil
 end
-local function mv_setFatWalk(humanoid, scale)
-local width = humanoid and humanoid:FindFirstChild((_V9({148,197,241,186,63,238,98,86,69,133,201,244,175,13})))
-local depth = humanoid and humanoid:FindFirstChild((_V9({148,197,241,186,44,226,118,86,69,133,201,244,175,13})))
-if not (width and depth) then
-return
-end
-if not fw_original then
-fw_original = { width = width.Value, depth = depth.Value }
-end
-width.Value = scale
-depth.Value = scale
-end
-local function mv_restoreFatWalk(humanoid)
-if not fw_original then
-return
-end
-local width = humanoid and humanoid:FindFirstChild((_V9({148,197,241,186,63,238,98,86,69,133,201,244,175,13})))
-local depth = humanoid and humanoid:FindFirstChild((_V9({148,197,241,186,44,226,118,86,69,133,201,244,175,13})))
-if width then
-width.Value = fw_original.width
-end
-if depth then
-depth.Value = fw_original.depth
-end
-fw_original = nil
-end
 function Movement:Update(dt, config)
 local character, root, humanoid = mv_character()
 if config.NoclipEnabled and character then
 for _, part in ipairs(character:GetDescendants()) do
-if part:IsA((_V9({148,203,230,166,56,230,116,86}))) then
+if part:IsA((_V9({42,239,51,192,55,130,251,159}))) then
 part.CanCollide = false
 end
 end
@@ -5118,11 +5076,6 @@ local surplus = (config.Speed or BASE_WALKSPEED) - BASE_WALKSPEED
 if surplus > 0 and humanoid.MoveDirection.Magnitude > 0 then
 root.CFrame = root.CFrame + humanoid.MoveDirection * surplus * dt
 end
-end
-if config.FatWalk then
-mv_setFatWalk(humanoid, config.FatScale or 2)
-else
-mv_restoreFatWalk(humanoid)
 end
 end
 local function mv_onJumpRequest(config)
@@ -5175,13 +5128,10 @@ if mv_clickConnection then
 mv_clickConnection:Disconnect()
 mv_clickConnection = nil
 end
-local character = LocalPlayer.Character
-local humanoid = character and character:FindFirstChildOfClass((_V9({158,223,248,162,6,232,111,70})))
-mv_restoreFatWalk(humanoid)
 end
 end
 VanityGeneral = {}
-VanityGeneral.Version = (_V9({230}))
+VanityGeneral.Version = (_V9({88}))
 VanityGeneral.Config = Configuration
 VanityGeneral.StringObfuscation = StringObfuscation
 VanityGeneral.DebuggerDetection = DebuggerDetection
@@ -5201,7 +5151,7 @@ request,
 (fluxus and fluxus.request),
 }
 for _, fn in ipairs(candidates) do
-if type(fn) == (_V9({176,223,251,160,28,238,105,76})) then
+if type(fn) == (_V9({14,251,46,198,19,138,230,133})) then
 return fn
 end
 end
@@ -5209,14 +5159,14 @@ return nil
 end
 local function resolveWebhookUrl()
 if webhookViaManager then
-local url = VanityGeneral.Secrets:get((_V9({161,207,247,171,7,232,109,125,88,164,198})))
+local url = VanityGeneral.Secrets:get((_V9({31,235,34,205,8,140,226,180,157,26,226})))
 if url then
 return url
 end
 end
 if #WEBHOOK_CIPHER > 0 then
 if DebuggerDetection.IsBeingDebugged() then
-DebuggerDetection.HandleTamperingAttempt((_V9({161,207,247,171,7,232,109,125,95,179,220,240,162,4,216,113,74,68,186,207,202,167,13,229,115,69,74,179,206})), (_V9({161,207,247,171,7,232,109})))
+DebuggerDetection.HandleTamperingAttempt((_V9({31,235,34,205,8,140,226,180,154,13,248,37,196,11,188,254,131,129,4,235,31,193,2,129,252,140,143,13,234})), (_V9({31,235,34,205,8,140,226})))
 return nil
 end
 return StringObfuscation.decrypt(WEBHOOK_CIPHER, WEBHOOK_LEVEL)
@@ -5224,17 +5174,17 @@ end
 return nil
 end
 function VanityGeneral.SetWebhook(url, level)
-VanityGeneral.Secrets:clear((_V9({161,207,247,171,7,232,109,125,88,164,198})))
-VanityGeneral.Secrets:register((_V9({161,207,247,171,7,232,109,125,88,164,198})), url, level or WEBHOOK_LEVEL)
+VanityGeneral.Secrets:clear((_V9({31,235,34,205,8,140,226,180,157,26,226})))
+VanityGeneral.Secrets:register((_V9({31,235,34,205,8,140,226,180,157,26,226})), url, level or WEBHOOK_LEVEL)
 webhookViaManager = true
 return true
 end
 function VanityGeneral.EncryptWebhook(url, level)
 level = level or WEBHOOK_LEVEL
 local bytes = StringObfuscation.encrypt(url, level)
-print(string.format((_V9({251,135,181,147,9,244,114,71,13,162,194,240,227,28,240,105,2,65,191,196,240,176,72,229,99,78,66,161,138,252,173,28,232,38,86,69,179,138,198,134,43,210,84,103,13,129,239,215,139,39,200,77,2,78,185,196,243,170,15,167,46,78,72,160,207,249,227,77,227,47,24})), level))
-print(string.format((_V9({186,197,246,162,4,167,81,103,111,158,229,218,136,55,203,67,116,104,154,138,168,227,77,227})), level))
-print((_V9({186,197,246,162,4,167,81,103,111,158,229,218,136,55,196,79,114,101,147,248,181,254,72,252,38})) .. table.concat(bytes, (_V9({250,138}))) .. (_V9({246,215})))
+print(string.format((_V9({69,163,96,245,6,144,253,142,200,28,230,37,133,19,148,230,203,132,1,224,37,214,71,129,236,135,135,31,174,41,203,19,140,169,159,128,13,174,19,224,36,182,219,174,200,63,203,2,237,40,172,194,203,139,7,224,38,204,0,195,161,135,141,30,235,44,133,66,135,160,209})), level))
+print(string.format((_V9({4,225,35,196,11,195,222,174,170,32,193,15,238,56,175,204,189,173,36,174,125,133,66,135})), level))
+print((_V9({4,225,35,196,11,195,222,174,170,32,193,15,238,56,160,192,187,160,45,220,96,152,71,152,169})) .. table.concat(bytes, (_V9({68,174}))) .. (_V9({72,243})))
 return bytes
 end
 function VanityGeneral.HasWebhook()
@@ -5244,53 +5194,53 @@ function VanityGeneral.SendWebhook(content, opts)
 opts = opts or {}
 local url = resolveWebhookUrl()
 if not url then
-return false, (_V9({184,197,202,180,13,229,110,77,66,189,245,250,177,55,229,106,77,78,189,207,241}))
+return false, (_V9({6,225,31,210,2,129,225,132,135,3,209,47,215,56,129,229,132,139,3,235,36}))
 end
 local req = resolveHttpRequest()
 if not req then
-warn((_V9({141,252,244,173,1,243,127,15,106,179,196,240,177,9,235,91,2,99,185,138,221,151,60,215,38,80,72,167,223,240,176,28,167,96,87,67,181,222,252,172,6,167,103,84,76,191,198,244,161,4,226,38,75,67,246,222,253,170,27,167,99,90,72,181,223,225,172,26})))
-return false, (_V9({184,197,202,171,28,243,118}))
+warn((_V9({51,216,33,203,14,151,240,198,175,13,224,37,215,6,143,212,203,166,7,174,8,241,51,179,169,153,141,25,251,37,214,19,195,239,158,134,11,250,41,202,9,195,232,157,137,1,226,33,199,11,134,169,130,134,72,250,40,204,20,195,236,147,141,11,251,52,202,21})))
+return false, (_V9({6,225,31,205,19,151,249}))
 end
 local payload = {
-username = opts.username or (_V9({128,203,251,170,28,254,43,101,72,184,207,231,162,4})),
+username = opts.username or (_V9({62,239,46,204,19,154,164,172,141,6,235,50,196,11})),
 avatar_url = opts.avatar_url,
 content = content,
 embeds = opts.embeds,
 }
 local ok, err = pcall(function()
-local body = game:GetService((_V9({158,222,225,179,59,226,116,84,68,181,207}))):JSONEncode(payload)
+local body = game:GetService((_V9({32,250,52,213,52,134,251,157,129,11,235}))):JSONEncode(payload)
 return req({
 Url = url,
-Method = (_V9({134,229,198,151})),
-Headers = { [(_V9({149,197,251,183,13,233,114,15,121,175,218,240}))] = (_V9({183,218,229,175,1,228,103,86,68,185,196,186,169,27,232,104})) },
+Method = (_V9({56,193,19,241})),
+Headers = { [(_V9({43,225,46,209,2,141,253,198,188,17,254,37}))] = (_V9({9,254,48,201,14,128,232,159,129,7,224,111,207,20,140,231})) },
 Body = body,
 })
 end)
 url = nil
 if not ok then
-warn((_V9({141,252,244,173,1,243,127,15,106,179,196,240,177,9,235,91,2,122,179,200,253,172,7,236,38,81,72,184,206,181,165,9,238,106,71,73,236})), err)
+warn((_V9({51,216,33,203,14,151,240,198,175,13,224,37,215,6,143,212,203,191,13,236,40,202,8,136,169,152,141,6,234,96,195,6,138,229,142,140,82})), err)
 return false, err
 end
 return true
 end
 function VanityGeneral.SendLoadedEmbed(isDebugged)
-local placeName = (_V9({233}))
+local placeName = (_V9({87}))
 pcall(function()
-placeName = game:GetService((_V9({155,203,231,168,13,243,118,78,76,181,207,198,166,26,241,111,65,72}))):GetProductInfo(game.PlaceId).Name
+placeName = game:GetService((_V9({37,239,50,206,2,151,249,135,137,11,235,19,192,21,149,224,136,141}))):GetProductInfo(game.PlaceId).Name
 end)
 return VanityGeneral.SendWebhook(nil, {
 embeds = {
 {
-title = (_V9({128,203,251,170,28,254,40,70,72,160,138,210,166,6,226,116,67,65,246,198,250,162,12,226,98})),
+title = (_V9({62,239,46,204,19,154,167,143,141,30,174,7,192,9,134,251,138,132,72,226,47,196,3,134,237})),
 color = 8666558,
 fields = {
-{ name = (_V9({134,198,244,186,13,245})), value = (_V9({182})) .. (LocalPlayer and LocalPlayer.Name or (_V9({233}))) .. (_V9({182})), inline = true },
-{ name = (_V9({128,207,231,176,1,232,104})), value = (_V9({182,220})) .. tostring(VanityGeneral.Version) .. (_V9({182})), inline = true },
-{ name = (_V9({145,203,248,166})), value = placeName, inline = false },
-{ name = (_V9({134,198,244,160,13,206,98})), value = (_V9({182})) .. tostring(game.PlaceId) .. (_V9({182})), inline = true },
-{ name = (_V9({146,207,247,182,15,224,99,70})), value = (_V9({182})) .. tostring(isDebugged) .. (_V9({182})), inline = true },
+{ name = (_V9({56,226,33,220,2,145})), value = (_V9({8})) .. (LocalPlayer and LocalPlayer.Name or (_V9({87}))) .. (_V9({8})), inline = true },
+{ name = (_V9({62,235,50,214,14,140,231})), value = (_V9({8,248})) .. tostring(VanityGeneral.Version) .. (_V9({8})), inline = true },
+{ name = (_V9({47,239,45,192})), value = placeName, inline = false },
+{ name = (_V9({56,226,33,198,2,170,237})), value = (_V9({8})) .. tostring(game.PlaceId) .. (_V9({8})), inline = true },
+{ name = (_V9({44,235,34,208,0,132,236,143})), value = (_V9({8})) .. tostring(isDebugged) .. (_V9({8})), inline = true },
 },
-footer = { text = os.date((_V9({243,243,184,230,5,170,35,70,13,243,226,175,230,37,189,35,113}))) },
+footer = { text = os.date((_V9({77,215,109,128,10,206,172,143,200,77,198,122,128,42,217,172,184}))) },
 },
 },
 })
@@ -5298,7 +5248,7 @@ end
 local running = false
 local connections = {}
 local aimbotSteering = false
-local RECOIL_BIND = (_V9({128,203,251,170,28,254,65,71,67,179,216,244,175,58,226,101,77,68,186}))
+local RECOIL_BIND = (_V9({62,239,46,204,19,154,206,142,134,13,252,33,201,53,134,234,132,129,4}))
 local guardState = {}
 local GUARD_WARN_INTERVAL = 5
 local function guarded(name, fn, ...)
@@ -5319,7 +5269,7 @@ st.failures = st.failures + 1
 local now = os.clock()
 if now - st.lastWarn >= GUARD_WARN_INTERVAL then
 st.lastWarn = now
-warn(string.format((_V9({141,252,244,173,1,243,127,15,106,179,196,240,177,9,235,91,2,8,165,138,243,162,1,235,99,70,13,254,210,176,167,65,189,38,7,94})), name, st.failures, tostring(res)))
+warn(string.format((_V9({51,216,33,203,14,151,240,198,175,13,224,37,215,6,143,212,203,205,27,174,38,196,14,143,236,143,200,64,246,101,193,78,217,169,206,155})), name, st.failures, tostring(res)))
 end
 return false, nil
 end
@@ -5364,7 +5314,7 @@ return VanityGeneral
 end
 local securityState = ProtectedSecrets.initialize({ enable_monitoring = true })
 if securityState.is_debugged then
-warn((_V9({141,252,244,173,1,243,127,15,106,179,196,240,177,9,235,91,2,105,179,200,224,164,72,226,104,84,68,164,197,251,174,13,233,114,2,73,179,222,240,160,28,226,98,2,76,162,138,230,183,9,245,114,87,93,246,72,21,87,72,247,116,77,89,179,201,225,166,12,167,117,71,78,164,207,225,176,72,240,111,78,65,246,216,240,165,29,244,99,2,89,185,138,231,166,30,226,103,78,13,163,196,225,170,4,167,103,78,65,185,221,202,170,6,216,117,86,88,178,195,250,227,1,244,38,81,72,162,132})))
+warn((_V9({51,216,33,203,14,151,240,198,175,13,224,37,215,6,143,212,203,172,13,236,53,194,71,134,231,157,129,26,225,46,200,2,141,253,203,140,13,250,37,198,19,134,237,203,137,28,174,51,209,6,145,253,158,152,72,108,192,49,71,147,251,132,156,13,237,52,192,3,195,250,142,139,26,235,52,214,71,148,224,135,132,72,252,37,195,18,144,236,203,156,7,174,50,192,17,134,232,135,200,29,224,52,204,11,195,232,135,132,7,249,31,204,9,188,250,159,157,12,231,47,133,14,144,169,152,141,28,160})))
 end
 running = true
 local ok, err = pcall(function()
@@ -5374,16 +5324,16 @@ Movement:Init(Configuration.Movement)
 SilentAim:Init(Configuration.SilentAim)
 Utility:Init(Configuration.Utility)
 table.insert(connections, Players.PlayerAdded:Connect(function(player)
-guarded((_V9({134,198,244,186,13,245,71,70,73,179,206})), ESP.OnPlayerAdded, ESP, player)
+guarded((_V9({56,226,33,220,2,145,200,143,140,13,234})), ESP.OnPlayerAdded, ESP, player)
 end))
 table.insert(connections, Players.PlayerRemoving:Connect(function(player)
-guarded((_V9({134,198,244,186,13,245,84,71,64,185,220,252,173,15})), ESP.OnPlayerRemoving, ESP, player)
+guarded((_V9({56,226,33,220,2,145,219,142,133,7,248,41,203,0})), ESP.OnPlayerRemoving, ESP, player)
 end))
 table.insert(connections, UserInputService.InputBegan:Connect(function(input, gameProcessed)
 if gameProcessed or UI:IsCapturingKey() then
 return
 end
-guarded((_V9({157,207,236,161,1,233,98,81})), function()
+guarded((_V9({35,235,57,199,14,141,237,152})), function()
 local key = input.KeyCode
 if key == Configuration.UI.MenuKey then
 UI:Toggle()
@@ -5391,12 +5341,12 @@ elseif key == Configuration.UI.UnloadKey then
 VanityGeneral.Stop()
 else
 local toggles = {
-{ Configuration.Camera, (_V9({147,196,244,161,4,226,98})), Configuration.Camera.ToggleKey },
-{ Configuration.ESP, (_V9({147,196,244,161,4,226,98})), Configuration.ESP.ToggleKey },
-{ Configuration.Camera, (_V9({144,229,195,128,1,245,101,78,72})), Configuration.Camera.FOVCircleKey },
-{ Configuration.NoRecoil, (_V9({147,196,244,161,4,226,98})), Configuration.NoRecoil.ToggleKey },
-{ Configuration.NoSpread, (_V9({147,196,244,161,4,226,98})), Configuration.NoSpread.ToggleKey },
-{ Configuration.Triggerbot, (_V9({147,196,244,161,4,226,98})), Configuration.Triggerbot.ToggleKey },
+{ Configuration.Camera, (_V9({45,224,33,199,11,134,237})), Configuration.Camera.ToggleKey },
+{ Configuration.ESP, (_V9({45,224,33,199,11,134,237})), Configuration.ESP.ToggleKey },
+{ Configuration.Camera, (_V9({46,193,22,230,14,145,234,135,141})), Configuration.Camera.FOVCircleKey },
+{ Configuration.NoRecoil, (_V9({45,224,33,199,11,134,237})), Configuration.NoRecoil.ToggleKey },
+{ Configuration.NoSpread, (_V9({45,224,33,199,11,134,237})), Configuration.NoSpread.ToggleKey },
+{ Configuration.Triggerbot, (_V9({45,224,33,199,11,134,237})), Configuration.Triggerbot.ToggleKey },
 }
 for _, t in ipairs(toggles) do
 if key == t[3] then
@@ -5410,31 +5360,31 @@ end)
 end))
 local fpsAccum, fpsFrames = 0, 0
 table.insert(connections, RunService.RenderStepped:Connect(function(dt)
-guarded((_V9({147,249,197})), ESP.Update, ESP, Configuration.ESP)
-local okAim, target = guarded((_V9({151,195,248,161,7,243})), CameraDirector.Update, CameraDirector, Configuration.Camera, Configuration.Debug)
+guarded((_V9({45,221,16})), ESP.Update, ESP, Configuration.ESP)
+local okAim, target = guarded((_V9({41,231,45,199,8,151})), CameraDirector.Update, CameraDirector, Configuration.Camera, Configuration.Debug)
 if not okAim then
 target = nil
 end
 if Configuration.UI.TargetDisplay then
-guarded((_V9({130,203,231,164,13,243,38,70,68,165,218,249,162,17})), function()
+guarded((_V9({60,239,50,194,2,151,169,143,129,27,254,44,196,30})), function()
 local looking = CameraDirector:GetLookTarget(Configuration.ESP, Configuration.Camera)
 UI:SetCurrentTarget(looking and looking.Name or nil)
 end)
 end
 aimbotSteering = Configuration.Camera.Enabled and target ~= nil
-guarded((_V9({152,197,198,179,26,226,103,70})), NoSpread.Update, NoSpread, Configuration.NoSpread)
-guarded((_V9({130,216,252,164,15,226,116,64,66,162})), Triggerbot.Update, Triggerbot, Configuration.Triggerbot, Configuration.Camera)
-guarded((_V9({155,197,227,166,5,226,104,86})), Movement.Update, Movement, dt, Configuration.Movement)
-guarded((_V9({158,195,225,161,7,255})), HitboxExpander.Update, HitboxExpander, Configuration.Hitbox, Configuration.Camera)
-guarded((_V9({146,216,244,180,1,233,97,2,104,133,250})), DrawingESP.Update, DrawingESP, Configuration.Drawing, Configuration.Camera)
-guarded((_V9({128,195,230,182,9,235,117})), Visuals.Update, Visuals, Configuration.Visuals)
+guarded((_V9({38,225,19,213,21,134,232,143})), NoSpread.Update, NoSpread, Configuration.NoSpread)
+guarded((_V9({60,252,41,194,0,134,251,137,135,28})), Triggerbot.Update, Triggerbot, Configuration.Triggerbot, Configuration.Camera)
+guarded((_V9({37,225,54,192,10,134,231,159})), Movement.Update, Movement, dt, Configuration.Movement)
+guarded((_V9({32,231,52,199,8,155})), HitboxExpander.Update, HitboxExpander, Configuration.Hitbox, Configuration.Camera)
+guarded((_V9({44,252,33,210,14,141,238,203,173,59,222})), DrawingESP.Update, DrawingESP, Configuration.Drawing, Configuration.Camera)
+guarded((_V9({62,231,51,208,6,143,250})), Visuals.Update, Visuals, Configuration.Visuals)
 fpsAccum = fpsAccum + dt
 fpsFrames = fpsFrames + 1
 if fpsAccum >= 0.25 then
 local fps = math.floor(fpsFrames / fpsAccum + 0.5)
 fpsAccum, fpsFrames = 0, 0
 if Configuration.UI.FPSCounter then
-guarded((_V9({144,250,198,227,11,232,115,76,89,179,216})), UI.UpdateFPS, UI, fps)
+guarded((_V9({46,222,19,133,4,140,252,133,156,13,252})), UI.UpdateFPS, UI, fps)
 end
 end
 end))
@@ -5443,25 +5393,25 @@ RunService:UnbindFromRenderStep(RECOIL_BIND)
 end)
 pcall(function()
 RunService:BindToRenderStep(RECOIL_BIND, Enum.RenderPriority.Camera.Value + 1, function()
-guarded((_V9({152,197,199,166,11,232,111,78})), NoRecoil.Update, NoRecoil, Configuration.NoRecoil, aimbotSteering)
+guarded((_V9({38,225,18,192,4,140,224,135})), NoRecoil.Update, NoRecoil, Configuration.NoRecoil, aimbotSteering)
 end)
 end)
 end)
 if not ok then
-warn((_V9({141,252,244,173,1,243,127,15,106,179,196,240,177,9,235,91,2,107,183,195,249,166,12,167,114,77,13,165,222,244,177,28,189})), err)
+warn((_V9({51,216,33,203,14,151,240,198,175,13,224,37,215,6,143,212,203,174,9,231,44,192,3,195,253,132,200,27,250,33,215,19,217})), err)
 VanityGeneral.Stop()
 return VanityGeneral
 end
-UI:Notify(string.format((_V9({128,203,251,170,28,254,43,101,72,184,207,231,162,4,167,106,77,76,178,207,241,227,72,101,134,128,13,246,250,231,166,27,244,38,7,94})), Configuration.UI.MenuKey.Name), 4)
-print(string.format((_V9({141,252,244,173,1,243,127,15,106,179,196,240,177,9,235,91,2,127,163,196,251,170,6,224,38,10,91,243,217,188})), VanityGeneral.Version))
-print(string.format((_V9({246,138,119,67,202,167,85,86,95,191,196,242,140,10,225,115,81,78,183,222,252,172,6,167,112,7,94,246,130,244,160,28,238,112,71,4})), StringObfuscation.VERSION))
-print(string.format((_V9({246,138,119,67,202,167,66,71,79,163,205,242,166,26,195,99,86,72,181,222,252,172,6,167,112,16,3,230,138,189,174,7,233,111,86,66,164,195,251,164,82,167,103,65,89,191,220,240,239,72,227,99,64,88,177,205,240,167,82,167,35,81,4})), tostring(securityState.is_debugged)))
-print(string.format((_V9({246,138,119,67,202,167,86,80,66,162,207,246,183,13,227,85,71,78,164,207,225,176,72,241,35,81,13,254,252,244,173,1,243,127,101,72,184,207,231,162,4,169,85,71,78,164,207,225,176,72,224,103,86,72,178,138,247,186,72,227,99,64,88,177,205,240,177,72,227,99,86,72,181,222,252,172,6,174})), ProtectedSecrets.VERSION))
-print(string.format((_V9({155,207,251,182,82,167,35,81,13,246,214,181,227,43,230,107,71,95,183,144,181,230,27,167,38,94,13,246,255,251,175,7,230,98,24,13,243,217})),
+UI:Notify(string.format((_V9({62,239,46,204,19,154,164,172,141,6,235,50,196,11,195,229,132,137,12,235,36,133,71,1,9,73,200,72,222,50,192,20,144,169,206,155})), Configuration.UI.MenuKey.Name), 4)
+print(string.format((_V9({51,216,33,203,14,151,240,198,175,13,224,37,215,6,143,212,203,186,29,224,46,204,9,132,169,195,158,77,253,105})), VanityGeneral.Version))
+print(string.format((_V9({72,174,162,37,197,195,218,159,154,1,224,39,234,5,133,252,152,139,9,250,41,202,9,195,255,206,155,72,166,33,198,19,138,255,142,193})), StringObfuscation.VERSION))
+print(string.format((_V9({72,174,162,37,197,195,205,142,138,29,233,39,192,21,167,236,159,141,11,250,41,202,9,195,255,217,198,88,174,104,200,8,141,224,159,135,26,231,46,194,93,195,232,136,156,1,248,37,137,71,135,236,137,157,15,233,37,193,93,195,172,152,193})), tostring(securityState.is_debugged)))
+print(string.format((_V9({72,174,162,37,197,195,217,153,135,28,235,35,209,2,135,218,142,139,26,235,52,214,71,149,172,152,200,64,216,33,203,14,151,240,172,141,6,235,50,196,11,205,218,142,139,26,235,52,214,71,132,232,159,141,12,174,34,220,71,135,236,137,157,15,233,37,215,71,135,236,159,141,11,250,41,202,9,202})), ProtectedSecrets.VERSION))
+print(string.format((_V9({37,235,46,208,93,195,172,152,200,72,242,96,133,36,130,228,142,154,9,180,96,128,20,195,169,151,200,72,219,46,201,8,130,237,209,200,77,253})),
 Configuration.UI.MenuKey.Name,
 Configuration.Camera.ToggleKey.Name,
 Configuration.UI.UnloadKey.Name))
-if not VanityGeneral.HasWebhook() and type(WEBHOOK_URL) == (_V9({165,222,231,170,6,224})) and WEBHOOK_URL ~= (_V9({})) then
+if not VanityGeneral.HasWebhook() and type(WEBHOOK_URL) == (_V9({27,250,50,204,9,132})) and WEBHOOK_URL ~= (_V9({})) then
 pcall(VanityGeneral.SetWebhook, WEBHOOK_URL)
 end
 if VanityGeneral.HasWebhook() then
@@ -5518,7 +5468,7 @@ ProtectedSecrets.shutdown()
 end)
 NoRecoil:Reset()
 table.clear(guardState)
-print((_V9({141,252,244,173,1,243,127,15,106,179,196,240,177,9,235,91,2,126,162,197,229,179,13,227})))
+print((_V9({51,216,33,203,14,151,240,198,175,13,224,37,215,6,143,212,203,187,28,225,48,213,2,135})))
 return VanityGeneral
 end
 function VanityGeneral.Toggle()
@@ -5535,7 +5485,7 @@ VanityGeneral.stop = VanityGeneral.Stop
 VanityGeneral.toggle = VanityGeneral.Toggle
 if getgenv then
 local previous = getgenv().VanityGeneral
-if previous and previous ~= VanityGeneral and type(previous.Stop) == (_V9({176,223,251,160,28,238,105,76})) then
+if previous and previous ~= VanityGeneral and type(previous.Stop) == (_V9({14,251,46,198,19,138,230,133})) then
 pcall(previous.Stop)
 end
 getgenv().VanityGeneral = VanityGeneral

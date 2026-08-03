@@ -87,9 +87,6 @@ Config.Movement = {
 	ClickTPEnabled = false,
 	-- Modifier held while left-clicking to teleport to the mouse.
 	ClickTPKey = Enum.KeyCode.LeftControl,
-	-- Widen the local character's body (client-side only; see Movement module).
-	FatWalk = false,
-	FatScale = 2,
 }
 
 Config.UI = {
@@ -128,8 +125,6 @@ local DEFAULTS = {
 		Speed = 16,
 		InfJumpEnabled = false,
 		ClickTPEnabled = false,
-		FatWalk = false,
-		FatScale = 2,
 	},
 }
 
