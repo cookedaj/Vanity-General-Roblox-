@@ -3,18 +3,34 @@
 --   local VanityGeneral = loadstring(readfile("VanityGeneral.lua"))()
 --   VanityGeneral.Start()
 --
--- Hosted — works across executors with different HTTP APIs:
+-- Hosted — tries every known executor HTTP API until one works:
 local URL = "https://raw.githubusercontent.com/cookedaj/vanity-release/main/VanityGeneral.lua?t=" .. tick()
 
-local source
-if game.HttpGet then
-	source = game:HttpGet(URL)
-else
-	local req = (syn and syn.request) or (http and http.request) or request or (fluxus and fluxus.request)
-	assert(req, "[Vanity-General] No HTTP function available in this executor")
-	local res = req({ Url = URL, Method = "GET" })
-	source = res.Body or res.body
+local function bodyOf(res)
+	return type(res) == "table" and (res.Body or res.body) or nil
 end
+
+local attempts = {
+	function() return game:HttpGet(URL) end,
+	function() return game:HttpGetAsync(URL) end,
+	function() return bodyOf(syn.request({ Url = URL, Method = "GET" })) end,
+	function() return bodyOf(http.request({ Url = URL, Method = "GET" })) end,
+	function() return bodyOf(request({ Url = URL, Method = "GET" })) end,
+	function() return bodyOf(http_request({ Url = URL, Method = "GET" })) end,
+	function() return bodyOf(fluxus.request({ Url = URL, Method = "GET" })) end,
+	function() return bodyOf((delta and delta.request)({ Url = URL, Method = "GET" })) end,
+}
+
+local source
+for _, attempt in ipairs(attempts) do
+	local ok, res = pcall(attempt)
+	if ok and type(res) == "string" and #res > 1000 then
+		source = res
+		break
+	end
+end
+
+assert(source, "[Vanity-General] No working HTTP function found in this executor")
 
 local VanityGeneral = loadstring(source)()
 VanityGeneral.Start()
