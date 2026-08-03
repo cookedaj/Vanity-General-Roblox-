@@ -915,6 +915,8 @@ Configuration.Camera = {
 
 	WallCheck = true,     -- require line of sight to the target
 	StickyTarget = false, -- keep the current target until it dies / leaves / exits FOV
+	TargetBots = false,   -- also target NPCs (non-player models with a Humanoid)
+	TeamCheck = true,     -- never target players on your own team
 	FOVCircle = false,    -- draw the targeting radius on screen
 
 	ToggleKey = Enum.KeyCode.LeftAlt,
@@ -996,6 +998,8 @@ local DEFAULTS = {
 		TargetWeights = { Head = 85, Torso = 15, Arms = 0, Legs = 0 },
 		WallCheck = true,
 		StickyTarget = false,
+		TargetBots = false,
+		TeamCheck = true,
 		FOVCircle = false,
 	},
 	ESP = {
@@ -1441,14 +1445,17 @@ local function destroyFovCircle()
 	fovGui, fovRing, fovStroke = nil, nil, nil
 end
 
--- Builds a target table for a player if it currently passes every filter, else nil.
-local function evaluateTarget(player, config)
-	if not player or player.Parent ~= Players or player == LocalPlayer then
+-- Builds a target table for a character if it currently passes every filter,
+-- else nil. `player` is nil for bot (NPC) targets, so target.Player needs a
+-- nil-check downstream.
+local function evaluateCharacter(character, player, config)
+	if not character then
 		return nil
 	end
 
-	local character = player.Character
-	if not character then
+	-- Team Check: never target teammates. Teamless players (Team == nil) stay
+	-- targetable; bots (player == nil) are unaffected.
+	if config.TeamCheck and player and player.Team ~= nil and player.Team == LocalPlayer.Team then
 		return nil
 	end
 
@@ -1481,6 +1488,41 @@ local function evaluateTarget(player, config)
 	return { Player = player, Character = character, Anchor = anchor, ScreenDistance = distance }
 end
 
+-- Player wrapper around evaluateCharacter: rejects yourself and gone players.
+local function evaluateTarget(player, config)
+	if not player or player.Parent ~= Players or player == LocalPlayer then
+		return nil
+	end
+
+	return evaluateCharacter(player.Character, player, config)
+end
+
+-- Cached list of NPC ("bot") characters for the Target Bots mode. Scanning the
+-- whole Workspace every frame is too expensive, so the list refreshes at most
+-- every BOT_SCAN_INTERVAL seconds and the scan only runs while TargetBots is on.
+local BOT_SCAN_INTERVAL = 0.5
+local botCharacters = {}
+local botScanAt = -math.huge
+
+local function getBotCharacters()
+	local now = os.clock()
+	if now - botScanAt < BOT_SCAN_INTERVAL then
+		return botCharacters
+	end
+	botScanAt = now
+
+	table.clear(botCharacters)
+	for _, descendant in ipairs(Workspace:GetDescendants()) do
+		if descendant:IsA("Model")
+			and descendant:FindFirstChildOfClass("Humanoid")
+			and not Players:GetPlayerFromCharacter(descendant)
+		then
+			table.insert(botCharacters, descendant)
+		end
+	end
+	return botCharacters
+end
+
 function CameraDirector:FindBestTarget(config)
 	local best
 	local bestDistance = math.huge
@@ -1490,6 +1532,16 @@ function CameraDirector:FindBestTarget(config)
 		if candidate and candidate.ScreenDistance < bestDistance then
 			bestDistance = candidate.ScreenDistance
 			best = candidate
+		end
+	end
+
+	if config.TargetBots then
+		for _, character in ipairs(getBotCharacters()) do
+			local candidate = evaluateCharacter(character, nil, config)
+			if candidate and candidate.ScreenDistance < bestDistance then
+				bestDistance = candidate.ScreenDistance
+				best = candidate
+			end
 		end
 	end
 
@@ -1504,7 +1556,8 @@ local LOOK_RADIUS = 50
 -- from the aimbot's filters: no wall check (so people behind walls/floors still
 -- register) and ranged by the ESP render distance rather than the aimbot's. Off-
 -- screen players score math.huge from getScreenDistance, so they never win.
-function CameraDirector:GetLookTarget(espConfig)
+-- With Target Bots on NPCs count too; the popup then shows the model name.
+function CameraDirector:GetLookTarget(espConfig, cameraConfig)
 	local best
 	local bestDistance = LOOK_RADIUS -- anything further from the crosshair is ignored
 
@@ -1512,26 +1565,39 @@ function CameraDirector:GetLookTarget(espConfig)
 	local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
 	local maxRange = (espConfig and espConfig.MaxDistance) or math.huge
 
+	-- Scores one character; `result` is what the popup names (player or model).
+	local function consider(character, result)
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		local anchor = humanoid and humanoid.Health > 0 and anchorPart(character) or nil
+		if not anchor then
+			return
+		end
+
+		if myRoot and (anchor.Position - myRoot.Position).Magnitude > maxRange then
+			return
+		end
+
+		local distance = getScreenDistance(anchor.Position)
+		if distance <= bestDistance then
+			bestDistance = distance
+			best = result
+		end
+	end
+
+	-- Team Check skips teammates; teamless players and bots stay eligible.
+	local teamCheck = cameraConfig and cameraConfig.TeamCheck
+
 	for _, player in ipairs(Players:GetPlayers()) do
-		if player ~= LocalPlayer and player.Character then
-			local character = player.Character
-			local humanoid = character:FindFirstChildOfClass("Humanoid")
-			local anchor = humanoid and humanoid.Health > 0 and anchorPart(character) or nil
+		if player ~= LocalPlayer
+			and not (teamCheck and player.Team ~= nil and player.Team == LocalPlayer.Team)
+		then
+			consider(player.Character, player)
+		end
+	end
 
-			if anchor then
-				local inRange = true
-				if myRoot then
-					inRange = (anchor.Position - myRoot.Position).Magnitude <= maxRange
-				end
-
-				if inRange then
-					local distance = getScreenDistance(anchor.Position)
-					if distance <= bestDistance then
-						bestDistance = distance
-						best = player
-					end
-				end
-			end
+	if cameraConfig and cameraConfig.TargetBots then
+		for _, character in ipairs(getBotCharacters()) do
+			consider(character, character)
 		end
 	end
 
@@ -1572,6 +1638,7 @@ function CameraDirector:Update(config, debug)
 
 	if not config.Enabled then
 		self._lockedChar = nil -- reset the weighted lock so re-enabling re-rolls
+		self._stickyCharacter = nil
 		self._stickyPlayer = nil
 		return
 	end
@@ -1580,11 +1647,15 @@ function CameraDirector:Update(config, debug)
 		return
 	end
 
-	-- Sticky target: stay on the current player while it still passes every filter,
-	-- otherwise reacquire the best one. Stops the aim flicking between players.
+	-- Sticky target: stay on the current character while it still passes every
+	-- filter, otherwise reacquire the best one. Stops the aim flicking between
+	-- targets. Tracks the character (not just the player) so bot targets stick
+	-- too; the player reference is kept only to detect a player leaving.
 	local target
-	if config.StickyTarget and self._stickyPlayer then
-		target = evaluateTarget(self._stickyPlayer, config)
+	if config.StickyTarget and self._stickyCharacter then
+		if not self._stickyPlayer or self._stickyPlayer.Parent == Players then
+			target = evaluateCharacter(self._stickyCharacter, self._stickyPlayer, config)
+		end
 	end
 	if not target then
 		target = self:FindBestTarget(config)
@@ -1592,9 +1663,11 @@ function CameraDirector:Update(config, debug)
 
 	if not target then
 		self._lockedChar = nil
+		self._stickyCharacter = nil
 		self._stickyPlayer = nil
 		return
 	end
+	self._stickyCharacter = target.Character
 	self._stickyPlayer = target.Player
 
 	local region = self:_resolveRegion(target.Character, config)
@@ -1617,6 +1690,7 @@ end
 
 function CameraDirector:Cleanup()
 	self._lockedChar = nil
+	self._stickyCharacter = nil
 	self._stickyPlayer = nil
 	destroyFovCircle()
 end
@@ -1918,7 +1992,7 @@ local function tb_resolveClick()
 end
 
 -- Returns the character model under the crosshair (living, not you), else nil.
-local function tb_targetUnderCrosshair(config)
+local function tb_targetUnderCrosshair(config, cameraConfig)
 	local cam = Workspace.CurrentCamera
 	if not cam then
 		return nil
@@ -1956,6 +2030,12 @@ local function tb_targetUnderCrosshair(config)
 		return nil
 	end
 
+	-- Team Check (lives in the Camera config): never fire on teammates.
+	-- Teamless players (Team == nil) stay fair game.
+	if cameraConfig and cameraConfig.TeamCheck and plr.Team ~= nil and plr.Team == LocalPlayer.Team then
+		return nil
+	end
+
 	local hum = model:FindFirstChildOfClass("Humanoid")
 	if not hum or hum.Health <= 0 then
 		return nil
@@ -1964,7 +2044,7 @@ local function tb_targetUnderCrosshair(config)
 	return model
 end
 
-function Triggerbot:Update(config)
+function Triggerbot:Update(config, cameraConfig)
 	if not config.Enabled then
 		tb_onTargetSince = nil
 		return
@@ -1979,7 +2059,7 @@ function Triggerbot:Update(config)
 		return
 	end
 
-	local target = tb_targetUnderCrosshair(config)
+	local target = tb_targetUnderCrosshair(config, cameraConfig)
 	if not target then
 		tb_onTargetSince = nil -- reset the reaction timer when off-target
 		return
@@ -4037,6 +4117,18 @@ local function buildCameraTab(parent, config)
 		config.Camera.StickyTarget = not config.Camera.StickyTarget
 	end)
 
+	makeToggle(aim, "Target Bots", function()
+		return config.Camera.TargetBots
+	end, function()
+		config.Camera.TargetBots = not config.Camera.TargetBots
+	end)
+
+	makeToggle(aim, "Team Check", function()
+		return config.Camera.TeamCheck
+	end, function()
+		config.Camera.TeamCheck = not config.Camera.TeamCheck
+	end)
+
 	makeToggleWithKeybind(aim, "FOV Circle", function()
 		return config.Camera.FOVCircle
 	end, function()
@@ -5595,7 +5687,7 @@ function VanityGeneral.Start()
 			-- resolved while the popup is on, so it costs nothing when off.
 			if Configuration.UI.TargetDisplay then
 				guarded("Target display", function()
-					local looking = CameraDirector:GetLookTarget(Configuration.ESP)
+					local looking = CameraDirector:GetLookTarget(Configuration.ESP, Configuration.Camera)
 					UI:SetCurrentTarget(looking and looking.Name or nil)
 				end)
 			end
@@ -5607,7 +5699,7 @@ function VanityGeneral.Start()
 			guarded("NoSpread", NoSpread.Update, NoSpread, Configuration.NoSpread)
 
 			-- Auto-fire when the crosshair is on a target.
-			guarded("Triggerbot", Triggerbot.Update, Triggerbot, Configuration.Triggerbot)
+			guarded("Triggerbot", Triggerbot.Update, Triggerbot, Configuration.Triggerbot, Configuration.Camera)
 
 			-- Averaging over a window rather than 1/dt keeps the readout steady.
 			fpsAccum = fpsAccum + dt

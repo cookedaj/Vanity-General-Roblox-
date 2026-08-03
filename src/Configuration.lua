@@ -9,6 +9,11 @@ Config.Camera = {
 	Smoothness = 0.15,
 	MaxDistance = 300,
 	TargetPart = "Head",
+	-- Also lock onto NPCs (Workspace models with a Humanoid that aren't
+	-- player characters), not just real players.
+	TargetBots = false,
+	-- Never target players on the same team as the local player.
+	TeamCheck = true,
 	-- Every standard rig part (R15 + R6). CameraDirector resolves whichever the
 	-- target actually has, falling back through this list, so any of these can be
 	-- aimed at regardless of rig type.
@@ -65,7 +70,7 @@ Config.Debug = false
 -- Default values used by reset(). Keybinds and option lists are intentionally
 -- excluded so a reset restores tunables without wiping user bindings.
 local DEFAULTS = {
-	Camera = { Enabled = false, Smoothness = 0.15, MaxDistance = 300, TargetPart = "Head" },
+	Camera = { Enabled = false, Smoothness = 0.15, MaxDistance = 300, TargetPart = "Head", TargetBots = false, TeamCheck = true },
 	ESP = {
 		Enabled = false,
 		Color = Color3.fromRGB(165, 75, 255),

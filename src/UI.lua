@@ -898,6 +898,18 @@ local function buildCameraTab(parent, config)
 		return keyConflict(config, key, "aimbot")
 	end)
 
+	makeToggle(parent, "Target Bots", function()
+		return config.Camera.TargetBots
+	end, function()
+		config.Camera.TargetBots = not config.Camera.TargetBots
+	end)
+
+	makeToggle(parent, "Team Check", function()
+		return config.Camera.TeamCheck
+	end, function()
+		config.Camera.TeamCheck = not config.Camera.TeamCheck
+	end)
+
 	makeSlider(parent, "Smoothness", 0.05, 1, function()
 		return config.Camera.Smoothness
 	end, function(v)

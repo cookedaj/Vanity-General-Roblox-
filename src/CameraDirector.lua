@@ -59,35 +59,61 @@ local function isVisible(position, character)
 	return not result or result.Instance:IsDescendantOf(character)
 end
 
+-- NPC (bot) character cache. A full descendant scan every frame is too
+-- expensive, so it refreshes at most this often and only while TargetBots
+-- is enabled.
+local BOT_SCAN_INTERVAL = 0.5
+local botScanTime = 0
+local botCharacters = {}
+
+local function refreshBotCharacters()
+	table.clear(botCharacters)
+	for _, inst in ipairs(Workspace:GetDescendants()) do
+		if inst:IsA("Humanoid") then
+			local character = inst.Parent
+			if character
+				and character:IsA("Model")
+				and not Players:GetPlayerFromCharacter(character)
+			then
+				table.insert(botCharacters, character)
+			end
+		end
+	end
+end
+
 -- Find best target: closest to screen center, visible, alive, within max distance
 function CameraDirector:FindBestTarget(config)
 	local best
 	local bestDistance = math.huge
 
-	for _, player in ipairs(Players:GetPlayers()) do
-		if player == LocalPlayer then
-			continue
+	local function consider(character, player)
+		if not character then
+			return
 		end
 
-		local character = player.Character
-		if not character then
-			continue
+		-- Team check: skip teammates (teamless players are always fair game)
+		if config.TeamCheck
+			and player
+			and player.Team ~= nil
+			and player.Team == LocalPlayer.Team
+		then
+			return
 		end
 
 		local humanoid = character:FindFirstChildOfClass("Humanoid")
 		if not humanoid or humanoid.Health <= 0 then
-			continue
+			return
 		end
 
 		local part = getTargetPart(character, config.TargetPart, config.TargetPartOptions)
 		if not part then
-			continue
+			return
 		end
 
 		-- MaxDistance is a world-space range in studs (matches the UI's "m" label).
 		local worldDistance = (part.Position - Camera.CFrame.Position).Magnitude
 		if worldDistance > config.MaxDistance then
-			continue
+			return
 		end
 
 		local distance = getScreenDistance(part.Position)
@@ -97,11 +123,27 @@ function CameraDirector:FindBestTarget(config)
 		then
 			bestDistance = distance
 			best = {
-				Player = player,
+				Player = player, -- nil for bots
 				Character = character,
 				Part = part,
 				ScreenDistance = distance,
 			}
+		end
+	end
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer then
+			consider(player.Character, player)
+		end
+	end
+
+	if config.TargetBots then
+		if os.clock() - botScanTime > BOT_SCAN_INTERVAL then
+			botScanTime = os.clock()
+			refreshBotCharacters()
+		end
+		for _, character in ipairs(botCharacters) do
+			consider(character, nil)
 		end
 	end
 
