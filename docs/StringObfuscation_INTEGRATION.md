@@ -2,13 +2,15 @@
 
 This guide shows how to integrate StringObfuscation into your Vanity-General project.
 
-> **Current state of the repo:** the modular source in `src/` does **not**
-> require StringObfuscation — `Configuration.lua`, `ESP.lua`, `UI.lua`,
-> `Loader.lua`, and `MainController.lua` have no dependency on it. The
-> security modules live in `src/security/` and are only wired into the
-> single-file executor build (`dist/VanityGeneral_INTEGRATED.lua`). The steps
-> below are an **optional** integration you can apply to the modular source
-> if you want encrypted secrets in your own configuration.
+> **Current state of the repo:** StringObfuscation is a **standalone
+> library** in `src/security/` — it is **not bundled** into
+> `dist/VanityGeneral_INTEGRATED.lua` anymore (the release pipeline's
+> obfuscator replaced that role), and no `src/` module requires it. To use
+> it in your own scripts, `require` it directly from `src/security/`. To
+> bundle it into a custom build, add it to `MODULES` in `tools/build.py`
+> (before any consumer) and follow the module contract (table at top,
+> top-of-file requires, `return` at the end). The steps below are an
+> **optional** integration for your own configuration/secrets.
 
 ## Architecture Overview
 

@@ -1,153 +1,59 @@
-# VanityGeneral + StringObfuscation - Quick Reference Card
+# Vanity-General — Quick Reference Card
 
-## The Loadstring
-
-```lua
-local VanityGeneral = loadstring(readfile("VanityGeneral_INTEGRATED.lua"))()
-VanityGeneral.Start()
-```
-
-That's it. Everything is included.
-
-## Access StringObfuscation
+## Loadstring
 
 ```lua
-local VanityGeneral = loadstring(readfile("VanityGeneral_INTEGRATED.lua"))()
-local SO = VanityGeneral.StringObfuscation
+loadstring((function(u) if game.HttpGet then return game:HttpGet(u) end return request({Url=u,Method="GET"}).Body end)("https://raw.githubusercontent.com/cookedaj/vanity-release/main/VanityGeneral.lua?t="..tick()))().Start()
 ```
 
-## Common Tasks (Copy & Paste)
+Local-file form: `loadstring(readfile("VanityGeneral.lua"))().Start()`
 
-### Create a Secret
-```lua
-local secret = SO.makeSecret("my_secret_value", "secret_name", 2)
-print(secret.value)  -- Get the value
-```
+## Keys
 
-### Multiple Secrets with Manager
-```lua
-local secrets = SO.createSecretManager()
-secrets:register("api_key", "sk-12345", 2)
-secrets:register("webhook", "https://webhook.site/xxx", 2)
+- **RightShift** — menu
+- **LeftAlt** — camera tracking (rebindable in Settings)
+- **End** — unload
 
-local key = secrets:get("api_key")
-local url = secrets:get("webhook")
-```
+## API (getgenv().VanityGeneral)
 
-### Password-Protected Vault
-```lua
-local vault = SO.createVault("master_password")
-vault:unlock("master_password")
-vault:store("password", "secret_password_123", 3)
+| Call | Purpose |
+|---|---|
+| `Start()` / `Stop()` / `Toggle()` | lifecycle (also lowercase aliases) |
+| `IsRunning()` | state |
+| `Config` | live settings table |
+| `SaveConfig(name)` / `LoadConfig(name)` | per-game profiles (PlaceId-keyed) |
+| `ListConfigs()` / `DeleteConfig(name)` | profile management |
+| `ServerHop()` / `Rejoin()` | server controls |
+| `SetWebhook(url)` / `SendWebhook(text)` | Discord notifications |
+| `HasWebhook()` | is a webhook configured |
 
-local pwd = vault:retrieve("password")
-vault:lock()
-```
-
-### Batch Encrypt/Decrypt
-```lua
-local strings = {"secret1", "secret2", "secret3"}
-local encrypted = SO.batchEncrypt(strings, 2)
-local decrypted = SO.batchDecrypt(encrypted, 2)
-```
-
-### Check Statistics
-```lua
-local stats = SO.getStats()
-print("Secrets created: " .. stats.secrets_created)
-print("Total access time: " .. stats.total_access_time_ms .. "ms")
-```
-
-### View Audit Log
-```lua
-local logs = SO.getAuditLog()
-for _, entry in ipairs(logs) do
-    print(entry.action .. ": " .. entry.name)
-end
-```
-
-## Encryption Levels (Pick One)
+## Common config edits
 
 ```lua
-SO.makeSecret("value", "name", 1)  -- Level 1: Fast
-SO.makeSecret("value", "name", 2)  -- Level 2: Balanced (recommended)
-SO.makeSecret("value", "name", 3)  -- Level 3: Secure
+local V = getgenv().VanityGeneral
+V.Config.Camera.Smoothness = 0.5     -- lower = snappier lock
+V.Config.Camera.FOV = 150            -- targeting cone radius (px)
+V.Config.Camera.TeamCheck = false    -- FFA games
+V.Config.Camera.TargetBots = true    -- include NPCs
+V.Config.ESP.Color = Color3.fromRGB(255, 80, 80)
+V.Config.Movement.FlySpeed = 100
 ```
 
-## VanityGeneral Controls
+## Feature map
 
-```lua
-VanityGeneral.Start()   -- Start script
-VanityGeneral.Stop()    -- Stop script
-VanityGeneral.Toggle()  -- Toggle on/off
-VanityGeneral.Config    -- Access config
+- **Combat**: aimbot, prediction, humanize, sticky target, FOV circle,
+  Target Bots, Team Check, triggerbot (random delay), silent aim*,
+  hitbox expander, no-recoil, no-spread
+- **Visual**: ESP, name/health/distance tags, box ESP*, tracers*,
+  fullbright, no fog
+- **Movement**: fly, noclip, speed, infinite jump, click-TP
+- **Settings**: keybinds, profiles, anti-AFK, server hop, rejoin, unload
 
--- Modify config
-VanityGeneral.Config.ESP.Enabled = true
-VanityGeneral.Config.Camera.Smoothness = 0.2
-```
+\* executor-dependent — no-ops safely if the API is missing.
 
-## Full Script Template
+## Notes
 
-```lua
-local VanityGeneral = loadstring(readfile("VanityGeneral_INTEGRATED.lua"))()
-local SO = VanityGeneral.StringObfuscation
-
--- Set up your secrets
-local config = {
-    secrets = SO.createSecretManager(),
-}
-
-config.secrets:register("api_key", "sk-abc123", 2)
-config.secrets:register("webhook", "https://webhook.site/xxx", 2)
-
--- Start VanityGeneral
-VanityGeneral.Start()
-
--- Use secrets in your code
-function makeAPICall()
-    local key = config.secrets:get("api_key")
-    -- Use key here...
-end
-```
-
-## File Location
-
-Place `VanityGeneral_INTEGRATED.lua` (from `dist/`, ~168KB) in your executor's workspace directory, then:
-
-```lua
-local VanityGeneral = loadstring(readfile("VanityGeneral_INTEGRATED.lua"))()
-```
-
-## What's Included
-
-✅ Full VanityGeneral (ESP, Camera, UI)
-✅ StringObfuscation v2.0 (complete)
-✅ Secret Manager
-✅ Vault System
-✅ Audit Logging
-✅ Statistics Tracking
-
-## Documentation
-
-- **LOADSTRING_GUIDE.md** — Detailed usage guide
-- **StringObfuscation_QUICKSTART.md** — StringObfuscation quick start
-- **StringObfuscation_API.md** — Complete API reference
-- **StringObfuscation_ADVANCED.md** — Advanced features
-
-## One-Liner Examples
-
-```lua
--- Run everything
-loadstring(readfile("VanityGeneral_INTEGRATED.lua"))().Start()
-
--- Get StringObfuscation
-local SO = loadstring(readfile("VanityGeneral_INTEGRATED.lua"))().StringObfuscation
-
--- Create a secret immediately
-local secret = loadstring(readfile("VanityGeneral_INTEGRATED.lua"))().StringObfuscation.makeSecret("value", "name", 2)
-```
-
----
-
-**That's all you need to get started!**
+- Security library (StringObfuscation etc.) is NOT bundled anymore — see
+  `docs/StringObfuscation_*.md` for the standalone version in `src/security/`.
+- Release is obfuscated; develop in `src/`, rebuild with `tools/build.py`
+  then `tools/obfuscate.py`. Full guide: `docs/LOADSTRING_GUIDE.md`.
