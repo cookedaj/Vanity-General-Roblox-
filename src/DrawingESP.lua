@@ -7,6 +7,7 @@ local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
+local Candidates = require(script.Candidates)
 
 local DrawingESP = {}
 local de_available = type(Drawing) == "table" and type(Drawing.new) == "function"
@@ -48,29 +49,31 @@ local function de_removePlayer(player)
 	entry.tracer:Remove()
 end
 
-local function de_updatePlayer(player, config, cam)
+-- Draws (or hides) one player from the shared candidate pool. The pool
+-- guarantees a living humanoid, so only the Drawing-specific gates apply.
+local function de_updateCandidate(cand, config, cam, cameraConfig)
+	local player = cand.Player
 	local entry = de_entries[player]
-	local character = player.Character
-	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	local root = character and character:FindFirstChild("HumanoidRootPart")
 
-	if not (config.Boxes or config.Tracers) or not root or not (humanoid and humanoid.Health > 0) then
+	-- Team Check: never draw teammates (teamless players stay fair game).
+	if cameraConfig.TeamCheck and player.Team ~= nil and player.Team == LocalPlayer.Team then
 		if entry then
 			de_hide(entry)
 		end
 		return
 	end
 
-	-- Same bounding math as the UI-stroke box ESP: head top to below the root.
-	local head = character:FindFirstChild("Head")
-	local topWorld = head and (head.Position + Vector3.new(0, head.Size.Y, 0))
-		or (root.Position + Vector3.new(0, 3, 0))
-	local botWorld = root.Position - Vector3.new(0, 3.2, 0)
+	local root = cand.HRP
+	if not (config.Boxes or config.Tracers) or not root then
+		if entry then
+			de_hide(entry)
+		end
+		return
+	end
 
-	local topV, onScreen = cam:WorldToViewportPoint(topWorld)
-	local botV = cam:WorldToViewportPoint(botWorld)
-	-- Behind the camera or off-screen: nothing to draw.
-	if not onScreen or topV.Z <= 0 or botV.Z <= 0 then
+	-- Behind the camera, off-screen, or no root this frame: nothing to draw.
+	local topV, onScreen, botV = cand.TopScreen, cand.TopOnScreen, cand.BotScreen
+	if not topV or not onScreen or topV.Z <= 0 or botV.Z <= 0 then
 		if entry then
 			de_hide(entry)
 		end
@@ -121,18 +124,21 @@ function DrawingESP:Update(config, cameraConfig)
 		return
 	end
 
-	for _, player in ipairs(Players:GetPlayers()) do
-		if player ~= LocalPlayer
-			and not (cameraConfig.TeamCheck and player.Team ~= nil and player.Team == LocalPlayer.Team)
-		then
-			de_updatePlayer(player, config, cam)
+	local seen = {}
+	for _, cand in ipairs(Candidates:Get()) do
+		if cand.Player then
+			seen[cand.Player] = true
+			de_updateCandidate(cand, config, cam, cameraConfig)
 		end
 	end
 
-	-- Drawing objects can't be parented, so leavers must be cleaned up by hand.
-	for player in pairs(de_entries) do
+	-- Drawing objects can't be parented, so leavers must be cleaned up by hand;
+	-- players absent from this frame's pool (dead, characterless) get hidden.
+	for player, entry in pairs(de_entries) do
 		if player.Parent ~= Players then
 			de_removePlayer(player)
+		elseif not seen[player] then
+			de_hide(entry)
 		end
 	end
 end

@@ -9,6 +9,7 @@ local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 local Configuration = require(script.Configuration)
 local Utility = require(script.Utility)
+local Candidates = require(script.Candidates)
 
 local ESP = {}
 local entries = {}
@@ -53,10 +54,11 @@ end
 
 -- Screen-space box around a character. Unlike Highlight (which has no outline
 -- width at all), a UIStroke has a real pixel Thickness, so this is what a
--- width-adjustable border would hang off.
-local function updateBox(entry, character, config)
+-- width-adjustable border would hang off. When a Candidates entry is passed
+-- (player path), its precomputed projections are used instead of re-projecting.
+local function updateBox(entry, character, config, cand)
 	local cam = Workspace.CurrentCamera
-	local root = espRootPart(character)
+	local root = cand and cand.RootPart or espRootPart(character)
 	if not cam or not root or not entry.box then
 		if entry.box then
 			entry.box.Visible = false
@@ -64,13 +66,23 @@ local function updateBox(entry, character, config)
 		return
 	end
 
-	local head = character:FindFirstChild("Head")
-	local topWorld = head and (head.Position + Vector3.new(0, head.Size.Y, 0))
-		or (root.Position + Vector3.new(0, 3, 0))
-	local botWorld = root.Position - Vector3.new(0, 3.2, 0)
+	local topV, onScreen, botV
+	if cand then
+		-- No RootPart this frame meant the provider skipped the projections.
+		if not cand.TopScreen then
+			entry.box.Visible = false
+			return
+		end
+		topV, onScreen, botV = cand.TopScreen, cand.TopOnScreen, cand.BotScreen
+	else
+		local head = character:FindFirstChild("Head")
+		local topWorld = head and (head.Position + Vector3.new(0, head.Size.Y, 0))
+			or (root.Position + Vector3.new(0, 3, 0))
+		local botWorld = root.Position - Vector3.new(0, 3.2, 0)
 
-	local topV, onScreen = cam:WorldToViewportPoint(topWorld)
-	local botV = cam:WorldToViewportPoint(botWorld)
+		topV, onScreen = cam:WorldToViewportPoint(topWorld)
+		botV = cam:WorldToViewportPoint(botWorld)
+	end
 	if not onScreen or topV.Z <= 0 then
 		entry.box.Visible = false
 		return
@@ -166,8 +178,10 @@ local function makeInfoTag(entry, name, head, config)
 	entry.nameHead = head
 end
 
-local function updateInfoTag(name, entry, character, config)
-	local head = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
+local function updateInfoTag(name, entry, character, config, cand)
+	local head = cand and (cand.Head or cand.HRP)
+		or character:FindFirstChild("Head")
+		or character:FindFirstChild("HumanoidRootPart")
 	if not head then
 		if entry.nameTag then
 			entry.nameTag.Enabled = false
@@ -191,16 +205,22 @@ local function updateInfoTag(name, entry, character, config)
 	entry.distanceLabel.Visible = config.Distance or config.DistanceTags
 	if entry.distanceLabel.Visible then
 		entry.distanceLabel.TextColor3 = config.OutlineColor
-		local myChar = LocalPlayer.Character
-		local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-		local hrp = character:FindFirstChild("HumanoidRootPart")
-		local d = (myRoot and hrp) and math.floor((hrp.Position - myRoot.Position).Magnitude + 0.5) or 0
+		local myRootPos, hrp
+		if cand then
+			myRootPos, hrp = Candidates.LocalRootPos, cand.HRP
+		else
+			local myChar = LocalPlayer.Character
+			local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+			myRootPos = myRoot and myRoot.Position
+			hrp = character:FindFirstChild("HumanoidRootPart")
+		end
+		local d = (myRootPos and hrp) and math.floor((hrp.Position - myRootPos).Magnitude + 0.5) or 0
 		entry.distanceLabel.Text = "[" .. d .. "m]"
 	end
 
 	entry.healthBack.Visible = config.HealthBars
 	if config.HealthBars then
-		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		local humanoid = cand and cand.Humanoid or character:FindFirstChildOfClass("Humanoid")
 		local frac = humanoid and math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1) or 0
 		entry.healthFill.Size = UDim2.fromScale(frac, 1)
 		-- Red at low health, green at full.
@@ -223,7 +243,8 @@ end
 
 -- Draws one character (player OR npc) with the current ESP styles. `name` is what
 -- the Names line shows. Any character-model with a HumanoidRootPart works here.
-local function renderCharacter(entry, character, name, config)
+-- `cand` is the shared Candidates entry on the player path (nil for NPCs).
+local function renderCharacter(entry, character, name, config, cand)
 	-- The two styles are independent, so both can draw at once.
 	if config.Outlines then
 		if entry.hl.Adornee ~= character then
@@ -240,13 +261,13 @@ local function renderCharacter(entry, character, name, config)
 	end
 
 	if config.Boxes then
-		updateBox(entry, character, config)
+		updateBox(entry, character, config, cand)
 	elseif entry.box then
 		entry.box.Visible = false
 	end
 
 	if config.Names or config.Distance or config.NameTags or config.DistanceTags or config.HealthBars then
-		updateInfoTag(name, entry, character, config)
+		updateInfoTag(name, entry, character, config, cand)
 	elseif entry.nameTag then
 		entry.nameTag.Enabled = false
 	end
@@ -262,27 +283,25 @@ local function distanceTo(part)
 	return (part.Position - myRoot.Position).Magnitude
 end
 
-local function updatePlayer(player, entry, config)
-	local character = player.Character
-	if not character then
+-- Player path: renders one Candidates entry. The pool guarantees a living
+-- humanoid this frame, so only the ESP-specific gates (Enabled, HRP presence,
+-- MaxDistance from the local character) are checked here.
+local function updatePlayerCandidate(cand, entry, config)
+	local hrp = cand.HRP
+	if not config.Enabled or not hrp then
 		hidePlayer(entry)
 		return
 	end
 
-	local hrp = character:FindFirstChild("HumanoidRootPart")
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-
-	if not config.Enabled or not hrp or not isAlive(humanoid) then
+	-- distanceTo semantics preserved: 0 (never rejects) when the local root is gone.
+	local myRootPos = Candidates.LocalRootPos
+	local dist = myRootPos and (hrp.Position - myRootPos).Magnitude or 0
+	if dist > config.MaxDistance then
 		hidePlayer(entry)
 		return
 	end
 
-	if distanceTo(hrp) > config.MaxDistance then
-		hidePlayer(entry)
-		return
-	end
-
-	renderCharacter(entry, character, player.Name, config)
+	renderCharacter(entry, cand.Character, cand.Player.Name, config, cand)
 end
 
 -- Creates the instances one ESP target needs (highlight + box). Shared by
@@ -424,17 +443,28 @@ function ESP:Init()
 end
 
 function ESP:Update(config)
-	for _, player in ipairs(Players:GetPlayers()) do
-		if not entries[player] then
-			addPlayer(player, config.OutlineColor)
+	-- Players render from the shared per-frame candidate pool (resolved once by
+	-- Candidates:Update). Anything tracked but absent from the pool this frame
+	-- (dead, no character, no living humanoid) gets hidden; leavers are removed.
+	local rendered = {}
+	for _, cand in ipairs(Candidates:Get()) do
+		local player = cand.Player
+		if player then
+			rendered[player] = true
+			local entry = entries[player]
+			if not entry then
+				addPlayer(player, config.OutlineColor)
+				entry = entries[player]
+			end
+			updatePlayerCandidate(cand, entry, config)
 		end
 	end
 
 	for player, entry in pairs(entries) do
-		if player.Parent == Players then
-			updatePlayer(player, entry, config)
-		else
+		if player.Parent ~= Players then
 			removePlayer(player)
+		elseif not rendered[player] then
+			hidePlayer(entry)
 		end
 	end
 

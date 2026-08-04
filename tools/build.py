@@ -29,6 +29,7 @@ MODULES = [
     "Configuration",
     "ConfigManager",
     "Utility",
+    "Candidates",
     "CameraDirector",
     "ESP",
     "DrawingESP",

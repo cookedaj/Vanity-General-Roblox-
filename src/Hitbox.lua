@@ -10,7 +10,7 @@
 local Players = game:GetService("Players")
 
 local LocalPlayer = Players.LocalPlayer
-local CameraDirector = require(script.CameraDirector)
+local Candidates = require(script.Candidates)
 
 local HitboxExpander = {}
 local hb_originals = {} -- [character] = { root, size, transparency, canCollide }
@@ -35,13 +35,14 @@ local function hb_restoreAll()
 	end
 end
 
-local function hb_apply(character, config, seen)
-	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	local root = character and character:FindFirstChild("HumanoidRootPart")
-	if not (humanoid and humanoid.Health > 0 and root) then
+local function hb_apply(cand, config, seen)
+	-- The pool guarantees a living humanoid; only the HRP presence gate remains.
+	local root = cand.HRP
+	if not root then
 		return
 	end
 
+	local character = cand.Character
 	seen[character] = true
 	if not hb_originals[character] then
 		hb_originals[character] = {
@@ -59,7 +60,7 @@ local function hb_apply(character, config, seen)
 end
 
 -- The candidate set mirrors the aimbot's: teammates skipped while Team Check is
--- on, NPCs included only while Target Bots is on (same cached scan).
+-- on, NPCs included only while Target Bots is on (they're in the pool then).
 function HitboxExpander:Update(config, cameraConfig)
 	if not config.Enabled then
 		hb_restoreAll()
@@ -67,17 +68,10 @@ function HitboxExpander:Update(config, cameraConfig)
 	end
 
 	local seen = {}
-	for _, player in ipairs(Players:GetPlayers()) do
-		if player ~= LocalPlayer
-			and not (cameraConfig.TeamCheck and player.Team ~= nil and player.Team == LocalPlayer.Team)
-		then
-			hb_apply(player.Character, config, seen)
-		end
-	end
-
-	if cameraConfig.TargetBots then
-		for _, character in ipairs(CameraDirector.GetBotCharacters()) do
-			hb_apply(character, config, seen)
+	for _, cand in ipairs(Candidates:Get()) do
+		local player = cand.Player
+		if not (cameraConfig.TeamCheck and player and player.Team ~= nil and player.Team == LocalPlayer.Team) then
+			hb_apply(cand, config, seen)
 		end
 	end
 

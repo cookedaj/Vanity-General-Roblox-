@@ -12,6 +12,7 @@ local LocalPlayer = Players.LocalPlayer
 
 local Configuration = require(script.Configuration)
 local ConfigManager = require(script.ConfigManager)
+local Candidates = require(script.Candidates)
 local CameraDirector = require(script.CameraDirector)
 local HitboxExpander = require(script.Hitbox)
 local SilentAim = require(script.SilentAim)
@@ -197,6 +198,11 @@ function Controller.Start()
 		-- Every subsystem runs behind `guarded`, so one throwing (a destroyed part,
 		-- a nil character mid-respawn) can't kill the loop or spam the console.
 		table.insert(connections, RunService.RenderStepped:Connect(function(dt)
+			-- Shared per-frame candidate pool FIRST: CameraDirector, ESP,
+			-- DrawingESP and Hitbox all read it below instead of re-walking
+			-- players and re-resolving parts/projections themselves.
+			guarded("Candidates", Candidates.Update, Candidates, Configuration.Camera, Configuration.ESP)
+
 			guarded("ESP", ESP.Update, ESP, Configuration.ESP)
 
 			local okAim, target = guarded("Aimbot", CameraDirector.Update, CameraDirector, Configuration.Camera, Configuration.Debug)

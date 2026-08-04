@@ -8,34 +8,9 @@ local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 local Utility = require(script.Utility)
+local Candidates = require(script.Candidates)
 
 local CameraDirector = {}
-
--- Cached list of NPC ("bot") characters for the Target Bots mode. Scanning the
--- whole Workspace every frame is too expensive, so the list refreshes at most
--- every BOT_SCAN_INTERVAL seconds and the scan only runs while TargetBots is on.
-local BOT_SCAN_INTERVAL = 0.5
-local botCharacters = {}
-local botScanAt = -math.huge
-
-local function getBotCharacters()
-	local now = os.clock()
-	if now - botScanAt < BOT_SCAN_INTERVAL then
-		return botCharacters
-	end
-	botScanAt = now
-
-	table.clear(botCharacters)
-	for _, descendant in ipairs(Workspace:GetDescendants()) do
-		if descendant:IsA("Model")
-			and descendant:FindFirstChildOfClass("Humanoid")
-			and not Players:GetPlayerFromCharacter(descendant)
-		then
-			table.insert(botCharacters, descendant)
-		end
-	end
-	return botCharacters
-end
 
 local Camera = Workspace.CurrentCamera
 -- Random source for Humanize jitter (Random.new avoids reseeding the global RNG).
@@ -265,34 +240,58 @@ local function evaluateCharacter(character, player, config)
 	return { Player = player, Character = character, Anchor = anchor, ScreenDistance = distance }
 end
 
--- Player wrapper around evaluateCharacter: rejects yourself and gone players.
-local function evaluateTarget(player, config)
-	if not player or player.Parent ~= Players or player == LocalPlayer then
+-- Same math as getScreenDistance, but reading the candidate's precomputed
+-- projection instead of calling WorldToViewportPoint again.
+local function screenDistance(cand)
+	if not cand.AnchorOnScreen or cand.AnchorScreen.Z < 0 then
+		return math.huge
+	end
+
+	local screen = Vector2.new(cand.AnchorScreen.X, cand.AnchorScreen.Y)
+	local center = Camera.ViewportSize / 2
+	return (screen - center).Magnitude
+end
+
+-- Candidate-pool variant of evaluateCharacter: identical filters (Team Check,
+-- FOV cone, world-space MaxDistance, WallCheck raycast) but reuses the parts,
+-- distance and projection Candidates resolved once this frame. The pool only
+-- holds living humanoids, so the alive check from evaluateCharacter is implied.
+local function evaluateCandidate(cand, config)
+	local player = cand.Player
+	if config.TeamCheck and player and player.Team ~= nil and player.Team == LocalPlayer.Team then
 		return nil
 	end
 
-	return evaluateCharacter(player.Character, player, config)
+	local anchor = cand.Anchor
+	if not anchor then
+		return nil
+	end
+
+	local distance = screenDistance(cand)
+	if distance >= (config.FOV or 200) then
+		return nil
+	end
+
+	if (cand.WorldDistance or math.huge) > config.MaxDistance then
+		return nil
+	end
+
+	if config.WallCheck and not isVisible(anchor.Position, cand.Character) then
+		return nil
+	end
+
+	return { Player = player, Character = cand.Character, Anchor = anchor, ScreenDistance = distance }
 end
 
 function CameraDirector:FindBestTarget(config)
 	local best
 	local bestDistance = math.huge
 
-	for _, player in ipairs(Players:GetPlayers()) do
-		local candidate = evaluateTarget(player, config)
+	for _, cand in ipairs(Candidates:Get()) do
+		local candidate = evaluateCandidate(cand, config)
 		if candidate and candidate.ScreenDistance < bestDistance then
 			bestDistance = candidate.ScreenDistance
 			best = candidate
-		end
-	end
-
-	if config.TargetBots then
-		for _, character in ipairs(getBotCharacters()) do
-			local candidate = evaluateCharacter(character, nil, config)
-			if candidate and candidate.ScreenDistance < bestDistance then
-				bestDistance = candidate.ScreenDistance
-				best = candidate
-			end
 		end
 	end
 
@@ -306,49 +305,30 @@ local LOOK_RADIUS = 50
 -- Whoever you're LOOKING at, for the Target Display popup. Deliberately separate
 -- from the aimbot's filters: no wall check (so people behind walls/floors still
 -- register) and ranged by the ESP render distance rather than the aimbot's. Off-
--- screen players score math.huge from getScreenDistance, so they never win.
--- With Target Bots on NPCs count too; the popup then shows the model name.
+-- screen players score math.huge from screenDistance, so they never win.
+-- With Target Bots on NPCs count too (they're in the pool then); the popup then
+-- shows the model name.
 function CameraDirector:GetLookTarget(espConfig, cameraConfig)
 	local best
 	local bestDistance = LOOK_RADIUS -- anything further from the crosshair is ignored
 
-	local myChar = LocalPlayer.Character
-	local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+	local myRootPos = Candidates.LocalRootPos
 	local maxRange = (espConfig and espConfig.MaxDistance) or math.huge
-
-	-- Scores one character; `result` is what the popup names (player or model).
-	local function consider(character, result)
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		local anchor = humanoid and humanoid.Health > 0 and anchorPart(character) or nil
-		if not anchor then
-			return
-		end
-
-		if myRoot and (anchor.Position - myRoot.Position).Magnitude > maxRange then
-			return
-		end
-
-		local distance = getScreenDistance(anchor.Position)
-		if distance <= bestDistance then
-			bestDistance = distance
-			best = result
-		end
-	end
 
 	-- Team Check skips teammates; teamless players and bots stay eligible.
 	local teamCheck = cameraConfig and cameraConfig.TeamCheck
 
-	for _, player in ipairs(Players:GetPlayers()) do
-		if player ~= LocalPlayer
-			and not (teamCheck and player.Team ~= nil and player.Team == LocalPlayer.Team)
-		then
-			consider(player.Character, player)
-		end
-	end
-
-	if cameraConfig and cameraConfig.TargetBots then
-		for _, character in ipairs(getBotCharacters()) do
-			consider(character, character)
+	for _, cand in ipairs(Candidates:Get()) do
+		local player = cand.Player
+		if not (teamCheck and player and player.Team ~= nil and player.Team == LocalPlayer.Team) then
+			local anchor = cand.Anchor
+			if anchor and not (myRootPos and (anchor.Position - myRootPos).Magnitude > maxRange) then
+				local distance = screenDistance(cand)
+				if distance <= bestDistance then
+					bestDistance = distance
+					best = player or cand.Character -- bots name their model
+				end
+			end
 		end
 	end
 
@@ -473,6 +453,8 @@ function CameraDirector:Cleanup()
 	self._currentTarget = nil
 	destroyFovCircle()
 end
-CameraDirector.GetBotCharacters = getBotCharacters
+-- The bot cache moved to Candidates (the shared per-frame provider); the
+-- exported name is kept for compatibility.
+CameraDirector.GetBotCharacters = Candidates.GetBotCharacters
 
 return CameraDirector

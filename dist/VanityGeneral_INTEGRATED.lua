@@ -15,6 +15,7 @@
 local Configuration
 local ConfigManager
 local Utility
+local Candidates
 local CameraDirector
 local ESP
 local DrawingESP
@@ -612,30 +613,56 @@ Utility = (function()
 end)() -- /Utility
 
 --============================================================================
--- CAMERADIRECTOR
+-- CANDIDATES
 --============================================================================
-CameraDirector = (function()
+Candidates = (function()
 	--==============================================================================
-	-- CAMERA DIRECTOR
-	-- Smooth camera tracking toward prioritized, visible, alive targets.
+	-- CANDIDATES
+	-- Shared per-frame candidate pool. CameraDirector, ESP, DrawingESP and Hitbox
+	-- used to walk Players:GetPlayers() independently and repeat the same work
+	-- (humanoid lookups, part resolution, world distance, viewport projections)
+	-- several times per frame. Candidates:Update runs ONCE per frame (the
+	-- controller calls it before the other subsystems) and resolves everything
+	-- shared; consumers read Candidates:Get() and apply only their own filters
+	-- (team check, FOV, wall-check raycasts) on top.
+	--
+	-- Entry fields:
+	--   Player        -- nil for bots (NPCs)
+	--   Character     -- the model
+	--   Humanoid      -- guaranteed alive this frame
+	--   Head          -- FindFirstChild("Head"), may be nil
+	--   RootPart      -- ESP's chain: humanoid.RootPart, HRP, Torso, UpperTorso, PrimaryPart
+	--   HRP           -- literal HumanoidRootPart child, may be nil
+	--   Anchor        -- CameraDirector's chain: Head, HRP, UpperTorso, Torso, any part
+	--   WorldDistance -- anchor-to-camera distance in studs (nil when no anchor)
+	--   AnchorScreen / AnchorOnScreen -- viewport projection of the anchor
+	--   TopScreen / TopOnScreen / BotScreen -- box projections (nil when no RootPart)
 	--==============================================================================
 
 	local Players = game:GetService("Players")
 	local Workspace = game:GetService("Workspace")
 
 	local LocalPlayer = Players.LocalPlayer
-	local Utility = Utility
 
-	local CameraDirector = {}
+	local Candidates = {}
 
-	-- Cached list of NPC ("bot") characters for the Target Bots mode. Scanning the
-	-- whole Workspace every frame is too expensive, so the list refreshes at most
-	-- every BOT_SCAN_INTERVAL seconds and the scan only runs while TargetBots is on.
+	-- Position of the local character's root this frame (nil when unavailable).
+	-- Consumers that range-check from the local character read this instead of
+	-- re-resolving it per call.
+	Candidates.LocalRootPos = nil
+
+	local frame = {}
+
+	-- ===== Bot cache =============================================================
+	-- Moved here from CameraDirector so this provider can include bots without a
+	-- require cycle. Scanning the whole Workspace every frame is too expensive, so
+	-- the list refreshes at most every BOT_SCAN_INTERVAL seconds and the scan only
+	-- runs while TargetBots is on. CameraDirector.GetBotCharacters delegates here.
 	local BOT_SCAN_INTERVAL = 0.5
 	local botCharacters = {}
 	local botScanAt = -math.huge
 
-	local function getBotCharacters()
+	function Candidates.GetBotCharacters()
 		local now = os.clock()
 		if now - botScanAt < BOT_SCAN_INTERVAL then
 			return botCharacters
@@ -653,6 +680,184 @@ CameraDirector = (function()
 		end
 		return botCharacters
 	end
+
+	-- ===== Part resolution (mirrors the consumers' original chains exactly) ======
+
+	-- ESP's anchor part, robust across rig types and custom NPCs.
+	local function rootPartOf(character, humanoid)
+		return humanoid.RootPart
+			or character:FindFirstChild("HumanoidRootPart")
+			or character:FindFirstChild("Torso")
+			or character:FindFirstChild("UpperTorso")
+			or character.PrimaryPart
+	end
+
+	-- CameraDirector's region tables, duplicated so the Anchor chain resolves
+	-- exactly like its anchorPart/pickAnyPart did.
+	local REGION_PARTS = {
+		Head = { "Head" },
+		Torso = { "UpperTorso", "LowerTorso", "Torso", "HumanoidRootPart" },
+		Arms = {
+			"LeftHand", "RightHand",
+			"LeftLowerArm", "RightLowerArm",
+			"LeftUpperArm", "RightUpperArm",
+			"Left Arm", "Right Arm",
+		},
+		Legs = {
+			"LeftFoot", "RightFoot",
+			"LeftLowerLeg", "RightLowerLeg",
+			"LeftUpperLeg", "RightUpperLeg",
+			"Left Leg", "Right Leg",
+		},
+	}
+	local REGION_ORDER = { "Head", "Torso", "Arms", "Legs" }
+
+	local function pickPartFromRegion(character, region)
+		local names = REGION_PARTS[region]
+		if not names then
+			return nil
+		end
+		for _, name in ipairs(names) do
+			local part = character:FindFirstChild(name)
+			if part and part:IsA("BasePart") then
+				return part
+			end
+		end
+		return nil
+	end
+
+	-- First available part across all regions, then any BasePart as a last resort.
+	local function pickAnyPart(character)
+		for _, region in ipairs(REGION_ORDER) do
+			local part = pickPartFromRegion(character, region)
+			if part then
+				return part
+			end
+		end
+		for _, descendant in ipairs(character:GetDescendants()) do
+			if descendant:IsA("BasePart") then
+				return descendant
+			end
+		end
+		return nil
+	end
+
+	-- CameraDirector's targeting reference: Head first so the choice never jitters.
+	local function anchorOf(character, head, hrp)
+		return head
+			or hrp
+			or character:FindFirstChild("UpperTorso")
+			or character:FindFirstChild("Torso")
+			or pickAnyPart(character)
+	end
+
+	-- ===== Frame build ===========================================================
+
+	local function buildEntry(character, player, cam, camPos)
+		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+		if not humanoid or humanoid.Health <= 0 then
+			return nil
+		end
+
+		local head = character:FindFirstChild("Head")
+		local hrp = character:FindFirstChild("HumanoidRootPart")
+		local rootPart = rootPartOf(character, humanoid)
+		local anchor = anchorOf(character, head, hrp)
+
+		local entry = {
+			Player = player,
+			Character = character,
+			Humanoid = humanoid,
+			Head = head,
+			RootPart = rootPart,
+			HRP = hrp,
+			Anchor = anchor,
+		}
+
+		if anchor then
+			entry.WorldDistance = (anchor.Position - camPos).Magnitude
+			local sv, vis = cam:WorldToViewportPoint(anchor.Position)
+			entry.AnchorScreen = sv
+			entry.AnchorOnScreen = vis
+		end
+
+		-- Box projections, same formulas ESP and DrawingESP used per consumer.
+		if rootPart then
+			local topWorld = head and (head.Position + Vector3.new(0, head.Size.Y, 0))
+				or (rootPart.Position + Vector3.new(0, 3, 0))
+			local tv, tvis = cam:WorldToViewportPoint(topWorld)
+			entry.TopScreen = tv
+			entry.TopOnScreen = tvis
+			entry.BotScreen = cam:WorldToViewportPoint(rootPart.Position - Vector3.new(0, 3.2, 0))
+		end
+
+		return entry
+	end
+
+	-- Rebuilds the pool for this frame. Called once per frame by the controller
+	-- BEFORE the other subsystems' Update calls. espConfig is accepted for
+	-- symmetry/future use; the pool itself applies no filters beyond "alive".
+	function Candidates:Update(cameraConfig, espConfig)
+		table.clear(frame)
+
+		local cam = Workspace.CurrentCamera
+
+		local myChar = LocalPlayer.Character
+		local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+		Candidates.LocalRootPos = myRoot and myRoot.Position or nil
+
+		if not cam then
+			return
+		end
+		local camPos = cam.CFrame.Position
+
+		for _, player in ipairs(Players:GetPlayers()) do
+			if player ~= LocalPlayer then
+				local entry = buildEntry(player.Character, player, cam, camPos)
+				if entry then
+					table.insert(frame, entry)
+				end
+			end
+		end
+
+		-- Bots join the pool only while Target Bots is on (the same gate the
+		-- consumers used; the scan itself is throttled inside GetBotCharacters).
+		if cameraConfig and cameraConfig.TargetBots then
+			for _, character in ipairs(Candidates.GetBotCharacters()) do
+				local entry = buildEntry(character, nil, cam, camPos)
+				if entry then
+					table.insert(frame, entry)
+				end
+			end
+		end
+	end
+
+	-- The cached list for this frame. Entries are fresh tables each frame, so
+	-- consumers may annotate them but must not hold them across frames.
+	function Candidates:Get()
+		return frame
+	end
+
+	return Candidates
+end)() -- /Candidates
+
+--============================================================================
+-- CAMERADIRECTOR
+--============================================================================
+CameraDirector = (function()
+	--==============================================================================
+	-- CAMERA DIRECTOR
+	-- Smooth camera tracking toward prioritized, visible, alive targets.
+	--==============================================================================
+
+	local Players = game:GetService("Players")
+	local Workspace = game:GetService("Workspace")
+
+	local LocalPlayer = Players.LocalPlayer
+	local Utility = Utility
+	local Candidates = Candidates
+
+	local CameraDirector = {}
 
 	local Camera = Workspace.CurrentCamera
 	-- Random source for Humanize jitter (Random.new avoids reseeding the global RNG).
@@ -882,34 +1087,58 @@ CameraDirector = (function()
 		return { Player = player, Character = character, Anchor = anchor, ScreenDistance = distance }
 	end
 
-	-- Player wrapper around evaluateCharacter: rejects yourself and gone players.
-	local function evaluateTarget(player, config)
-		if not player or player.Parent ~= Players or player == LocalPlayer then
+	-- Same math as getScreenDistance, but reading the candidate's precomputed
+	-- projection instead of calling WorldToViewportPoint again.
+	local function screenDistance(cand)
+		if not cand.AnchorOnScreen or cand.AnchorScreen.Z < 0 then
+			return math.huge
+		end
+
+		local screen = Vector2.new(cand.AnchorScreen.X, cand.AnchorScreen.Y)
+		local center = Camera.ViewportSize / 2
+		return (screen - center).Magnitude
+	end
+
+	-- Candidate-pool variant of evaluateCharacter: identical filters (Team Check,
+	-- FOV cone, world-space MaxDistance, WallCheck raycast) but reuses the parts,
+	-- distance and projection Candidates resolved once this frame. The pool only
+	-- holds living humanoids, so the alive check from evaluateCharacter is implied.
+	local function evaluateCandidate(cand, config)
+		local player = cand.Player
+		if config.TeamCheck and player and player.Team ~= nil and player.Team == LocalPlayer.Team then
 			return nil
 		end
 
-		return evaluateCharacter(player.Character, player, config)
+		local anchor = cand.Anchor
+		if not anchor then
+			return nil
+		end
+
+		local distance = screenDistance(cand)
+		if distance >= (config.FOV or 200) then
+			return nil
+		end
+
+		if (cand.WorldDistance or math.huge) > config.MaxDistance then
+			return nil
+		end
+
+		if config.WallCheck and not isVisible(anchor.Position, cand.Character) then
+			return nil
+		end
+
+		return { Player = player, Character = cand.Character, Anchor = anchor, ScreenDistance = distance }
 	end
 
 	function CameraDirector:FindBestTarget(config)
 		local best
 		local bestDistance = math.huge
 
-		for _, player in ipairs(Players:GetPlayers()) do
-			local candidate = evaluateTarget(player, config)
+		for _, cand in ipairs(Candidates:Get()) do
+			local candidate = evaluateCandidate(cand, config)
 			if candidate and candidate.ScreenDistance < bestDistance then
 				bestDistance = candidate.ScreenDistance
 				best = candidate
-			end
-		end
-
-		if config.TargetBots then
-			for _, character in ipairs(getBotCharacters()) do
-				local candidate = evaluateCharacter(character, nil, config)
-				if candidate and candidate.ScreenDistance < bestDistance then
-					bestDistance = candidate.ScreenDistance
-					best = candidate
-				end
 			end
 		end
 
@@ -923,49 +1152,30 @@ CameraDirector = (function()
 	-- Whoever you're LOOKING at, for the Target Display popup. Deliberately separate
 	-- from the aimbot's filters: no wall check (so people behind walls/floors still
 	-- register) and ranged by the ESP render distance rather than the aimbot's. Off-
-	-- screen players score math.huge from getScreenDistance, so they never win.
-	-- With Target Bots on NPCs count too; the popup then shows the model name.
+	-- screen players score math.huge from screenDistance, so they never win.
+	-- With Target Bots on NPCs count too (they're in the pool then); the popup then
+	-- shows the model name.
 	function CameraDirector:GetLookTarget(espConfig, cameraConfig)
 		local best
 		local bestDistance = LOOK_RADIUS -- anything further from the crosshair is ignored
 
-		local myChar = LocalPlayer.Character
-		local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+		local myRootPos = Candidates.LocalRootPos
 		local maxRange = (espConfig and espConfig.MaxDistance) or math.huge
-
-		-- Scores one character; `result` is what the popup names (player or model).
-		local function consider(character, result)
-			local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-			local anchor = humanoid and humanoid.Health > 0 and anchorPart(character) or nil
-			if not anchor then
-				return
-			end
-
-			if myRoot and (anchor.Position - myRoot.Position).Magnitude > maxRange then
-				return
-			end
-
-			local distance = getScreenDistance(anchor.Position)
-			if distance <= bestDistance then
-				bestDistance = distance
-				best = result
-			end
-		end
 
 		-- Team Check skips teammates; teamless players and bots stay eligible.
 		local teamCheck = cameraConfig and cameraConfig.TeamCheck
 
-		for _, player in ipairs(Players:GetPlayers()) do
-			if player ~= LocalPlayer
-				and not (teamCheck and player.Team ~= nil and player.Team == LocalPlayer.Team)
-			then
-				consider(player.Character, player)
-			end
-		end
-
-		if cameraConfig and cameraConfig.TargetBots then
-			for _, character in ipairs(getBotCharacters()) do
-				consider(character, character)
+		for _, cand in ipairs(Candidates:Get()) do
+			local player = cand.Player
+			if not (teamCheck and player and player.Team ~= nil and player.Team == LocalPlayer.Team) then
+				local anchor = cand.Anchor
+				if anchor and not (myRootPos and (anchor.Position - myRootPos).Magnitude > maxRange) then
+					local distance = screenDistance(cand)
+					if distance <= bestDistance then
+						bestDistance = distance
+						best = player or cand.Character -- bots name their model
+					end
+				end
 			end
 		end
 
@@ -1090,7 +1300,9 @@ CameraDirector = (function()
 		self._currentTarget = nil
 		destroyFovCircle()
 	end
-	CameraDirector.GetBotCharacters = getBotCharacters
+	-- The bot cache moved to Candidates (the shared per-frame provider); the
+	-- exported name is kept for compatibility.
+	CameraDirector.GetBotCharacters = Candidates.GetBotCharacters
 
 	return CameraDirector
 end)() -- /CameraDirector
@@ -1110,6 +1322,7 @@ ESP = (function()
 	local LocalPlayer = Players.LocalPlayer
 	local Configuration = Configuration
 	local Utility = Utility
+	local Candidates = Candidates
 
 	local ESP = {}
 	local entries = {}
@@ -1154,10 +1367,11 @@ ESP = (function()
 
 	-- Screen-space box around a character. Unlike Highlight (which has no outline
 	-- width at all), a UIStroke has a real pixel Thickness, so this is what a
-	-- width-adjustable border would hang off.
-	local function updateBox(entry, character, config)
+	-- width-adjustable border would hang off. When a Candidates entry is passed
+	-- (player path), its precomputed projections are used instead of re-projecting.
+	local function updateBox(entry, character, config, cand)
 		local cam = Workspace.CurrentCamera
-		local root = espRootPart(character)
+		local root = cand and cand.RootPart or espRootPart(character)
 		if not cam or not root or not entry.box then
 			if entry.box then
 				entry.box.Visible = false
@@ -1165,13 +1379,23 @@ ESP = (function()
 			return
 		end
 
-		local head = character:FindFirstChild("Head")
-		local topWorld = head and (head.Position + Vector3.new(0, head.Size.Y, 0))
-			or (root.Position + Vector3.new(0, 3, 0))
-		local botWorld = root.Position - Vector3.new(0, 3.2, 0)
+		local topV, onScreen, botV
+		if cand then
+			-- No RootPart this frame meant the provider skipped the projections.
+			if not cand.TopScreen then
+				entry.box.Visible = false
+				return
+			end
+			topV, onScreen, botV = cand.TopScreen, cand.TopOnScreen, cand.BotScreen
+		else
+			local head = character:FindFirstChild("Head")
+			local topWorld = head and (head.Position + Vector3.new(0, head.Size.Y, 0))
+				or (root.Position + Vector3.new(0, 3, 0))
+			local botWorld = root.Position - Vector3.new(0, 3.2, 0)
 
-		local topV, onScreen = cam:WorldToViewportPoint(topWorld)
-		local botV = cam:WorldToViewportPoint(botWorld)
+			topV, onScreen = cam:WorldToViewportPoint(topWorld)
+			botV = cam:WorldToViewportPoint(botWorld)
+		end
 		if not onScreen or topV.Z <= 0 then
 			entry.box.Visible = false
 			return
@@ -1267,8 +1491,10 @@ ESP = (function()
 		entry.nameHead = head
 	end
 
-	local function updateInfoTag(name, entry, character, config)
-		local head = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
+	local function updateInfoTag(name, entry, character, config, cand)
+		local head = cand and (cand.Head or cand.HRP)
+			or character:FindFirstChild("Head")
+			or character:FindFirstChild("HumanoidRootPart")
 		if not head then
 			if entry.nameTag then
 				entry.nameTag.Enabled = false
@@ -1292,16 +1518,22 @@ ESP = (function()
 		entry.distanceLabel.Visible = config.Distance or config.DistanceTags
 		if entry.distanceLabel.Visible then
 			entry.distanceLabel.TextColor3 = config.OutlineColor
-			local myChar = LocalPlayer.Character
-			local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-			local hrp = character:FindFirstChild("HumanoidRootPart")
-			local d = (myRoot and hrp) and math.floor((hrp.Position - myRoot.Position).Magnitude + 0.5) or 0
+			local myRootPos, hrp
+			if cand then
+				myRootPos, hrp = Candidates.LocalRootPos, cand.HRP
+			else
+				local myChar = LocalPlayer.Character
+				local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+				myRootPos = myRoot and myRoot.Position
+				hrp = character:FindFirstChild("HumanoidRootPart")
+			end
+			local d = (myRootPos and hrp) and math.floor((hrp.Position - myRootPos).Magnitude + 0.5) or 0
 			entry.distanceLabel.Text = "[" .. d .. "m]"
 		end
 
 		entry.healthBack.Visible = config.HealthBars
 		if config.HealthBars then
-			local humanoid = character:FindFirstChildOfClass("Humanoid")
+			local humanoid = cand and cand.Humanoid or character:FindFirstChildOfClass("Humanoid")
 			local frac = humanoid and math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1) or 0
 			entry.healthFill.Size = UDim2.fromScale(frac, 1)
 			-- Red at low health, green at full.
@@ -1324,7 +1556,8 @@ ESP = (function()
 
 	-- Draws one character (player OR npc) with the current ESP styles. `name` is what
 	-- the Names line shows. Any character-model with a HumanoidRootPart works here.
-	local function renderCharacter(entry, character, name, config)
+	-- `cand` is the shared Candidates entry on the player path (nil for NPCs).
+	local function renderCharacter(entry, character, name, config, cand)
 		-- The two styles are independent, so both can draw at once.
 		if config.Outlines then
 			if entry.hl.Adornee ~= character then
@@ -1341,13 +1574,13 @@ ESP = (function()
 		end
 
 		if config.Boxes then
-			updateBox(entry, character, config)
+			updateBox(entry, character, config, cand)
 		elseif entry.box then
 			entry.box.Visible = false
 		end
 
 		if config.Names or config.Distance or config.NameTags or config.DistanceTags or config.HealthBars then
-			updateInfoTag(name, entry, character, config)
+			updateInfoTag(name, entry, character, config, cand)
 		elseif entry.nameTag then
 			entry.nameTag.Enabled = false
 		end
@@ -1363,27 +1596,25 @@ ESP = (function()
 		return (part.Position - myRoot.Position).Magnitude
 	end
 
-	local function updatePlayer(player, entry, config)
-		local character = player.Character
-		if not character then
+	-- Player path: renders one Candidates entry. The pool guarantees a living
+	-- humanoid this frame, so only the ESP-specific gates (Enabled, HRP presence,
+	-- MaxDistance from the local character) are checked here.
+	local function updatePlayerCandidate(cand, entry, config)
+		local hrp = cand.HRP
+		if not config.Enabled or not hrp then
 			hidePlayer(entry)
 			return
 		end
 
-		local hrp = character:FindFirstChild("HumanoidRootPart")
-		local humanoid = character:FindFirstChildOfClass("Humanoid")
-
-		if not config.Enabled or not hrp or not isAlive(humanoid) then
+		-- distanceTo semantics preserved: 0 (never rejects) when the local root is gone.
+		local myRootPos = Candidates.LocalRootPos
+		local dist = myRootPos and (hrp.Position - myRootPos).Magnitude or 0
+		if dist > config.MaxDistance then
 			hidePlayer(entry)
 			return
 		end
 
-		if distanceTo(hrp) > config.MaxDistance then
-			hidePlayer(entry)
-			return
-		end
-
-		renderCharacter(entry, character, player.Name, config)
+		renderCharacter(entry, cand.Character, cand.Player.Name, config, cand)
 	end
 
 	-- Creates the instances one ESP target needs (highlight + box). Shared by
@@ -1525,17 +1756,28 @@ ESP = (function()
 	end
 
 	function ESP:Update(config)
-		for _, player in ipairs(Players:GetPlayers()) do
-			if not entries[player] then
-				addPlayer(player, config.OutlineColor)
+		-- Players render from the shared per-frame candidate pool (resolved once by
+		-- Candidates:Update). Anything tracked but absent from the pool this frame
+		-- (dead, no character, no living humanoid) gets hidden; leavers are removed.
+		local rendered = {}
+		for _, cand in ipairs(Candidates:Get()) do
+			local player = cand.Player
+			if player then
+				rendered[player] = true
+				local entry = entries[player]
+				if not entry then
+					addPlayer(player, config.OutlineColor)
+					entry = entries[player]
+				end
+				updatePlayerCandidate(cand, entry, config)
 			end
 		end
 
 		for player, entry in pairs(entries) do
-			if player.Parent == Players then
-				updatePlayer(player, entry, config)
-			else
+			if player.Parent ~= Players then
 				removePlayer(player)
+			elseif not rendered[player] then
+				hidePlayer(entry)
 			end
 		end
 
@@ -1596,6 +1838,7 @@ DrawingESP = (function()
 	local Workspace = game:GetService("Workspace")
 
 	local LocalPlayer = Players.LocalPlayer
+	local Candidates = Candidates
 
 	local DrawingESP = {}
 	local de_available = type(Drawing) == "table" and type(Drawing.new) == "function"
@@ -1637,29 +1880,31 @@ DrawingESP = (function()
 		entry.tracer:Remove()
 	end
 
-	local function de_updatePlayer(player, config, cam)
+	-- Draws (or hides) one player from the shared candidate pool. The pool
+	-- guarantees a living humanoid, so only the Drawing-specific gates apply.
+	local function de_updateCandidate(cand, config, cam, cameraConfig)
+		local player = cand.Player
 		local entry = de_entries[player]
-		local character = player.Character
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		local root = character and character:FindFirstChild("HumanoidRootPart")
 
-		if not (config.Boxes or config.Tracers) or not root or not (humanoid and humanoid.Health > 0) then
+		-- Team Check: never draw teammates (teamless players stay fair game).
+		if cameraConfig.TeamCheck and player.Team ~= nil and player.Team == LocalPlayer.Team then
 			if entry then
 				de_hide(entry)
 			end
 			return
 		end
 
-		-- Same bounding math as the UI-stroke box ESP: head top to below the root.
-		local head = character:FindFirstChild("Head")
-		local topWorld = head and (head.Position + Vector3.new(0, head.Size.Y, 0))
-			or (root.Position + Vector3.new(0, 3, 0))
-		local botWorld = root.Position - Vector3.new(0, 3.2, 0)
+		local root = cand.HRP
+		if not (config.Boxes or config.Tracers) or not root then
+			if entry then
+				de_hide(entry)
+			end
+			return
+		end
 
-		local topV, onScreen = cam:WorldToViewportPoint(topWorld)
-		local botV = cam:WorldToViewportPoint(botWorld)
-		-- Behind the camera or off-screen: nothing to draw.
-		if not onScreen or topV.Z <= 0 or botV.Z <= 0 then
+		-- Behind the camera, off-screen, or no root this frame: nothing to draw.
+		local topV, onScreen, botV = cand.TopScreen, cand.TopOnScreen, cand.BotScreen
+		if not topV or not onScreen or topV.Z <= 0 or botV.Z <= 0 then
 			if entry then
 				de_hide(entry)
 			end
@@ -1710,18 +1955,21 @@ DrawingESP = (function()
 			return
 		end
 
-		for _, player in ipairs(Players:GetPlayers()) do
-			if player ~= LocalPlayer
-				and not (cameraConfig.TeamCheck and player.Team ~= nil and player.Team == LocalPlayer.Team)
-			then
-				de_updatePlayer(player, config, cam)
+		local seen = {}
+		for _, cand in ipairs(Candidates:Get()) do
+			if cand.Player then
+				seen[cand.Player] = true
+				de_updateCandidate(cand, config, cam, cameraConfig)
 			end
 		end
 
-		-- Drawing objects can't be parented, so leavers must be cleaned up by hand.
-		for player in pairs(de_entries) do
+		-- Drawing objects can't be parented, so leavers must be cleaned up by hand;
+		-- players absent from this frame's pool (dead, characterless) get hidden.
+		for player, entry in pairs(de_entries) do
 			if player.Parent ~= Players then
 				de_removePlayer(player)
+			elseif not seen[player] then
+				de_hide(entry)
 			end
 		end
 	end
@@ -2233,7 +2481,7 @@ Hitbox = (function()
 	local Players = game:GetService("Players")
 
 	local LocalPlayer = Players.LocalPlayer
-	local CameraDirector = CameraDirector
+	local Candidates = Candidates
 
 	local HitboxExpander = {}
 	local hb_originals = {} -- [character] = { root, size, transparency, canCollide }
@@ -2258,13 +2506,14 @@ Hitbox = (function()
 		end
 	end
 
-	local function hb_apply(character, config, seen)
-		local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if not (humanoid and humanoid.Health > 0 and root) then
+	local function hb_apply(cand, config, seen)
+		-- The pool guarantees a living humanoid; only the HRP presence gate remains.
+		local root = cand.HRP
+		if not root then
 			return
 		end
 
+		local character = cand.Character
 		seen[character] = true
 		if not hb_originals[character] then
 			hb_originals[character] = {
@@ -2282,7 +2531,7 @@ Hitbox = (function()
 	end
 
 	-- The candidate set mirrors the aimbot's: teammates skipped while Team Check is
-	-- on, NPCs included only while Target Bots is on (same cached scan).
+	-- on, NPCs included only while Target Bots is on (they're in the pool then).
 	function HitboxExpander:Update(config, cameraConfig)
 		if not config.Enabled then
 			hb_restoreAll()
@@ -2290,17 +2539,10 @@ Hitbox = (function()
 		end
 
 		local seen = {}
-		for _, player in ipairs(Players:GetPlayers()) do
-			if player ~= LocalPlayer
-				and not (cameraConfig.TeamCheck and player.Team ~= nil and player.Team == LocalPlayer.Team)
-			then
-				hb_apply(player.Character, config, seen)
-			end
-		end
-
-		if cameraConfig.TargetBots then
-			for _, character in ipairs(CameraDirector.GetBotCharacters()) do
-				hb_apply(character, config, seen)
+		for _, cand in ipairs(Candidates:Get()) do
+			local player = cand.Player
+			if not (cameraConfig.TeamCheck and player and player.Team ~= nil and player.Team == LocalPlayer.Team) then
+				hb_apply(cand, config, seen)
 			end
 		end
 
@@ -5845,6 +6087,7 @@ Controller = (function()
 
 	local Configuration = Configuration
 	local ConfigManager = ConfigManager
+	local Candidates = Candidates
 	local CameraDirector = CameraDirector
 	local HitboxExpander = Hitbox
 	local SilentAim = SilentAim
@@ -6030,6 +6273,11 @@ Controller = (function()
 			-- Every subsystem runs behind `guarded`, so one throwing (a destroyed part,
 			-- a nil character mid-respawn) can't kill the loop or spam the console.
 			table.insert(connections, RunService.RenderStepped:Connect(function(dt)
+				-- Shared per-frame candidate pool FIRST: CameraDirector, ESP,
+				-- DrawingESP and Hitbox all read it below instead of re-walking
+				-- players and re-resolving parts/projections themselves.
+				guarded("Candidates", Candidates.Update, Candidates, Configuration.Camera, Configuration.ESP)
+
 				guarded("ESP", ESP.Update, ESP, Configuration.ESP)
 
 				local okAim, target = guarded("Aimbot", CameraDirector.Update, CameraDirector, Configuration.Camera, Configuration.Debug)
