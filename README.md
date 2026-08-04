@@ -1,46 +1,64 @@
 # Vanity-General
 
-A professional, unified client-side framework combining camera tracking and player ESP for Roblox.
+A full client-side combat/visuals/movement suite for Roblox, built as 17 focused
+modules and shipped as a single obfuscated executor script.
 
 ## 🎯 What This Is
 
-**Vanity-General** is a complete refactoring of two separate Roblox systems into one cohesive, modular framework:
+**Vanity-General** is a modular Roblox framework with four UI tabs:
 
-- **Camera Tracking System** → Smooth camera targeting with visibility checks
-- **Player ESP System** → Customizable player highlighting with various render modes
-- **Modern UI** → Professional dark-themed tabbed interface
+- **Combat** → Aimbot, triggerbot, silent aim, hitbox expander, no-recoil, no-spread
+- **Visual** → Player/NPC ESP (highlights, boxes, name/health/distance tags), Drawing boxes & tracers, fullbright, no fog
+- **Movement** → Fly, noclip, speed, infinite jump, click-teleport
+- **Settings** → Rebindable keys, per-game config profiles, anti-AFK, server hop / rejoin, unload
 
-**From**: Two monolithic 1400+ line scripts with mixed concerns
-**To**: Focused modules with clear responsibilities, plus a single-file executor build
+`src/` is the single source of truth. The executor builds are **generated** —
+never edited directly.
 
 ---
 
 ## ✨ Features
 
-### Camera Tracking
-- 🎬 Smooth camera targeting toward closest visible player
-- 🎯 Target any standard rig part (full R15 + R6 part list)
-- 👁️ Raycast-based visibility verification
-- ⚙️ Adjustable smoothness (0.05 - 1.0)
-- 📏 Configurable max distance in studs (100 - 500)
-- 🎮 Toggle on/off from UI or keybind (LeftAlt)
+### Combat
+- 🎯 **Aimbot** — smooth camera lock with adjustable smoothness, velocity
+  prediction (0–1 lead), humanize jitter, FOV radius + on-screen FOV circle
+  (F1), sticky target, hitbox mode (`Random (Weighted)` with per-region
+  chance weights, or Head/Torso/Arms/Legs), wall check, Team Check,
+  Target Bots (NPCs), world-range limit in studs
+- 🔫 **Triggerbot** (F4) — auto-fires when the crosshair sits on a target,
+  with a humanized random delay sampled between Min/MaxDelay, max-distance
+  and vischeck options
+- 🤫 **Silent Aim** — redirects shots onto the aimbot's target without moving
+  the camera; executor-only (`hookmetamethod`/`getnamecallmethod`, guarded —
+  no-ops cleanly where unsupported)
+- 📦 **Hitbox Expander** — inflates enemy root parts (size/transparency)
+- 🧲 **No Recoil** (F2) — post-camera render bind fully undoes recoil climb;
+  strength, require-mouse-down, and allow-aim options
+- 🎲 **No Spread** (F3) — pulls spread rolls toward centre while firing
 
-### ESP System
-- 🟪 Player outlines with color picker
-- 🎨 Optional filled highlighting
-- 📐 Adjustable outline thickness (1 - 6)
-- 💧 Separate opacity controls for outline and fill
-- 📏 Distance-based filtering (100 - 2000 studs)
-- 🔄 Automatic respawn and join/leave handling
+### Visual
+- 🟪 **ESP** (RightAlt) — Highlight outlines/fill, 2D boxes, name tags,
+  health bars, distance tags — including NPCs — with color/opacity/range
+  controls
+- 📐 **Drawing ESP** — executor `Drawing` boxes and tracers (no-op without
+  the Drawing library)
+- 💡 **Fullbright & No Fog** — lighting watches that restore on unload
 
-### Modern UI
-- 🌙 Dark theme with rounded corners
-- 📑 Tabbed interface (Aimbot / ESP / Settings)
-- 🖱️ Draggable window with smooth animations
-- 🎨 HSV color picker with preview
-- ⚡ Live value updates
-- ⌨️ Rebindable keys with conflict detection
-- 🔄 Settings reset button
+### Movement
+- 🕊️ **Fly** (speed-adjustable)
+- 👻 **Noclip**
+- 🏃 **Speed** boost (only the surplus over stock 16 WalkSpeed)
+- ♾️ **Infinite Jump**
+- ⚡ **Click TP** — hold LeftControl + left-click to teleport
+
+### Settings / QoL
+- ⌨️ Every hotkey rebindable from the UI, with conflict detection
+- 💾 **Per-game config profiles** — saved as JSON per PlaceId, so one executor
+  folder holds settings for every game (`SaveConfig`/`LoadConfig`/…)
+- 😴 **Anti-AFK** — on by default
+- 🌐 **Server Hop / Rejoin** buttons
+- 🖥️ Keybind panel, target display, FPS counter, watermark (custom image id)
+- 🔔 Discord **webhook** "loaded" embed (plain `Configuration.Webhook.Url`)
 
 ---
 
@@ -48,128 +66,84 @@ A professional, unified client-side framework combining camera tracking and play
 
 ```
 Vanity-General/
-├── bootstrap.lua              (Executor entry; loads the dist build via readfile)
-├── README.md                  (This file)
+├── bootstrap.lua                  (Local test entry; loads the dist build via readfile)
+├── README.md                      (This file)
 │
-├── src/                       (Modular source — use with MainController or Loader)
-│   ├── Configuration.lua      (Settings, defaults, and reset logic)
-│   ├── CameraDirector.lua     (Camera targeting logic)
-│   ├── ESP.lua                (Player highlighting)
-│   ├── UI.lua                 (User interface)
-│   ├── MainController.lua     (Orchestrator entry point)
-│   ├── Loader.lua             (Alternative entry point)
-│   └── security/              (Optional security modules)
+├── src/                           (SOURCE OF TRUTH — 17 modules, edit these)
+│   ├── Configuration.lua          (All settings + defaults + reset)
+│   ├── ConfigManager.lua          (Per-game JSON config profiles, keyed by PlaceId)
+│   ├── Utility.lua                (Anti-AFK, server hop / rejoin, GUI parent helper)
+│   ├── CameraDirector.lua         (Aimbot targeting + camera steering)
+│   ├── ESP.lua                    (Highlight/box/tag ESP, players + NPCs)
+│   ├── DrawingESP.lua             (Executor Drawing boxes/tracers)
+│   ├── Visuals.lua                (Fullbright / no fog)
+│   ├── Webhook.lua                (Discord webhook sender)
+│   ├── Triggerbot.lua             (Auto-fire on crosshair target)
+│   ├── SilentAim.lua              (hookmetamethod shot redirection)
+│   ├── Hitbox.lua                 (Root-part inflation)
+│   ├── NoRecoil.lua               (Recoil suppression)
+│   ├── NoSpread.lua               (Spread suppression)
+│   ├── UI.lua                     (Four-tab menu, keybind capture, overlays)
+│   ├── Movement.lua               (Fly / noclip / speed / inf jump / click TP)
+│   ├── Controller.lua             (Orchestrator + public API)
+│   ├── Main.lua                   (Entry point: safe-restart, then Controller.Start())
+│   └── security/                  (Standalone library — NOT in the bundle)
 │       ├── StringObfuscation.lua
 │       ├── DebuggerDetection.lua
 │       └── ProtectedSecrets.lua
 │
-├── dist/
-│   └── VanityGeneral_INTEGRATED.lua   (Single-file executor build, ~168KB)
+├── tools/
+│   ├── build.py                   (Bundler: src/ → dist/VanityGeneral_INTEGRATED.lua)
+│   └── obfuscate.py               (Obfuscator: dist → release/VanityGeneral.lua)
 │
-├── tests/                     (StringObfuscation test suite and demo)
-├── docs/                      (All guides — see Documentation below)
-│   └── history/               (Refactoring/improvement changelogs)
-├── reference/cpp/             (C++ reference implementations)
-└── archive/                   (Stale older monolith — superseded by dist/)
+├── dist/
+│   └── VanityGeneral_INTEGRATED.lua   (GENERATED — do not edit; ~183KB)
+│
+├── release/
+│   ├── VanityGeneral.lua          (Obfuscated public release — GENERATED)
+│   └── loader.lua                 (Cross-executor loadstring; paste this)
+│
+├── tests/                         (StringObfuscation test suite and demo)
+├── docs/                          (All guides — see Documentation below)
+│   └── history/                   (Archived changelogs)
+├── reference/cpp/                 (C++ reference implementations)
+└── archive/                       (Stale older monoliths)
 ```
-
-There are **two deliverables**, both built from the same features:
-
-1. **Modular source (`src/`)** — for Roblox Studio. Install the modules and use
-   `MainController.lua` (or `Loader.lua`) as the entry point.
-2. **Executor build (`dist/VanityGeneral_INTEGRATED.lua`)** — a single file
-   (~168KB) that bundles everything, including the security modules. Run it via
-   `bootstrap.lua` (see Quick Start).
 
 ---
 
 ## 🚀 Quick Start
 
-### Executor (single file)
+### Executor (recommended)
 
-1. Put `dist/VanityGeneral_INTEGRATED.lua` in your executor's workspace folder
-   (where `readfile` reads from).
-
-2. Run `bootstrap.lua` in the executor — or inline it:
-
-   ```lua
-   local VanityGeneral = loadstring(readfile("VanityGeneral_INTEGRATED.lua"))()
-   VanityGeneral.Start()
-   ```
-
-3. Press **RightShift** to open the menu. Re-running is safe — the previous
-   copy is torn down first.
-
-### Roblox Studio (modular, 30 seconds)
-
-1. Create folder: `StarterPlayer > StarterPlayerScripts > VanityGeneral`
-
-2. Copy these as ModuleScripts: `Configuration`, `CameraDirector`, `ESP`, `UI`
-
-3. Copy `MainController` as a LocalScript in the same folder
-
-4. Play game → Press RightShift to open menu ✅
-
-**That's it!** No configuration needed.
-
-### First Use
-
-- Press **RightShift** to open menu
-- Go to the **Aimbot** tab → Toggle camera tracking ON (or press **LeftAlt**)
-- Go to the **ESP** tab → Toggle ESP ON
-- Adjust settings with sliders and color picker
-- Press **End** to fully unload
-- Watch the magic! ✨
-
----
-
-## 📖 Documentation
-
-All guides live in `docs/`:
-
-| Document | Purpose |
-|----------|---------|
-| **docs/QUICK_START.md** | Get running in 30 seconds + common customizations |
-| **docs/SETUP.md** | Detailed installation & troubleshooting |
-| **docs/ARCHITECTURE.md** | System design, data flow, extension points |
-| **docs/LOADSTRING_GUIDE.md** | Executor/loadstring usage of the INTEGRATED build |
-| **docs/QUICK_REFERENCE.md** | Copy-paste reference card |
-| **docs/DebuggerDetection_GUIDE.md** | Debugger/tamper detection module |
-| **docs/StringObfuscation_*.md** | String obfuscation guides and API reference |
-| **docs/history/** | What changed and why (archived changelogs) |
-
----
-
-## ⚙️ Configuration
-
-All settings in `src/Configuration.lua`:
+Paste the contents of `release/loader.lua` into your executor. It fetches the
+obfuscated release and starts it, trying every common HTTP API until one works:
 
 ```lua
-Config.Camera = {
-    Enabled = false,                     -- Camera tracking on/off
-    Smoothness = 0.15,                   -- Tracking speed (0.05-1.0)
-    MaxDistance = 300,                   -- Max target range (studs)
-    TargetPart = "Head",                 -- Target body part
-    ToggleKey = Enum.KeyCode.LeftAlt,    -- Camera tracking toggle key
-}
-
-Config.ESP = {
-    Enabled = false,                     -- ESP on/off
-    Color = Color3.fromRGB(165, 75, 255),  -- Highlight color
-    Filled = false,                      -- Fill toggle
-    Thickness = 1,                       -- Outline thickness (1-6)
-    OutlineOpacity = 1,                  -- Outline visibility (0-1)
-    FillOpacity = 0.4,                   -- Fill visibility (0-1)
-    MaxDistance = 1000,                  -- Render distance
-}
-
-Config.UI = {
-    Scale = 1,                           -- UI scale factor
-    MenuKey = Enum.KeyCode.RightShift,   -- Open/close key
-    UnloadKey = Enum.KeyCode.End,        -- Panic key: full teardown
-    Visible = false,                     -- Menu starts hidden
-}
+local VanityGeneral = loadstring(game:HttpGet("https://raw.githubusercontent.com/cookedaj/vanity-release/main/VanityGeneral.lua"))()
+VanityGeneral.Start()
 ```
+
+(The snippet above is the minimal form; `release/loader.lua` adds
+`request()`-family fallbacks and a cache-buster.)
+
+- Press **RightShift** to open the menu.
+- Re-running is safe — the previous copy is stopped first.
+
+### Local testing of a dev build
+
+1. `python tools/build.py` → writes `dist/VanityGeneral_INTEGRATED.lua`
+2. Put that file in your executor's workspace folder
+3. Run `bootstrap.lua` (or `loadstring(readfile("VanityGeneral_INTEGRATED.lua"))()`)
+
+### Roblox Studio (modular)
+
+1. Create folder: `StarterPlayer > StarterPlayerScripts > VanityGeneral`
+2. Copy all of `src/` (except `Main.lua` and `security/`) as **ModuleScripts**
+3. Copy `src/Main.lua` as a **LocalScript** in the same folder
+4. Play → RightShift for the menu
+
+See docs/SETUP.md for details.
 
 ---
 
@@ -178,128 +152,87 @@ Config.UI = {
 | Control | Action |
 |---------|--------|
 | **RightShift** | Toggle menu |
-| **LeftAlt** | Toggle camera tracking |
+| **LeftAlt** | Toggle aimbot |
+| **RightAlt** | Toggle ESP |
+| **F1** | Toggle FOV circle |
+| **F2** | Toggle No Recoil |
+| **F3** | Toggle No Spread |
+| **F4** | Toggle Triggerbot |
+| **LeftControl + LMB** | Click teleport (when enabled) |
 | **End** | Unload / tear everything down |
-| **Sliders** | Adjust values |
-| **Toggles** | Enable/disable features |
-| **Keybind boxes** | Rebind menu/camera/unload keys |
-| **Color Picker** | Select highlight color |
-| **Title Bar** | Drag window |
 
-All three hotkeys are rebindable from the UI (Aimbot tab for the camera key,
-Settings tab for menu/unload).
+All hotkeys are rebindable from the UI (per-tab keybind rows + the keybind
+panel); conflicts are rejected.
 
 ---
 
-## 💻 Code Quality
+## 💻 Public API
 
-✅ **Professional Lua standards**
-- Proper local scoping
-- Efficient algorithms
-- Minimal duplication
-- Clear naming conventions
+The entry chunk returns the Controller (also exported as
+`getgenv().VanityGeneral`):
 
-✅ **Clean Architecture**
-- Single responsibility per module
-- Proper separation of concerns
-- No circular dependencies
-- Easy to test and extend
+```lua
+local VanityGeneral = loadstring(game:HttpGet("https://raw.githubusercontent.com/cookedaj/vanity-release/main/VanityGeneral.lua"))()
 
-✅ **Performance Optimized**
-- Single RenderStepped connection
-- Cached references
-- Efficient visibility checks
-- Proper memory cleanup
+VanityGeneral.Start()          -- start (also .start())
+VanityGeneral.Stop()           -- full teardown (also .stop())
+VanityGeneral.Toggle()         -- start/stop (also .toggle())
+VanityGeneral.IsRunning()      -- true/false
+VanityGeneral.Version          -- version string
+VanityGeneral.Config           -- the live Configuration table
 
-✅ **Production Ready**
-- Error handling at boundaries
-- Resource cleanup on exit
-- Player lifecycle management
-- No memory leaks
+-- Per-game config profiles (keyed by PlaceId)
+VanityGeneral.SaveConfig("legit")
+VanityGeneral.LoadConfig("legit")
+VanityGeneral.ListConfigs()
+VanityGeneral.DeleteConfig("legit")
+
+-- Teleport helpers
+VanityGeneral.ServerHop()
+VanityGeneral.Rejoin()
+
+-- Webhook + watermark
+VanityGeneral.SetWebhook("https://discord.com/api/webhooks/...")
+VanityGeneral.HasWebhook()
+VanityGeneral.SendWebhook("hello")
+VanityGeneral.SendLoadedEmbed(false)
+VanityGeneral.SetWatermarkImage("139845693858856")
+```
 
 ---
 
-## 🔧 Customization
+## 🔧 Development Workflow
 
-### Change Menu Key
-```lua
--- src/Configuration.lua
-Config.UI.MenuKey = Enum.KeyCode.F5
-```
+`dist/` and `release/` are **generated artifacts** — never edit them.
 
-### Change Default Colors
-```lua
--- src/Configuration.lua
-Config.ESP.Color = Color3.fromRGB(255, 0, 0)  -- Red
-```
+1. **Edit** modules in `src/`
+2. **Build**: `python tools/build.py` → `dist/VanityGeneral_INTEGRATED.lua`
+   (bundle order/dependency list lives in `MODULES` at the top of build.py)
+3. **Test** locally via `bootstrap.lua` (or in Studio with the modular layout)
+4. **Obfuscate**: `python tools/obfuscate.py dist/VanityGeneral_INTEGRATED.lua release/VanityGeneral.lua`
+   (strips comments, XOR-encrypts every string literal, verifies the round-trip
+   before writing; requires `pip install luaparser`)
+5. **Release**: push `release/VanityGeneral.lua` to the public repo the loader
+   fetches from (`release/loader.lua` points at it)
 
-### Adjust Tracking Speed
-```lua
--- src/Configuration.lua
-Config.Camera.Smoothness = 0.3  -- Faster tracking
-```
-
-### Filter by Team
-```lua
--- src/CameraDirector.lua - In FindBestTarget()
-if player.Team == LocalPlayer.Team then
-    continue  -- Skip teammates
-end
-```
-
-### Add Distance-Based Effects
-```lua
--- src/ESP.lua - In updatePlayer()
-local distance = (hrp.Position - myRoot.Position).Magnitude
-local opacity = 1 - (distance / config.MaxDistance)
-```
-
-See docs/QUICK_START.md for more examples!
+Module contract the bundler relies on: each module ends with
+`return <Table>`, and cross-module references are top-of-file
+`local X = require(script.Y)`.
 
 ---
 
-## 📊 Performance
+## 📖 Documentation
 
-### Benchmark (50 players, both systems enabled)
-
-| Operation | Time | Notes |
-|-----------|------|-------|
-| Camera tracking | 0.3-0.8ms | Raycast-based visibility |
-| ESP update | 0.5-1.5ms | Per-player highlights |
-| UI rendering | <0.1ms | Cached, event-driven |
-| **Total/frame** | **1-2ms** | 60fps capable |
-
-### Memory Usage
-
-- Per player: ~2-5 KB with ESP
-- UI: ~50 KB static
-- Total for 50 players: ~2-3 MB
-- **No memory leaks** with proper cleanup
-
----
-
-## 🎓 Learning Resources
-
-### Understanding the System
-1. Start with docs/QUICK_START.md
-2. Read through src/MainController.lua (orchestration)
-3. Review src/Configuration.lua (settings)
-4. Study individual modules (CameraDirector, ESP, UI)
-5. Check docs/ARCHITECTURE.md for data flow
-
-### Making Changes
-1. Identify which module needs change
-2. Review its current implementation
-3. Modify the function
-4. Test in game
-5. Refer to docs/QUICK_START.md for examples
-
-### Adding Features
-- **New setting?** → Add to Configuration
-- **New camera feature?** → Add to CameraDirector
-- **New ESP feature?** → Add to ESP
-- **New UI element?** → Add to UI
-- **New system?** → Create new module + add to MainController
+| Document | Purpose |
+|----------|---------|
+| **docs/QUICK_START.md** | Get running + common customizations |
+| **docs/SETUP.md** | Detailed Studio & executor installation |
+| **docs/ARCHITECTURE.md** | Module graph, bundler, release pipeline |
+| **docs/LOADSTRING_GUIDE.md** | Executor/loadstring usage and API |
+| **docs/QUICK_REFERENCE.md** | Copy-paste reference card |
+| **docs/DebuggerDetection_GUIDE.md** | Standalone debugger-detection library |
+| **docs/StringObfuscation_*.md** | Standalone string-obfuscation library |
+| **docs/history/** | Archived changelogs |
 
 ---
 
@@ -308,64 +241,29 @@ See docs/QUICK_START.md for more examples!
 **Q: Will this get me banned?**
 A: This is an educational tool for understanding Roblox client-side systems. Use responsibly in appropriate contexts.
 
-**Q: Can I use this in my own games?**
-A: Yes! It's a framework you can adapt. Customize Configuration and extend modules as needed.
+**Q: Why is Silent Aim not doing anything?**
+A: It needs an executor with `hookmetamethod`/`getnamecallmethod`. Without them it no-ops (a warning is printed once).
 
-**Q: How do I disable features?**
-A: Use toggles in UI or set `Config.Camera.Enabled = false` in code.
+**Q: Where did StringObfuscation/DebuggerDetection go?**
+A: They're still in `src/security/` as a standalone library (docs in
+`docs/StringObfuscation_*.md`), but they're no longer bundled — string
+protection now happens at release time via `tools/obfuscate.py`.
 
-**Q: Can I add new features?**
-A: Absolutely! The modular design makes it easy. See docs/ARCHITECTURE.md for extension points.
+**Q: Do my settings save?**
+A: Yes — config profiles are per-game (keyed by PlaceId) JSON files in the
+executor's `VanityGeneral/` folder. Save/load from the Settings tab or the API.
 
 **Q: Is it multiplayer safe?**
-A: Fully client-side, no network calls. Zero impact on other players.
+A: Fully client-side, no network calls except the optional Discord webhook. Zero impact on other players.
 
 **Q: How do I troubleshoot?**
-A: Check Output tab for errors. See docs/SETUP.md troubleshooting section.
-
----
-
-## 📈 What's Possible
-
-With the modular foundation, you can easily add:
-
-- 🔔 Notifications (target acquired, distance alerts)
-- 💾 Settings persistence (DataStore)
-- 📊 Statistics dashboard (kills, assists, etc.)
-- 🎯 Advanced targeting (by team, health, distance)
-- 🎨 Multiple ESP modes (skeleton, bones, filled only)
-- 📱 Mobile-friendly UI controls
-- 🔊 Sound-based ESP
-- 🎬 Recording helper with overlay
-
-All without modifying core systems!
+A: Check the console for `[Vanity-General]` warnings. See docs/SETUP.md.
 
 ---
 
 ## 📝 License
 
 Created for educational purposes in Roblox development.
-
----
-
-## 🎯 Summary
-
-**Vanity-General** transforms two separate 1400-line scripts into a professional, unified framework:
-
-- ✅ Modular architecture (focused modules)
-- ✅ Single RenderStepped loop (optimal performance)
-- ✅ Modern UI with tabs, keybind capture, and customization
-- ✅ Centralized configuration
-- ✅ Single-file executor build with integrated security modules
-- ✅ Production-ready code quality
-- ✅ Easy to extend and maintain
-- ✅ Proper resource cleanup (End key tears everything down)
-
-**Perfect for**:
-- Understanding Roblox client-side systems
-- Building professional tools
-- Learning modular code design
-- Extending with your own features
 
 ---
 

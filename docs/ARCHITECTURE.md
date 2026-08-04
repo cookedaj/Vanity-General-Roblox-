@@ -1,285 +1,221 @@
 # Vanity-General - Architecture
 
-This document describes the modular source under `src/`. Optional security
-modules (`StringObfuscation`, `DebuggerDetection`, `ProtectedSecrets`) live
-under `src/security/` and are bundled into `dist/VanityGeneral_INTEGRATED.lua`,
-the single-file executor build.
+This document describes the current design: the modular source in `src/` (the
+single source of truth), the Controller/Main entry model, the bundler that
+generates `dist/`, and the release pipeline that produces `release/`.
 
-## System Overview
-
-```
-VanityGeneralController
-├── MainController (LocalScript)
-│   └── Orchestrates everything
-│
-├── Configuration (ModuleScript)
-│   └── Centralized settings
-│
-├── CameraDirector (ModuleScript)
-│   ├── FindBestTarget()
-│   ├── PointCamera()
-│   └── Update()
-│
-├── ESP (ModuleScript)
-│   ├── Init()
-│   ├── Update()
-│   ├── OnPlayerAdded()
-│   ├── OnPlayerRemoving()
-│   └── Cleanup()
-│
-└── UI (ModuleScript)
-    ├── Init()
-    ├── Toggle()
-    └── Cleanup()
-```
-
-## Data Flow
+## Big Picture
 
 ```
-┌─────────────────────────────────────────────────┐
-│        Configuration (Single Source of Truth)   │
-└─────────────────────────────────────────────────┘
-         │                       │
-         ▼                       ▼
-   ┌──────────────┐       ┌──────────────┐
-   │ CameraDir    │       │ ESP System   │
-   │ - Tracks     │       │ - Highlights │
-   │ - Targets    │       │ - Renders    │
-   └──────────────┘       └──────────────┘
-         │                       │
-         └───────────┬───────────┘
-                     ▼
-            ┌─────────────────┐
-            │  MainController │
-            │  RenderStepped  │
-            └─────────────────┘
-                     │
-                     ▼
-            ┌─────────────────┐
-            │   UI System     │
-            │  (Reads Config) │
-            │ (Updates Config)│
-            └─────────────────┘
-                     │
-                     ▼
-            ┌─────────────────┐
-            │  User Input     │
-            │  (RightShift)   │
-            └─────────────────┘
+src/ (17 modules, edit these)
+   │
+   │  python tools/build.py
+   ▼
+dist/VanityGeneral_INTEGRATED.lua   (GENERATED — do not edit)
+   │
+   │  python tools/obfuscate.py dist/VanityGeneral_INTEGRATED.lua release/VanityGeneral.lua
+   ▼
+release/VanityGeneral.lua           (obfuscated public release)
+   ▲
+   │  fetched over HTTP at runtime
+release/loader.lua                  (cross-executor loadstring; what users paste)
 ```
+
+The security modules in `src/security/` (StringObfuscation, DebuggerDetection,
+ProtectedSecrets) are a **standalone library** — they are not required by any
+`src/` module and are not in the bundle. String protection happens at release
+time in `tools/obfuscate.py` instead.
+
+## Module Graph
+
+Requires are top-of-file `local X = require(script.Y)` (this is also the
+bundler's contract). Arrows mean "requires":
+
+```
+Configuration    (leaf — settings, DEFAULTS, reset)
+ConfigManager    (leaf — per-game JSON profiles)
+Utility          (leaf — anti-AFK, server hop/rejoin, GUI parent)
+NoRecoil         (leaf — recoil suppression)
+Triggerbot       (leaf — auto-fire)
+DrawingESP       (leaf — executor Drawing boxes/tracers)
+Visuals          (leaf — fullbright/no fog)
+
+Webhook          → Configuration
+ESP              → Configuration, Utility
+CameraDirector   → Utility
+Hitbox           → CameraDirector
+SilentAim        → CameraDirector
+NoSpread         → NoRecoil
+UI               → ConfigManager, Utility
+Movement         → UI
+Controller       → Configuration, ConfigManager, CameraDirector, Hitbox,
+                   SilentAim, NoRecoil, NoSpread, Triggerbot, ESP,
+                   DrawingESP, Visuals, Utility, UI, Movement, Webhook
+Main             → Controller
+```
+
+`Main` is the entry chunk: it stops any previously injected copy (found via
+`getgenv().VanityGeneral`) and calls `Controller.Start()`, then returns the
+Controller table so `loadstring(...)()` yields the public API.
 
 ## Module Responsibilities
 
 ### Configuration
-- Stores all settings in one place
-- No logic, only data
-- Updated by UI and code
-- Read by all systems
+- Single source of truth for every setting (`Camera`, `ESP`, `NoRecoil`,
+  `NoSpread`, `Triggerbot`, `Movement`, `SilentAim`, `Hitbox`, `Drawing`,
+  `Visuals`, `Utility`, `UI`, `Webhook`)
+- Owns `DEFAULTS` and `reset()`; keybinds, option lists, and the webhook URL
+  are deliberately excluded from reset
+- All sections are plain data — no logic
 
-**Sections:**
-- `Camera`: Track settings
-- `ESP`: Highlight settings
-- `UI`: Interface settings
+### ConfigManager
+- Saves/loads Configuration sections to the executor filesystem as JSON
+- Profiles are **per-game**: `VanityGeneral/profile_<PlaceId>_<name>.json`,
+  with a read-only legacy-path fallback for pre-per-game saves
+- Color3/EnumItem values are tagged (`__t`) and rebuilt on load; unknown enum
+  names are skipped so a bad profile can't wipe a keybind
+- Degrades gracefully on executors without file APIs (`isSupported()`)
 
-### CameraDirector
-- **FindBestTarget(config)**: Finds closest, visible target
-  - Iterates players
-  - Checks alive status
-  - Filters by MaxDistance (world-space range in studs)
-  - Ranks candidates by screen distance
-  - Validates visibility with raycast
-  - Returns best match or nil
+### CameraDirector (aimbot)
+- `FindBestTarget(config)`: alive check, Team Check, Target Bots (NPCs),
+  wall check, world-range filter, FOV cone filter, sticky-target retention,
+  hitbox region resolution (`Random (Weighted)` chance weights or a fixed
+  region), velocity prediction lead
+- `PointCamera(position, smoothness)`: CFrame lerp toward the target
+- `Update(config, debug)`: resolves the target each frame and steers the
+  camera; applies humanize jitter; returns the current target
+- `GetLookTarget(espConfig, cameraConfig)`: who you're *looking* at (feeds the
+  target display, independent of aimbot lock)
+- Owns the FOV circle drawing; `Cleanup()` removes it
 
-- **PointCamera(position, smoothness)**: Moves camera
-  - Creates desired CFrame
-  - Lerps to target smoothly
-  - Only positioning, no selection
+### ESP / DrawingESP / Visuals
+- **ESP**: Highlight outlines/fill, 2D boxes, name/health/distance billboard
+  tags; player join/leave/respawn handling; NPC support
+- **DrawingESP**: executor `Drawing` boxes and tracers; no-op where the
+  Drawing library is missing
+- **Visuals**: fullbright / no-fog lighting watches; restores original
+  Lighting properties on cleanup
 
-- **Update(config, debug)**: Main update function
-  - Calls FindBestTarget
-  - Calls PointCamera if target found
-  - Prints the tracked target when `debug` (the top-level
-    `Configuration.Debug` flag) is set
-  - Returns current target for UI
+### Combat helpers
+- **Triggerbot**: fires when the crosshair sits on a valid target for a random
+  delay sampled between `MinDelay`/`MaxDelay`; vischeck + max-distance options
+- **SilentAim**: hooks `game`'s metatable (`__namecall`, `__index`) via
+  `hookmetamethod` to rewrite position-like args onto the aimbot's target.
+  Fully guarded: no-ops without `hookmetamethod`/`getnamecallmethod`, and
+  only rewrites calls from game scripts (`checkcaller`)
+- **Hitbox**: client-side inflation of enemy root parts (size/transparency),
+  driven by the aimbot's candidate set; restores originals on cleanup
+- **NoRecoil**: locks the camera against recoil climb; runs on a
+  `BindToRenderStep` at `Camera + 1` priority so the correction lands *after*
+  the game's own camera update; stands down while the aimbot owns the camera
+- **NoSpread**: wraps `math.random` to pull spread rolls toward centre while
+  the fire button is held; restores the original on cleanup
 
-### ESP
-- **Init()**: Setup highlight system
-  - Creates container folder
-  - Creates initial player entries
-  - Prepares shell folder
+### Movement
+- Fly, noclip, speed (only the surplus over stock WalkSpeed), infinite jump,
+  click-TP (modifier key + left click)
+- CFrame-driven half runs inside the controller's RenderStepped loop;
+  event-driven halves (jump, click) run on their own connections from
+  `Movement:Init`
 
-- **Update(config)**: Per-frame rendering
-  - Adds new players
-  - Updates all highlights
-  - Manages shells for thickness
-  - Syncs shell positions
-
-- **OnPlayerAdded/Removed()**: Player lifecycle
-  - Creates/destroys highlight instances
-  - Prevents memory leaks
-
-- **Cleanup()**: Full teardown
-  - Destroys all highlights
-  - Cleans shell folder
-  - Clears entries table
+### Webhook
+- Sends Discord messages/embeds through whatever HTTP-POST function the
+  executor exposes (`syn.request`, `http.request`, `http_request`, `request`,
+  `fluxus.request`)
+- URL is plain config: `Configuration.Webhook.Url` (set directly or via
+  `Controller.SetWebhook`); `SendLoadedEmbed` fires the "loaded" ping
 
 ### UI
-- **Init(config, resetCallback)**: Build interface
-  - Creates ScreenGui + CanvasGroup window
-  - Starts a single shared input router (three UserInputService connections:
-    InputChanged, InputEnded, InputBegan)
-  - Builds all tabs (Aimbot, ESP, Settings)
-  - Connects toggles and sliders
+- Four tabs: **Combat**, **Visual**, **Movement**, **Settings**
+- Overlays: keybind panel, target display, FPS counter, watermark
+- Keybind-capture system (`UI:IsCapturingKey()`): an armed keybind box
+  consumes the next press as a rebind; conflicts with existing binds are
+  rejected (`keyConflict`)
+- `SyncControls()` re-reads config into every control (after profile load,
+  reset, or hotkey toggle); window visibility is written back to
+  `Configuration.UI.Visible`
+- Settings tab: interface options, config profile save/load/delete, Anti-AFK
+  toggle, Server Hop / Rejoin buttons, Unload button
 
-- **Toggle() / Show() / Hide()**: Fade window in/out
-  - Animated via CanvasGroup GroupTransparency
-  - Writes `Visible` back to `config.UI.Visible`
+### Controller (orchestrator + public API)
+- `Start()`: inits ESP/UI/Movement/SilentAim/Utility, connects player and
+  input handlers, starts the single RenderStepped loop, binds NoRecoil after
+  the camera, exports itself to `getgenv().VanityGeneral`, fires the webhook
+  "loaded" embed if configured
+- **Single RenderStepped loop** drives ESP, aimbot, target display, NoSpread,
+  Triggerbot, Movement, Hitbox, DrawingESP, Visuals, and the FPS counter
+- **Crash guard**: every subsystem call goes through `guarded(name, fn, ...)`,
+  which swallows per-frame errors and warns at most once per 5s per site — a
+  destroyed part mid-respawn can't kill the loop or spam the console
+- **Data-driven keybinds**: one table maps toggle keys to config flags
+  (camera, ESP, FOV circle, NoRecoil, NoSpread, Triggerbot), plus MenuKey →
+  `UI:Toggle()` and UnloadKey → `Stop()`
+- `Stop()`: disconnects everything, unbinds NoRecoil, and calls every
+  module's Cleanup (each restores what it touched — Lighting, hitboxes,
+  `math.random`, jump/click listeners)
+- API: `Version`, `Config`, `IsRunning`, `Start/Stop/Toggle` (+ lowercase
+  aliases), `SaveConfig/LoadConfig/ListConfigs/DeleteConfig`,
+  `ServerHop/Rejoin`, `SetWebhook/HasWebhook/SendWebhook/SendLoadedEmbed`,
+  `SetWatermarkImage`
 
-- **SetCurrentTarget(name)**: Update the Aimbot tab "Current Target" row
+## The Bundler (tools/build.py)
 
-- **IsCapturingKey()**: True while a keybind box is armed; controllers check
-  this so an armed press rebinds instead of firing a hotkey
+Generates `dist/VanityGeneral_INTEGRATED.lua` from `src/`. Rules:
 
-- **Notify(text, duration)**: Show a transient on-screen notification
+- `MODULES` (top of build.py) is the bundle order = dependency order; every
+  module must be listed
+- `local X = require(script.Y)` becomes `local X = Y` against hoisted module
+  locals; requiring a module not in `MODULES` is a build error
+- Each module body keeps its `return <Table>` and is wrapped as
+  `Name = (function() ... end)()`; `Main` is wrapped in `do ... end` and its
+  `return Controller` survives, so the whole bundle evaluates to the API table
+- Module locals are hoisted to bundle top-level; per-module function wrapping
+  keeps the bundle under Luau's 200-local register limit
+- Output carries a GENERATED do-not-edit header
 
-- **SyncControls()**: Re-read config into every control
-  - Used after a settings reset or a keybind toggle
+## The Obfuscator (tools/obfuscate.py)
 
-- **Cleanup()**: Remove all UI elements
-  - Disconnects the shared input connections
-  - Destroys ScreenGui
-  - Clears references
+`python tools/obfuscate.py <in.lua> <out.lua>` (requires `luaparser`):
 
-### MainController
-- **init()**: Initialize all systems
-  - Create ESP
-  - Create UI
-  - Connect input handlers
-  - Start RenderStepped loop
+1. Strips all comments (quote-aware)
+2. Replaces every string literal with `(_V9({...}))` — XOR-encrypted bytes
+   decoded at runtime (hides webhook URLs, UI text, service/key names)
+3. Flattens indentation and blank lines
+4. **Self-verifies**: re-parses the output and decrypts every emitted string
+   table against the original; any mismatch aborts before writing
+5. Refuses Luau-only syntax it can't parse (e.g. `continue`) rather than
+   emitting a broken file
 
-- **cleanup()**: Shutdown everything (bound to the UnloadKey, default End)
-  - Disconnect all connections
-  - Call system cleanups
-  - Clear references
+Honest limitation (documented in the script): the decoder ships in the file,
+so this stops casual copying and string-grepping, not determined reversers.
 
-- **RenderStepped Loop**: Main update
-  ```lua
-  RunService.RenderStepped:Connect(function()
-      ESP:Update(Configuration.ESP)
-      CameraDirector:Update(Configuration.Camera, Configuration.Debug)
-  end)
-  ```
+## Release Pipeline
+
+```
+edit src/  →  python tools/build.py  →  test dist build (bootstrap.lua)
+           →  python tools/obfuscate.py dist/VanityGeneral_INTEGRATED.lua release/VanityGeneral.lua
+           →  push release/VanityGeneral.lua to the public repo
+```
+
+`release/loader.lua` fetches the release with a `?t=tick()` cache-buster,
+trying `game:HttpGet`, `game:HttpGetAsync`, then the `request()` family
+(`syn`, `http`, plain, `http_request`, `fluxus`, `delta`) until one returns
+the script, then `loadstring(source)()` and `Start()`.
 
 ## Performance Characteristics
 
-### Memory
-- Single highlight per player
-- Shell only created for thickness > 1
-- Proper cleanup prevents leaks
-- ~2-5 MB for 50 players with ESP on
-
-### CPU
-- RenderStepped: ~1-2ms per frame
-  - Camera: 0.3-0.8ms (target calc + raycast)
-  - ESP: 0.5-1.5ms (highlight updates)
-  - UI: <0.1ms (cached, updates on input)
-
-### Network
-- No network traffic
-- Fully client-side
-- No replication needed
-
-## Key Design Decisions
-
-### Single RenderStepped Connection
-- **Why**: Avoid multiple connections competing
-- **How**: Both systems update from same loop
-- **Benefit**: Predictable performance
-
-### Centralized Configuration
-- **Why**: No sync issues or state conflicts
-- **How**: Single source of truth
-- **Benefit**: Easy settings management
-
-### Separate Modules
-- **Why**: Each has single responsibility
-- **How**: No circular dependencies
-- **Benefit**: Easy to test and modify
-
-### Shell System for Outlines
-- **Why**: Roblox highlights have limited thickness
-- **How**: Clone and enlarge character parts
-- **Benefit**: Thick outlines without custom rendering
-
-### Raycast Visibility
-- **Why**: Highlight targets behind walls
-- **How**: Cast ray from camera to target
-- **Benefit**: Realistic visibility
+- One RenderStepped connection for all per-frame systems (plus the
+  post-camera NoRecoil bind)
+- Per-subsystem error guarding with throttled warnings
+- No periodic work when features are off (each Update early-outs on its
+  Enabled flag; target display resolves only while visible)
+- No network traffic except the optional webhook
 
 ## Extension Points
 
-### Add New Feature (Example: Keybinds)
-1. Add to Configuration
-2. Handle in UI Tab
-3. Read in MainController InputBegan
-
-### Add New Target Filter (Example: Teams)
-1. Add to Configuration
-2. Modify CameraDirector:FindBestTarget()
-3. Add UI control in Settings tab
-
-### Add New ESP Mode (Example: Skeleton)
-1. New function in ESP module
-2. Toggle in UI
-3. Call from Update()
-
-### Add Notifications (Example: Target Changed)
-1. Create UI notification component
-2. Call from CameraDirector:Update()
-3. Auto-hide after time
-
-## Common Issues & Solutions
-
-### Camera Jittering
-- Lower Smoothness value (default 0.15)
-- Increase MaxDistance threshold
-
-### ESP Lag
-- Reduce max distance
-- Disable thickness (use outline only)
-- Disable filled mode
-
-### Memory Leak
-- Ensure Cleanup() called on player leave
-- Check shell folder destroying properly
-- Verify connections disconnected
-
-### UI Unresponsive
-- Not a common issue if input handling works
-- Check UserInputService connections
-- Verify UI module initialized
-
-## Testing Checklist
-
-- [ ] Camera tracks nearest visible player
-- [ ] ESP highlights all players in range
-- [ ] Visibility check ignores behind-wall targets
-- [ ] Menu opens/closes with RightShift
-- [ ] All sliders update in real-time
-- [ ] Color picker selects correct colors
-- [ ] Reset button restores defaults
-- [ ] No lag when 30+ players present
-- [ ] No memory leaks after 1+ hour
-- [ ] Proper cleanup on game leave
-
-## Performance Optimization Tips
-
-1. **Lower ESP MaxDistance** if seeing lag
-2. **Disable Filled mode** when performance-critical
-3. **Reduce Outline Opacity** for faster rendering
-4. **Use default Thickness (1)** instead of thick outlines
-5. **Disable Camera** when not needed
-
----
-
-This architecture enables easy maintenance, testing, and feature addition while maintaining high performance.
+- **New setting** → add to `Configuration` (+ `DEFAULTS` if resettable)
+- **New toggle hotkey** → one row in the keybind table in `Controller.Start()`
+- **New per-frame system** → new module + one `guarded(...)` line in the
+  RenderStepped loop + Cleanup call in `Stop()` + entry in `MODULES` in
+  tools/build.py
+- **New UI control** → control factory in the relevant `build*Tab` in UI.lua

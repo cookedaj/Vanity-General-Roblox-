@@ -1,216 +1,120 @@
 # Vanity-General Setup Guide
 
-A professional, unified camera tracking and player ESP system for Roblox.
+A full client-side combat/visuals/movement suite for Roblox.
 
-This guide covers the modular source in `src/`. For the single-file executor
-build, see `docs/LOADSTRING_GUIDE.md` and `bootstrap.lua`.
+There are two ways to run it:
 
-## Installation
+- **Executor** (the intended path) — paste the loader, get the obfuscated
+  release.
+- **Roblox Studio** (for development) — install the modular source.
 
-### Method 1: Using MainController (Recommended)
+## Executor Setup
 
-1. Create a folder in `StarterPlayer > StarterCharacterScripts` or `StarterPlayer > StarterPlayerScripts`
-   - Name it `VanityGeneral`
+Paste the contents of `release/loader.lua` into your executor and run. It
+fetches the latest release and starts it, trying every common HTTP API
+(`game:HttpGet`, `syn.request`, `http.request`, `request`, `http_request`,
+`fluxus`, `delta`) until one works.
 
-2. Copy these files from `src/` as **ModuleScripts** inside the folder:
-   - `Configuration`
-   - `CameraDirector`
-   - `ESP`
-   - `UI`
+Minimal form (if your executor has `game:HttpGet`):
 
-3. Copy `src/MainController.lua` as a **LocalScript** in the same folder
+```lua
+local VanityGeneral = loadstring(game:HttpGet("https://raw.githubusercontent.com/cookedaj/vanity-release/main/VanityGeneral.lua"))()
+VanityGeneral.Start()
+```
 
-4. The system will initialize automatically on spawn
+- Press **RightShift** to open the menu.
+- Re-running is safe — the previously injected copy is stopped first.
 
-(No other modules are required — Configuration and ESP no longer depend on
-StringObfuscation. The modules in `src/security/` are optional and only used
-by the integrated executor build.)
+### Testing a local dev build instead
 
-### Method 2: Using Loader Script
+1. `python tools/build.py` → `dist/VanityGeneral_INTEGRATED.lua`
+2. Copy that file into your executor's workspace folder
+3. Run `bootstrap.lua`, or inline:
 
-1. Create a folder in `StarterPlayer > StarterPlayerScripts`
-   - Name it `VanityGeneral`
+   ```lua
+   local VanityGeneral = loadstring(readfile("VanityGeneral_INTEGRATED.lua"))()
+   VanityGeneral.Start()
+   ```
 
-2. Add all module scripts as listed above
+## Roblox Studio Setup (modular source)
 
-3. Copy `src/Loader.lua` as a **LocalScript** in `StarterPlayer > StarterPlayerScripts`
+`src/` is the single source of truth — 17 modules. The old
+`MainController.lua`/`Loader.lua` entry points are gone; `Main.lua` is the
+only entry.
 
-   (Loader and MainController are alternative entry points — use ONE of them,
-   never both.)
+1. Create a folder: `StarterPlayer > StarterPlayerScripts > VanityGeneral`
 
-## Features
+2. Copy these `src/` files as **ModuleScripts** in the folder
+   (name each exactly after its file):
 
-### Camera Tracking
-- **Smooth camera targeting** toward selected player
-- **Multiple target parts**: any standard rig part (full R15 + R6 list)
-- **Visibility checks** via raycasting
-- **Adjustable smoothness** (0.05 - 1.0)
-- **Max distance filtering** (100 - 500 studs)
-- **Toggle on/off** from UI or the LeftAlt keybind
+   `Configuration`, `ConfigManager`, `Utility`, `CameraDirector`, `ESP`,
+   `DrawingESP`, `Visuals`, `Webhook`, `Triggerbot`, `SilentAim`, `Hitbox`,
+   `NoRecoil`, `NoSpread`, `UI`, `Movement`, `Controller`
 
-### ESP System
-- **Player outlines** with color picker
-- **Optional fill** highlighting
-- **Adjustable thickness** (1 - 6)
-- **Separate outline and fill opacity** controls
-- **Max distance filtering** (100 - 2000 studs)
-- **Shell rendering** for thick outlines
-- **Automatic respawn handling**
+3. Copy `src/Main.lua` as a **LocalScript** in the same folder
 
-### UI System
-- **Modern dark theme** with smooth animations
-- **Tabbed interface**: Aimbot, ESP, Settings
-- **Draggable window**
-- **Full color picker** with HSV selector
-- **Live value displays**
-- **Rebindable hotkeys** (menu, camera toggle, unload)
-- **Settings reset button**
-- **Smooth toggle animations**
+4. Play → the suite starts automatically; press RightShift for the menu
+
+Notes:
+
+- `src/security/` is a standalone library and is **not** needed — nothing in
+  `src/` requires it.
+- Some features are executor-only and quietly no-op in Studio: Silent Aim
+  (needs `hookmetamethod`), Drawing ESP (needs the `Drawing` library), and
+  config profiles (needs file APIs). The webhook needs an HTTP `request`
+  function.
 
 ## Controls
 
-- **RightShift**: Open/close menu
-- **LeftAlt**: Toggle camera tracking
-- **End**: Unload / tear everything down
-- **Mouse/Touch**: Interact with UI elements
+- **RightShift** — toggle menu
+- **LeftAlt** — toggle aimbot
+- **RightAlt** — toggle ESP
+- **F1** — toggle FOV circle
+- **F2** — toggle No Recoil
+- **F3** — toggle No Spread
+- **F4** — toggle Triggerbot
+- **LeftControl + left click** — click teleport (when Click TP is enabled)
+- **End** — unload / tear everything down
+
+Every hotkey is rebindable from the UI; conflicting binds are rejected.
 
 ## Configuration
 
-All settings are in the **Configuration** module (`src/Configuration.lua`):
+All defaults live in `src/Configuration.lua`, one section per system:
+`Camera` (aimbot), `NoRecoil`, `NoSpread`, `Triggerbot`, `Movement`,
+`SilentAim`, `Hitbox`, `Drawing`, `Visuals`, `Utility` (anti-AFK), `ESP`,
+`UI`, `Webhook`. `Configuration.reset()` restores the tunables in `DEFAULTS`
+(keybinds and the webhook URL survive a reset).
 
-```lua
-Config.Camera = {
-    Enabled = false,                    -- Camera tracking on/off
-    Smoothness = 0.15,                  -- Camera interpolation speed
-    MaxDistance = 300,                  -- Max target range (studs)
-    TargetPart = "Head",                -- Target body part
-    TargetPartOptions = { ... },        -- Available parts
-    ToggleKey = Enum.KeyCode.LeftAlt,   -- Camera tracking toggle key
-}
-
-Config.ESP = {
-    Enabled = false,                    -- ESP on/off
-    Color = Color3.fromRGB(165, 75, 255), -- Default highlight color
-    Filled = false,                     -- Fill toggle
-    Thickness = 1,                      -- Outline thickness
-    OutlineOpacity = 1,                 -- Outline transparency (0-1)
-    FillOpacity = 0.4,                  -- Fill transparency (0-1)
-    MaxDistance = 1000,                 -- Max render distance
-}
-
-Config.UI = {
-    Scale = 1,                          -- UI scale factor
-    MenuKey = Enum.KeyCode.RightShift,  -- Toggle key
-    UnloadKey = Enum.KeyCode.End,       -- Panic key: full teardown
-    Visible = false,                    -- Initial visibility
-}
-```
-
-## Architecture
-
-### Modules
-
-**Configuration**
-- Centralized settings for all systems
-- Single source of truth for all values
-
-**CameraDirector**
-- Target detection and prioritization
-- Viewport distance calculations
-- Visibility raycasting
-- Smooth camera interpolation
-
-**ESP**
-- Player highlight management
-- Shell rendering for thick outlines
-- Frame-by-frame synchronization
-- Memory-efficient cleanup
-
-**UI**
-- Modern tabbed interface
-- Live control updates
-- Color picker with HSV selector
-- Draggable window with smooth animations
-
-**MainController** / **Loader**
-- Orchestrates all systems
-- Single RenderStepped loop for performance
-- Unified input handling
-- Proper cleanup on player leave
-
-## Performance
-
-- **Single RenderStepped connection** for both camera and ESP
-- **Cached references** to avoid expensive lookups
-- **Proper disconnection** of all connections on cleanup
-- **Shell cleanup** when disabled or player disconnects
-- **No duplicate functions** or unnecessary cloning
-
-## Customization
-
-### Change Menu Key
-Edit `src/Configuration.lua`:
-```lua
-Config.UI.MenuKey = Enum.KeyCode.F5  -- Change to desired key
-```
-
-### Change Default Colors
-Edit `src/Configuration.lua`:
-```lua
-Config.ESP.Color = Color3.fromRGB(255, 0, 0)  -- Red instead of purple
-```
-
-### Adjust Default Distances
-Edit `src/Configuration.lua`:
-```lua
-Config.Camera.MaxDistance = 500  -- Increase range (studs)
-
-Config.ESP.MaxDistance = 2000  -- Increase ESP range
-```
+You normally don't edit this file at runtime — use the menu, or save a
+**per-game profile** (Settings tab → Configs, or
+`VanityGeneral.SaveConfig("name")`). Profiles are JSON keyed by PlaceId, so
+each game gets its own settings.
 
 ## Troubleshooting
 
-### Systems not initializing
-- Verify all modules are correctly named
-- Check that modules are placed in correct location
-- Look for errors in Output console
+### Nothing happens after executing
+- Check the console for `[Vanity-General]` warnings/errors
+- If loading from a URL: the loader prints an assert when no HTTP function
+  worked — try another executor or the local-file path
 
-### Camera not tracking
-- Ensure camera tracking is toggled ON in UI
-- Verify target players are visible and alive
-- Check MaxDistance and TargetPart settings
+### Menu won't open
+- Press RightShift (or your rebound MenuKey — check the keybind panel)
+- In Studio, verify `Main` is a LocalScript and all 16 ModuleScripts are
+  named exactly as above
 
-### ESP not showing
-- Enable ESP toggle in the ESP tab
-- Verify players are within MaxDistance
-- Check Color is not transparent
-- Ensure Outline Opacity is > 0
+### Silent Aim / Drawing ESP does nothing
+- Both require executor-only APIs; without them they no-op (Silent Aim warns
+  once). This is expected in Studio.
 
-### UI not opening
-- Press RightShift (or configured MenuKey)
-- Verify UI module loaded without errors
-- Check game's GUI rendering is enabled
+### Settings don't save
+- Config profiles need `writefile`/`readfile`/`listfiles`; the Configs group
+  in the Settings tab says when the executor has no file API
 
-## Code Quality
-
-- **Professional Lua standards** throughout
-- **Proper memory management** with cleanup
-- **Error handling** at system boundaries
-- **Comments** explaining WHY not WHAT
-- **No unnecessary abstractions**
-- **Local variables** throughout
-- **Proper scope management**
-
-## Future Enhancements
-
-Possible additions without modifying core architecture:
-- Player list with clickable targeting
-- Hotkey support for quick toggles
-- Save/load settings from file
-- Different ESP modes (bones, skeletal)
-- Sound ESP
-- Distance-based opacity
-- Custom alert notifications
+### Webhook never fires
+- Set a URL first: `VanityGeneral.SetWebhook("https://discord.com/api/webhooks/...")`
+  (or `Configuration.Webhook.Url = ...`)
+- The executor must expose an HTTP POST function (`request`, `syn.request`, …)
 
 ---
 

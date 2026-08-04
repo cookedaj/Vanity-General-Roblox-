@@ -119,6 +119,122 @@ def flatten(src: str) -> str:
     return "\n".join(ln for ln in lines if ln) + "\n"
 
 
+# Names we never rename: globals the file may legitimately use, plus `self`.
+# If a local shadows one of these somewhere, renaming every occurrence would
+# break the global uses, so these ids are simply left alone.
+KEEP_NAMES = {
+    "self", "_ENV", "_G", "_VERSION",
+    "game", "workspace", "script", "plugin",
+    "print", "warn", "error", "assert", "pcall", "xpcall", "select",
+    "pairs", "ipairs", "next", "type", "typeof", "tostring", "tonumber",
+    "rawget", "rawset", "rawequal", "rawlen", "setmetatable", "getmetatable",
+    "require", "loadstring", "load", "loadfile", "dofile", "coroutine",
+    "math", "table", "string", "os", "io", "bit32", "utf8", "debug",
+    "tick", "time", "wait", "delay", "spawn", "task", "unpack",
+    "Vector2", "Vector3", "CFrame", "Color3", "BrickColor", "UDim", "UDim2",
+    "Rect", "Enum", "Instance", "NumberRange", "NumberSequence",
+    "ColorSequence", "Ray", "Region3", "TweenInfo", "Random", "DateTime",
+    "getgenv", "gethui", "getrenv", "getgc", "getloadedmodules",
+    "hookmetamethod", "getnamecallmethod", "checkcaller", "newcclosure",
+    "syn", "http", "request", "http_request", "fluxus", "delta",
+    "Drawing", "VirtualUser", "writefile", "readfile", "makefolder",
+    "isfolder", "isfile", "listfiles", "delfile", "appendfile",
+    "setclipboard", "identifyexecutor", "getexecutorname",
+}
+
+_FUNC_KINDS = ("LocalFunction", "AnonymousFunction", "Method", "Function")
+
+
+def _walk_nodes(node, parent=None):
+    yield node, parent
+    for value in getattr(node, "__dict__", {}).values():
+        if isinstance(value, astnodes.Node):
+            yield from _walk_nodes(value, node)
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, astnodes.Node):
+                    yield from _walk_nodes(item, node)
+
+
+def collect_name_replacements(tree):
+    """Rename every local identifier to _v1, _v2, ...
+
+    Returns (replacements, skipped) where replacements is a list of
+    (start, stop, new_name) source spans. A name is renamed only if it is
+    declared as a local somewhere (local assign, local function, for-loop
+    vars, function params) and isn't in KEEP_NAMES. Table-field positions
+    (Index keys, Method names, table-constructor field keys) are never
+    renamed — `config.Enabled` must stay `config.Enabled`. Since every
+    occurrence of a declared local is renamed identically and the new names
+    collide with nothing, scoping is preserved without a full scope analysis.
+    """
+    declared = set()
+    excluded_node_ids = set()
+    name_nodes = []  # (id, start, stop)
+
+    for node, parent in _walk_nodes(tree):
+        kind = node._name
+
+        if kind in _FUNC_KINDS:
+            for arg in getattr(node, "args", None) or []:
+                if isinstance(arg, astnodes.Name):
+                    declared.add(arg.id)
+            if kind == "LocalFunction" and isinstance(getattr(node, "name", None), astnodes.Name):
+                declared.add(node.name.id)
+            if kind == "Method" and isinstance(getattr(node, "name", None), astnodes.Name):
+                excluded_node_ids.add(id(node.name))
+
+        if kind == "LocalAssign":
+            for target in node.targets:
+                if isinstance(target, astnodes.Name):
+                    declared.add(target.id)
+        elif kind == "Fornum":
+            if isinstance(node.target, astnodes.Name):
+                declared.add(node.target.id)
+        elif kind == "Forin":
+            for target in node.targets:
+                if isinstance(target, astnodes.Name):
+                    declared.add(target.id)
+        elif kind == "Index":
+            # every Name child except the table expression is a field key
+            for value in getattr(node, "__dict__", {}).values():
+                if isinstance(value, astnodes.Name) and value is not getattr(node, "value", None):
+                    excluded_node_ids.add(id(value))
+        elif kind == "Field":
+            for value in getattr(node, "__dict__", {}).values():
+                if isinstance(value, astnodes.Name) and value is not getattr(node, "value", None):
+                    excluded_node_ids.add(id(value))
+
+        if kind == "Name" and id(node) not in excluded_node_ids:
+            # luaparser leaves _first_token unset on some Names (bare-local
+            # targets, params) — fall back to _last_token (identifiers are
+            # single tokens, so either one gives the span)
+            first = node._first_token or node._last_token
+            last = node._last_token or node._first_token
+            if first is not None and last is not None:
+                name_nodes.append((node.id, first.start, last.stop))
+
+    rename_ids = sorted(n for n in declared if n not in KEEP_NAMES and len(n) > 1)
+    existing = {n for n, _, _ in name_nodes} | KEEP_NAMES
+    mapping = {}
+    i = 0
+    for old in rename_ids:
+        while True:
+            i += 1
+            new = f"_v{i}"
+            if new not in existing:
+                break
+        mapping[old] = new
+        existing.add(new)
+
+    replacements = [
+        (start, stop, mapping[name])
+        for name, start, stop in name_nodes
+        if name in mapping
+    ]
+    return replacements, mapping
+
+
 def main() -> None:
     if len(sys.argv) != 3:
         raise SystemExit(__doc__)
@@ -139,17 +255,47 @@ def main() -> None:
         )
 
     strings = collect_strings(tree)
+    name_replacements, name_mapping = collect_name_replacements(tree)
 
     key = [random.randrange(1, 256) for _ in range(9)]
 
     def encrypt(data: bytes):
         return [b ^ key[(i % len(key))] for i, b in enumerate(data)]
 
-    # Replace spans back-to-front so offsets stay valid.
+    # Merge string + name replacements into one span pass (spans come from
+    # the same AST and never overlap). Back-to-front so offsets stay valid.
+    spans = [(s, e, "(_V9({" + ",".join(str(b) for b in encrypt(v)) + "}))")
+             for s, e, v in strings]
+    spans += name_replacements
+    spans.sort(key=lambda t: t[0])
+    for (a_start, a_stop, _), (b_start, b_stop, _) in zip(spans, spans[1:]):
+        if b_start <= a_stop:
+            raise SystemExit("overlapping replacement spans — refusing to build")
+
     out = stripped
-    for start, stop, value in reversed(strings):
-        table = ",".join(str(b) for b in encrypt(value))
-        out = out[:start] + "(_V9({" + table + "}))" + out[stop + 1:]
+    for start, stop, text in reversed(spans):
+        out = out[:start] + text + out[stop + 1:]
+
+    # Fallback: luaparser attaches no source tokens to some Name nodes
+    # (targets/params in certain positions), so occurrences without spans
+    # survive the span pass. Rename every remaining occurrence textually —
+    # safe here because strings are already encrypted and comments stripped,
+    # so identifier words only remain in code positions. `.id` / `:id`
+    # (field access) are protected by the lookbehind; ids that also appear
+    # as bare table-constructor keys (`{ id =` / `, id =`) are skipped
+    # entirely to stay safe. Already-renamed occurrences no longer match
+    # `old`, so spanned and unspanned occurrences converge on one name.
+    textual = 0
+    skipped_ids = []
+    for old, new in sorted(name_mapping.items(), key=lambda kv: -len(kv[0])):
+        if re.search(rf"[{{,]\s*{re.escape(old)}\s*=", out):
+            skipped_ids.append(old)
+            continue  # appears as a table key — leave this name readable
+        out, n = re.subn(rf"(?<![\w.:]){re.escape(old)}(?![\w])", new, out)
+        textual += n
+    if skipped_ids:
+        print(f"note: {len(skipped_ids)} name(s) kept readable (table-key use): "
+              + ", ".join(skipped_ids[:10]))
 
     decoder = (
         "local _V9=(function(_k)return function(_t)"
@@ -179,8 +325,8 @@ def main() -> None:
     with open(out_path, "w", encoding="utf-8", newline="\n") as f:
         f.write(result)
 
-    print(f"ok: {len(strings)} strings encrypted, "
-          f"{len(src)} -> {len(result)} bytes -> {out_path}")
+    print(f"ok: {len(strings)} strings encrypted, {len(name_mapping)} names mangled "
+          f"({textual} textual), {len(src)} -> {len(result)} bytes -> {out_path}")
 
 
 if __name__ == "__main__":
