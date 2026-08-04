@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Vanity Cheats</title>
+  <style>
+    body {
+      background: #0a080e;
+      color: #e2dcee;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    h1 { color: #843ebe; margin-bottom: 8px; }
+    .loadstring {
+      background: #1a0f26;
+      border: 1px solid #443c3c;
+      border-radius: 8px;
+      padding: 16px 24px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 14px;
+      color: #c9a0dc;
+      margin: 16px 0;
+      user-select: all;
+      cursor: pointer;
+    }
+    .keys {
+      color: #8a7ca0;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Vanity Cheats</h1>
+  <p>Copy the loadstring below into your executor:</p>
+  <div class="loadstring" onclick="navigator.clipboard.writeText(this.innerText);this.style.color='#fff';setTimeout(()=>this.style.color='#c9a0dc',300)">
+loadstring(game:HttpGet("https://vanitycheats.com/scripts/VanityGeneral.lua"))().Start()
+  </div>
+  <div class="keys">
+    RightShift = Menu | LeftAlt = Aimbot | End = Unload
+  </div>
+</body>
+</html>
