@@ -86,6 +86,9 @@ Configuration.Movement = {
 	InfJumpEnabled = false,
 	ClickTPEnabled = false,
 	ClickTPKey = Enum.KeyCode.LeftControl, -- hold this + left click to teleport
+	-- Pulse boost/coast so sustained high speeds don't trip server speed
+	-- checks (the "rubber-band" snapback). Costs some effective speed.
+	Pulse = true,
 }
 
 Configuration.SilentAim = {
@@ -206,6 +209,7 @@ local DEFAULTS = {
 		Speed = 16,
 		InfJumpEnabled = false,
 		ClickTPEnabled = false,
+		Pulse = true,
 	},
 	SilentAim = { Enabled = false },
 	Hitbox = { Enabled = false, Size = 5, Transparency = 0.5 },

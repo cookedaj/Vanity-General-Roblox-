@@ -78,6 +78,21 @@ local function mv_flyDirection(cam)
 	return nil
 end
 
+-- Pulse: server speed checks validate displacement over a time window, so a
+-- SUSTAINED 30+ velocity always trips them eventually. Alternating boost and
+-- coast intervals keeps every window plausible. Coast frames drop to normal
+-- walkspeed rather than zero, so movement never looks scripted-stop-start.
+local PULSE_PERIOD = 0.2 -- seconds per boost+coast cycle
+local PULSE_DUTY = 0.5 -- fraction of each cycle spent boosting
+
+-- True during the boost half of the cycle; always true when Pulse is off.
+local function mv_pulseActive(config)
+	if config.Pulse == false then
+		return true
+	end
+	return (os.clock() % PULSE_PERIOD) < (PULSE_PERIOD * PULSE_DUTY)
+end
+
 -- Per-frame driver, called from the controller's RenderStepped loop.
 function Movement:Update(dt, config)
 	local character, root, humanoid = mv_character()
@@ -109,7 +124,11 @@ function Movement:Update(dt, config)
 			if not UI:IsCapturingKey() then
 				local dir = mv_flyDirection(cam)
 				if dir then
-					velocity = dir * (config.FlySpeed or 50)
+					local speed = config.FlySpeed or 50
+					if not mv_pulseActive(config) then
+						speed = math.min(speed, BASE_WALKSPEED) -- coast at a plausible rate
+					end
+					velocity = dir * speed
 				end
 			end
 			root.AssemblyLinearVelocity = velocity
@@ -119,11 +138,13 @@ function Movement:Update(dt, config)
 
 	-- Speed: override the horizontal velocity toward the humanoid's OWN move
 	-- direction (works with any control scheme), preserving vertical velocity
-	-- so jumps/falls stay natural. WalkSpeed itself is never written.
+	-- so jumps/falls stay natural. WalkSpeed itself is never written. During
+	-- pulse coast frames we don't touch velocity at all, so the humanoid
+	-- walks normally — the average stays under server check thresholds.
 	if config.SpeedEnabled then
 		local speed = config.Speed or BASE_WALKSPEED
 		local move = humanoid.MoveDirection
-		if speed > BASE_WALKSPEED and move.Magnitude > 0 then
+		if speed > BASE_WALKSPEED and move.Magnitude > 0 and mv_pulseActive(config) then
 			local velocity = root.AssemblyLinearVelocity
 			root.AssemblyLinearVelocity = Vector3.new(move.X * speed, velocity.Y, move.Z * speed)
 		end

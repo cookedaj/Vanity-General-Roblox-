@@ -2005,6 +2005,12 @@ local function buildMovementTab(parent, config)
 
 	local misc = makeGroup(left, "Other")
 
+	makeToggle(misc, "Pulse (Anti-Lagback)", function()
+		return config.Movement.Pulse
+	end, function()
+		config.Movement.Pulse = not config.Movement.Pulse
+	end)
+
 	makeToggle(misc, "Noclip", function()
 		return config.Movement.NoclipEnabled
 	end, function()
