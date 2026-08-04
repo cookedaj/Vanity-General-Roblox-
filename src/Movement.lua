@@ -26,6 +26,7 @@ local JUMP_VELOCITY = 50
 
 local mv_jumpConnection
 local mv_clickConnection
+local mv_tpToken = 0 -- incremented per TP; a running stepped TP stops when stale
 
 -- Returns character, root, humanoid for the local player, or nil when any piece
 -- is missing or dead (mid-respawn, etc).
@@ -79,18 +80,19 @@ local function mv_flyDirection(cam)
 end
 
 -- Pulse: server speed checks validate displacement over a time window, so a
--- SUSTAINED 30+ velocity always trips them eventually. Alternating boost and
--- coast intervals keeps every window plausible. Coast frames drop to normal
--- walkspeed rather than zero, so movement never looks scripted-stop-start.
-local PULSE_PERIOD = 0.2 -- seconds per boost+coast cycle
-local PULSE_DUTY = 0.5 -- fraction of each cycle spent boosting
-
--- True during the boost half of the cycle; always true when Pulse is off.
+-- SUSTAINED high velocity always trips them eventually. Alternating boost
+-- and coast intervals keeps every window plausible. The default coast is
+-- LONGER than the boost — anti-cheat windows differ per game, so both are
+-- configurable; lengthen the coast if you still rubber-band.
+-- Coast frames drop to normal walkspeed rather than zero, so movement never
+-- looks scripted stop-start.
 local function mv_pulseActive(config)
 	if config.Pulse == false then
 		return true
 	end
-	return (os.clock() % PULSE_PERIOD) < (PULSE_PERIOD * PULSE_DUTY)
+	local boost = config.PulseBoost or 0.1
+	local coast = config.PulseCoast or 0.15
+	return (os.clock() % (boost + coast)) < boost
 end
 
 -- Per-frame driver, called from the controller's RenderStepped loop.
@@ -181,10 +183,42 @@ local function mv_onInput(config, input, gameProcessed)
 
 	local _, root = mv_character()
 	local mouse = LocalPlayer:GetMouse()
-	if root and mouse and mouse.Hit then
-		-- +3 studs so you land on top of the surface instead of inside it.
-		root.CFrame = CFrame.new(mouse.Hit.Position + Vector3.new(0, 3, 0))
+	if not (root and mouse and mouse.Hit) then
+		return
 	end
+
+	-- +3 studs so you land on top of the surface instead of inside it.
+	local destination = mouse.Hit.Position + Vector3.new(0, 3, 0)
+
+	if not config.ClickTPSteps then
+		-- One instant jump. Servers with anti-teleport validation reject this
+		-- (you snap back) — that's what stepped mode is for.
+		root.CFrame = CFrame.new(destination)
+		return
+	end
+
+	-- Stepped TP: hop toward the target in small increments so no single
+	-- frame's displacement trips the server's teleport check. A new click or
+	-- a respawn invalidates the run via the token.
+	mv_tpToken = mv_tpToken + 1
+	local token = mv_tpToken
+	local step = config.ClickTPStep or 10
+	local interval = config.ClickTPInterval or 0.05
+	task.spawn(function()
+		while token == mv_tpToken do
+			local _, currentRoot = mv_character()
+			if not currentRoot then
+				return
+			end
+			local offset = destination - currentRoot.CFrame.Position
+			if offset.Magnitude <= step then
+				currentRoot.CFrame = CFrame.new(destination)
+				return
+			end
+			currentRoot.CFrame = currentRoot.CFrame + offset.Unit * step
+			task.wait(interval)
+		end
+	end)
 end
 
 -- Event-driven halves (jump, click) live on their own connections; the

@@ -89,6 +89,12 @@ Configuration.Movement = {
 	-- Pulse boost/coast so sustained high speeds don't trip server speed
 	-- checks (the "rubber-band" snapback). Costs some effective speed.
 	Pulse = true,
+	PulseBoost = 0.1, -- seconds per boost burst
+	PulseCoast = 0.15, -- seconds per coast; lengthen if a game still snaps you
+	-- Click TP in small hops instead of one instant jump (see Movement module).
+	ClickTPSteps = false,
+	ClickTPStep = 10, -- studs per hop
+	ClickTPInterval = 0.05, -- seconds between hops
 }
 
 Configuration.SilentAim = {
@@ -210,6 +216,11 @@ local DEFAULTS = {
 		InfJumpEnabled = false,
 		ClickTPEnabled = false,
 		Pulse = true,
+		PulseBoost = 0.1,
+		PulseCoast = 0.15,
+		ClickTPSteps = false,
+		ClickTPStep = 10,
+		ClickTPInterval = 0.05,
 	},
 	SilentAim = { Enabled = false },
 	Hitbox = { Enabled = false, Size = 5, Transparency = 0.5 },

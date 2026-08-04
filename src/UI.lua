@@ -2011,6 +2011,36 @@ local function buildMovementTab(parent, config)
 		config.Movement.Pulse = not config.Movement.Pulse
 	end)
 
+	makeFillSlider(misc, "Pulse Boost", 50, 500, function()
+		return (config.Movement.PulseBoost or 0.1) * 1000
+	end, function(val)
+		config.Movement.PulseBoost = val / 1000
+	end, true)
+
+	makeFillSlider(misc, "Pulse Coast", 50, 1000, function()
+		return (config.Movement.PulseCoast or 0.15) * 1000
+	end, function(val)
+		config.Movement.PulseCoast = val / 1000
+	end, true)
+
+	makeToggle(misc, "Stepped TP", function()
+		return config.Movement.ClickTPSteps
+	end, function()
+		config.Movement.ClickTPSteps = not config.Movement.ClickTPSteps
+	end)
+
+	makeFillSlider(misc, "TP Step Size", 1, 50, function()
+		return config.Movement.ClickTPStep or 10
+	end, function(val)
+		config.Movement.ClickTPStep = val
+	end, true)
+
+	makeFillSlider(misc, "TP Interval", 10, 500, function()
+		return (config.Movement.ClickTPInterval or 0.05) * 1000
+	end, function(val)
+		config.Movement.ClickTPInterval = val / 1000
+	end, true)
+
 	makeToggle(misc, "Noclip", function()
 		return config.Movement.NoclipEnabled
 	end, function()

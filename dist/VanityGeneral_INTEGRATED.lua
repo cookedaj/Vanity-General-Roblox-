@@ -125,6 +125,12 @@ Configuration = (function()
 		-- Pulse boost/coast so sustained high speeds don't trip server speed
 		-- checks (the "rubber-band" snapback). Costs some effective speed.
 		Pulse = true,
+		PulseBoost = 0.1, -- seconds per boost burst
+		PulseCoast = 0.15, -- seconds per coast; lengthen if a game still snaps you
+		-- Click TP in small hops instead of one instant jump (see Movement module).
+		ClickTPSteps = false,
+		ClickTPStep = 10, -- studs per hop
+		ClickTPInterval = 0.05, -- seconds between hops
 	}
 
 	Configuration.SilentAim = {
@@ -246,6 +252,11 @@ Configuration = (function()
 			InfJumpEnabled = false,
 			ClickTPEnabled = false,
 			Pulse = true,
+			PulseBoost = 0.1,
+			PulseCoast = 0.15,
+			ClickTPSteps = false,
+			ClickTPStep = 10,
+			ClickTPInterval = 0.05,
 		},
 		SilentAim = { Enabled = false },
 		Hitbox = { Enabled = false, Size = 5, Transparency = 0.5 },
@@ -4855,6 +4866,36 @@ UI = (function()
 			config.Movement.Pulse = not config.Movement.Pulse
 		end)
 
+		makeFillSlider(misc, "Pulse Boost", 50, 500, function()
+			return (config.Movement.PulseBoost or 0.1) * 1000
+		end, function(val)
+			config.Movement.PulseBoost = val / 1000
+		end, true)
+
+		makeFillSlider(misc, "Pulse Coast", 50, 1000, function()
+			return (config.Movement.PulseCoast or 0.15) * 1000
+		end, function(val)
+			config.Movement.PulseCoast = val / 1000
+		end, true)
+
+		makeToggle(misc, "Stepped TP", function()
+			return config.Movement.ClickTPSteps
+		end, function()
+			config.Movement.ClickTPSteps = not config.Movement.ClickTPSteps
+		end)
+
+		makeFillSlider(misc, "TP Step Size", 1, 50, function()
+			return config.Movement.ClickTPStep or 10
+		end, function(val)
+			config.Movement.ClickTPStep = val
+		end, true)
+
+		makeFillSlider(misc, "TP Interval", 10, 500, function()
+			return (config.Movement.ClickTPInterval or 0.05) * 1000
+		end, function(val)
+			config.Movement.ClickTPInterval = val / 1000
+		end, true)
+
 		makeToggle(misc, "Noclip", function()
 			return config.Movement.NoclipEnabled
 		end, function()
@@ -5917,6 +5958,7 @@ Movement = (function()
 
 	local mv_jumpConnection
 	local mv_clickConnection
+	local mv_tpToken = 0 -- incremented per TP; a running stepped TP stops when stale
 
 	-- Returns character, root, humanoid for the local player, or nil when any piece
 	-- is missing or dead (mid-respawn, etc).
@@ -5970,18 +6012,19 @@ Movement = (function()
 	end
 
 	-- Pulse: server speed checks validate displacement over a time window, so a
-	-- SUSTAINED 30+ velocity always trips them eventually. Alternating boost and
-	-- coast intervals keeps every window plausible. Coast frames drop to normal
-	-- walkspeed rather than zero, so movement never looks scripted-stop-start.
-	local PULSE_PERIOD = 0.2 -- seconds per boost+coast cycle
-	local PULSE_DUTY = 0.5 -- fraction of each cycle spent boosting
-
-	-- True during the boost half of the cycle; always true when Pulse is off.
+	-- SUSTAINED high velocity always trips them eventually. Alternating boost
+	-- and coast intervals keeps every window plausible. The default coast is
+	-- LONGER than the boost — anti-cheat windows differ per game, so both are
+	-- configurable; lengthen the coast if you still rubber-band.
+	-- Coast frames drop to normal walkspeed rather than zero, so movement never
+	-- looks scripted stop-start.
 	local function mv_pulseActive(config)
 		if config.Pulse == false then
 			return true
 		end
-		return (os.clock() % PULSE_PERIOD) < (PULSE_PERIOD * PULSE_DUTY)
+		local boost = config.PulseBoost or 0.1
+		local coast = config.PulseCoast or 0.15
+		return (os.clock() % (boost + coast)) < boost
 	end
 
 	-- Per-frame driver, called from the controller's RenderStepped loop.
@@ -6072,10 +6115,42 @@ Movement = (function()
 
 		local _, root = mv_character()
 		local mouse = LocalPlayer:GetMouse()
-		if root and mouse and mouse.Hit then
-			-- +3 studs so you land on top of the surface instead of inside it.
-			root.CFrame = CFrame.new(mouse.Hit.Position + Vector3.new(0, 3, 0))
+		if not (root and mouse and mouse.Hit) then
+			return
 		end
+
+		-- +3 studs so you land on top of the surface instead of inside it.
+		local destination = mouse.Hit.Position + Vector3.new(0, 3, 0)
+
+		if not config.ClickTPSteps then
+			-- One instant jump. Servers with anti-teleport validation reject this
+			-- (you snap back) — that's what stepped mode is for.
+			root.CFrame = CFrame.new(destination)
+			return
+		end
+
+		-- Stepped TP: hop toward the target in small increments so no single
+		-- frame's displacement trips the server's teleport check. A new click or
+		-- a respawn invalidates the run via the token.
+		mv_tpToken = mv_tpToken + 1
+		local token = mv_tpToken
+		local step = config.ClickTPStep or 10
+		local interval = config.ClickTPInterval or 0.05
+		task.spawn(function()
+			while token == mv_tpToken do
+				local _, currentRoot = mv_character()
+				if not currentRoot then
+					return
+				end
+				local offset = destination - currentRoot.CFrame.Position
+				if offset.Magnitude <= step then
+					currentRoot.CFrame = CFrame.new(destination)
+					return
+				end
+				currentRoot.CFrame = currentRoot.CFrame + offset.Unit * step
+				task.wait(interval)
+			end
+		end)
 	end
 
 	-- Event-driven halves (jump, click) live on their own connections; the
