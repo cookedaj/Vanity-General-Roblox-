@@ -6,10 +6,17 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 local ConfigManager = require(script.ConfigManager)
 local Utility = require(script.Utility)
+local Webhook = require(script.Webhook)
+
+-- Injected by the controller (avoids a UI <-> Movement require cycle): the
+-- Players tab's "Teleport To" button calls this.
+UI.TeleportTo = nil
 
 local UI = {}
 
@@ -54,6 +61,86 @@ local fpsPanel, fpsLabel -- bottom-right fps readout
 local activeCapture
 local capturingKey = false
 local activeDropdown = nil -- { frame, close, contains } for the one open dropdown
+
+-- Players tab state.
+local playerRows = {} -- player -> { btn, dist }
+local playerListFrame
+local selectedPlayer
+local spectatePlayer
+local spectateBtn -- action button whose label flips with the spectate state
+
+-- Recolors every existing element still showing the OLD accent to the new one
+-- (accent-colored properties are value copies, so a walk is the only way to
+-- catch what's already built). New controls read COLORS.accent directly.
+local function applyAccent(newColor)
+	local oldColor = COLORS.accent
+	if newColor == oldColor then
+		return
+	end
+	COLORS.accent = newColor
+	if activeConfig and activeConfig.UI then
+		activeConfig.UI.Accent = newColor
+	end
+	if not gui then
+		return
+	end
+	for _, inst in ipairs(gui:GetDescendants()) do
+		if inst:IsA("GuiObject") then
+			if inst.BackgroundColor3 == oldColor then
+				inst.BackgroundColor3 = newColor
+			end
+			if (inst:IsA("TextLabel") or inst:IsA("TextButton") or inst:IsA("TextBox"))
+				and inst.TextColor3 == oldColor
+			then
+				inst.TextColor3 = newColor
+			end
+			if inst:IsA("ScrollingFrame") and inst.ScrollBarImageColor3 == oldColor then
+				inst.ScrollBarImageColor3 = newColor
+			end
+		elseif inst:IsA("UIStroke") and inst.Color == oldColor then
+			inst.Color = newColor
+		end
+	end
+end
+
+local function refreshSpectateBtn()
+	if spectateBtn then
+		spectateBtn.Text = spectatePlayer and "Stop Spectating" or "Spectate"
+	end
+end
+
+local function stopSpectate()
+	if not spectatePlayer then
+		return
+	end
+	spectatePlayer = nil
+	-- Hand the camera back to the local humanoid.
+	local cam = Workspace.CurrentCamera
+	local character = LocalPlayer.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	if cam and humanoid then
+		cam.CameraSubject = humanoid
+	end
+	refreshSpectateBtn()
+end
+
+local function startSpectate(player)
+	local character = player and player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local cam = Workspace.CurrentCamera
+	if not (cam and humanoid) then
+		return
+	end
+	spectatePlayer = player
+	cam.CameraSubject = humanoid
+	refreshSpectateBtn()
+end
+
+-- True while the camera follows another player; the controller's aimbot skips
+-- steering then so the two don't fight over the camera.
+function UI.IsSpectating()
+	return spectatePlayer ~= nil
+end
 
 local function newInstance(class, props)
 	local inst = Instance.new(class)
@@ -2070,6 +2157,257 @@ local function buildMovementTab(parent, config)
 	end)
 end
 
+--==============================================================================
+-- Players tab: live player list (TeamColor name + distance) with per-player
+-- actions (teleport to, spectate). List refreshes on PlayerAdded/Removing;
+-- distances tick ~2x/sec on a shared RenderStepped connection (cleaned up with
+-- the rest of the UI).
+--==============================================================================
+local function buildPlayersTab(parent, config)
+	layoutOrder = 0
+	local host = makeSubTabHost(parent)
+	local left, right = makeColumns(host:add("Players"))
+
+	local listGroup = makeGroup(left, "Player List")
+
+	playerListFrame = newInstance("ScrollingFrame", {
+		Parent = listGroup,
+		LayoutOrder = nextOrder(),
+		Size = UDim2.new(1, 0, 0, 230),
+		BackgroundColor3 = COLORS.panel,
+		BackgroundTransparency = 0.5,
+		BorderSizePixel = 0,
+		CanvasSize = UDim2.new(0, 0, 0, 0),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ScrollBarThickness = 4,
+		ScrollBarImageColor3 = COLORS.accent,
+		ScrollingDirection = Enum.ScrollingDirection.Y,
+		Active = true,
+	})
+	newInstance("UICorner", { Parent = playerListFrame, CornerRadius = UDim.new(0, 6) })
+	newInstance("UIListLayout", {
+		Parent = playerListFrame,
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		Padding = UDim.new(0, 4),
+	})
+	newInstance("UIPadding", {
+		Parent = playerListFrame,
+		PaddingTop = UDim.new(0, 4),
+		PaddingBottom = UDim.new(0, 4),
+		PaddingLeft = UDim.new(0, 4),
+		PaddingRight = UDim.new(0, 4),
+	})
+
+	local function refreshSelection()
+		for player, row in pairs(playerRows) do
+			row.btn.BackgroundColor3 = (player == selectedPlayer) and COLORS.accent or COLORS.row
+		end
+	end
+
+	local function refreshList()
+		if not playerListFrame then
+			return
+		end
+		for _, child in ipairs(playerListFrame:GetChildren()) do
+			if not child:IsA("UIListLayout") then
+				child:Destroy()
+			end
+		end
+		table.clear(playerRows)
+
+		local count = 0
+		for _, player in ipairs(Players:GetPlayers()) do
+			if player ~= LocalPlayer then
+				count = count + 1
+
+				local row = newInstance("TextButton", {
+					Parent = playerListFrame,
+					LayoutOrder = count,
+					Size = UDim2.new(1, 0, 0, 24),
+					BackgroundColor3 = (player == selectedPlayer) and COLORS.accent or COLORS.row,
+					BorderSizePixel = 0,
+					AutoButtonColor = false,
+					Text = "",
+				})
+				newInstance("UICorner", { Parent = row, CornerRadius = UDim.new(0, 4) })
+
+				newInstance("TextLabel", {
+					Parent = row,
+					Size = UDim2.new(0.65, -8, 1, 0),
+					Position = UDim2.fromOffset(8, 0),
+					BackgroundTransparency = 1,
+					Font = Enum.Font.GothamBold,
+					TextSize = 12,
+					TextColor3 = player.TeamColor.Color,
+					TextXAlignment = Enum.TextXAlignment.Left,
+					TextTruncate = Enum.TextTruncate.AtEnd,
+					Text = player.Name,
+				})
+
+				local dist = newInstance("TextLabel", {
+					Parent = row,
+					Size = UDim2.new(0.35, -8, 1, 0),
+					Position = UDim2.new(0.65, 0, 0, 0),
+					BackgroundTransparency = 1,
+					Font = Enum.Font.Gotham,
+					TextSize = 11,
+					TextColor3 = COLORS.textSub,
+					TextXAlignment = Enum.TextXAlignment.Right,
+					Text = "—",
+				})
+
+				row.MouseButton1Click:Connect(function()
+					-- Click again to deselect.
+					selectedPlayer = (selectedPlayer == player) and nil or player
+					refreshSelection()
+				end)
+
+				playerRows[player] = { btn = row, dist = dist }
+			end
+		end
+
+		if count == 0 then
+			newInstance("TextLabel", {
+				Parent = playerListFrame,
+				LayoutOrder = 1,
+				Size = UDim2.new(1, 0, 0, 22),
+				BackgroundTransparency = 1,
+				Font = Enum.Font.Gotham,
+				TextSize = 11,
+				TextColor3 = COLORS.textSub,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				Text = "  no other players",
+			})
+		end
+	end
+
+	local actions = makeGroup(right, "Actions")
+
+	local selectedLabel = makeLabel(actions, "Selected", "—")
+
+	makeButton(actions, "Teleport To", function()
+		local character = selectedPlayer and selectedPlayer.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if root and UI.TeleportTo then
+			UI.TeleportTo(root.Position)
+		end
+	end)
+
+	spectateBtn = makeButton(actions, "Spectate", function()
+		if spectatePlayer then
+			stopSpectate()
+		elseif selectedPlayer then
+			startSpectate(selectedPlayer)
+		end
+	end)
+
+	-- Keep the "Selected" readout in sync with clicks.
+	table.insert(syncHandlers, function()
+		selectedLabel.Text = selectedPlayer and selectedPlayer.Name or "—"
+		refreshSelection()
+	end)
+
+	refreshList()
+
+	table.insert(uisConnections, Players.PlayerAdded:Connect(function()
+		refreshList()
+	end))
+
+	table.insert(uisConnections, Players.PlayerRemoving:Connect(function(player)
+		if player == selectedPlayer then
+			selectedPlayer = nil
+		end
+		if player == spectatePlayer then
+			stopSpectate()
+		end
+		refreshList()
+	end))
+
+	-- One ticker for distances (~2x/sec) and the spectate watchdog.
+	local lastTick = 0
+	table.insert(uisConnections, RunService.RenderStepped:Connect(function()
+		if os.clock() - lastTick < 0.5 then
+			return
+		end
+		lastTick = os.clock()
+
+		selectedLabel.Text = selectedPlayer and selectedPlayer.Name or "—"
+
+		local myChar = LocalPlayer.Character
+		local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+		for player, row in pairs(playerRows) do
+			local character = player.Character
+			local root = character and character:FindFirstChild("HumanoidRootPart")
+			row.dist.Text = (myRoot and root)
+				and (math.floor((root.Position - myRoot.Position).Magnitude + 0.5) .. "m")
+				or "—"
+		end
+
+		if spectatePlayer then
+			-- Fly steers the same camera, so it wins: stop spectating when it
+			-- turns on (cheap flag check, no hooking into the toggle).
+			if activeConfig and activeConfig.Movement and activeConfig.Movement.FlyEnabled then
+				stopSpectate()
+			else
+				local character = spectatePlayer.Character
+				local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+				local cam = Workspace.CurrentCamera
+				if humanoid and humanoid.Health > 0 and cam then
+					cam.CameraSubject = humanoid -- re-affirm (covers respawn too)
+				else
+					stopSpectate() -- target died or lost their character
+				end
+			end
+		end
+	end))
+end
+
+--==============================================================================
+-- Misc tab: session actions moved out of Settings (account info, Anti-AFK,
+-- server hop / rejoin) plus webhook configuration.
+--==============================================================================
+local function buildMiscTab(parent, config)
+	layoutOrder = 0
+	local host = makeSubTabHost(parent)
+	local left, right = makeColumns(host:add("Session"))
+
+	local account = makeGroup(left, "Account")
+	makeLabel(account, "Username", LocalPlayer and LocalPlayer.Name or "—")
+	makeLabel(account, "Display Name", LocalPlayer and LocalPlayer.DisplayName or "—")
+	makeLabel(account, "User ID", LocalPlayer and tostring(LocalPlayer.UserId) or "—")
+
+	makeToggle(account, "Anti-AFK", function()
+		return config.Utility.AntiAFK
+	end, function()
+		config.Utility.AntiAFK = not config.Utility.AntiAFK
+	end)
+
+	makeButton(account, "Server Hop", function()
+		Utility:ServerHop()
+	end)
+
+	makeButton(account, "Rejoin Server", function()
+		Utility:Rejoin()
+	end)
+
+	local webhook = makeGroup(right, "Webhook")
+
+	local urlBox = makeTextBox(webhook, "webhook url…")
+	urlBox.Text = config.Webhook.Url
+	urlBox.FocusLost:Connect(function()
+		config.Webhook.Url = urlBox.Text
+	end)
+
+	makeButton(webhook, "Send Test Webhook", function()
+		local ok, res = Webhook.SendWebhook("Vanity-General test webhook")
+		if ok then
+			UI:Notify("Test webhook sent", 2)
+		else
+			UI:Notify("Webhook failed: " .. tostring(res), 3)
+		end
+	end)
+end
+
 local function buildSettingsTab(parent, config)
 	layoutOrder = 0
 	local host = makeSubTabHost(parent)
@@ -2123,23 +2461,18 @@ local function buildSettingsTab(parent, config)
 		end
 	end)
 
-	local account = makeGroup(right, "Account")
-	makeLabel(account, "Username", LocalPlayer and LocalPlayer.Name or "—")
-	makeLabel(account, "Display Name", LocalPlayer and LocalPlayer.DisplayName or "—")
-	makeLabel(account, "User ID", LocalPlayer and tostring(LocalPlayer.UserId) or "—")
-
-	makeToggle(account, "Anti-AFK", function()
-		return config.Utility.AntiAFK
-	end, function()
-		config.Utility.AntiAFK = not config.Utility.AntiAFK
+	makeColorPicker(iface, "Accent Color", function()
+		return config.UI.Accent
+	end, function(newColor)
+		applyAccent(newColor)
 	end)
 
-	makeButton(account, "Server Hop", function()
-		Utility:ServerHop()
-	end)
-
-	makeButton(account, "Rejoin Server", function()
-		Utility:Rejoin()
+	-- Reset / profile-load rewrites config.UI.Accent behind our back; re-apply
+	-- it to the live theme on every sync.
+	table.insert(syncHandlers, function()
+		if config.UI.Accent then
+			applyAccent(config.UI.Accent)
+		end
 	end)
 
 	------------------------------------------------------------------ Configs ---
@@ -2642,6 +2975,11 @@ function UI:Init(config, onUnload)
 	activeConfig = config
 	onUnloadCallback = onUnload
 
+	-- Seed the live accent from config before anything is built with it.
+	if config.UI.Accent then
+		COLORS.accent = config.UI.Accent
+	end
+
 	startInputRouter()
 
 	gui = newInstance("ScreenGui", {
@@ -2841,16 +3179,18 @@ function UI:Init(config, onUnload)
 		PaddingRight = UDim.new(0, 4),
 	})
 
-	local tabs = { "Combat", "Visual", "Movement", "Settings" }
+	local tabs = { "Combat", "Visual", "Movement", "Players", "Misc", "Settings" }
 	local tabFrames = {}
 
 	for i, tabName in ipairs(tabs) do
 		local isActive = currentTab == tabName
 
+		-- Buttons share the sidebar height equally (minus layout padding), so
+		-- any tab count fits without overflowing.
 		local tabBtn = newInstance("TextButton", {
 			Parent = tabList,
 			LayoutOrder = i,
-			Size = UDim2.new(1, 0, 0, 34),
+			Size = UDim2.new(1, 0, 1 / #tabs, -6),
 			BackgroundColor3 = COLORS.rowHover,
 			BackgroundTransparency = isActive and 0 or 1,
 			BorderSizePixel = 0,
@@ -2918,6 +3258,8 @@ function UI:Init(config, onUnload)
 	buildCameraTab(tabFrames["Combat"].frame, config)
 	buildESPTab(tabFrames["Visual"].frame, config)
 	buildMovementTab(tabFrames["Movement"].frame, config)
+	buildPlayersTab(tabFrames["Players"].frame, config)
+	buildMiscTab(tabFrames["Misc"].frame, config)
 	buildSettingsTab(tabFrames["Settings"].frame, config)
 	buildKeybindPanel(config)
 	buildTargetPanel(config)
@@ -3042,6 +3384,12 @@ function UI:Notify(text, duration)
 end
 
 function UI:Cleanup()
+	stopSpectate() -- hand the camera back before the UI goes away
+	selectedPlayer = nil
+	spectateBtn = nil
+	playerListFrame = nil
+	table.clear(playerRows)
+
 	for _, conn in ipairs(uisConnections) do
 		conn:Disconnect()
 	end

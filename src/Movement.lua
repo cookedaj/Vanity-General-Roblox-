@@ -27,6 +27,7 @@ local JUMP_VELOCITY = 50
 local mv_jumpConnection
 local mv_clickConnection
 local mv_tpToken = 0 -- incremented per TP; a running stepped TP stops when stale
+local mv_activeConfig -- stored by Init so TeleportTo can read the ClickTP settings
 
 -- Returns character, root, humanoid for the local player, or nil when any piece
 -- is missing or dead (mid-respawn, etc).
@@ -167,39 +168,25 @@ local function mv_onJumpRequest(config)
 	end
 end
 
-local function mv_onInput(config, input, gameProcessed)
-	if gameProcessed or UI:IsCapturingKey() then
-		return
-	end
-	if not config.ClickTPEnabled then
-		return
-	end
-	if input.UserInputType ~= Enum.UserInputType.MouseButton1 then
-		return
-	end
-	if not UserInputService:IsKeyDown(config.ClickTPKey or Enum.KeyCode.LeftControl) then
-		return
-	end
-
-	local _, root = mv_character()
-	local mouse = LocalPlayer:GetMouse()
-	if not (root and mouse and mouse.Hit) then
-		return
-	end
-
-	-- +3 studs so you land on top of the surface instead of inside it.
-	local destination = mouse.Hit.Position + Vector3.new(0, 3, 0)
+-- Teleports the local character to a world position (+3 studs so you land on
+-- top of the surface instead of inside it). Shared by Click TP and the Players
+-- tab's "Teleport To" button. Stepped mode (ClickTPSteps) hops in small
+-- increments so no single frame's displacement trips server teleport checks;
+-- a new TP or a respawn invalidates a running hop via mv_tpToken.
+function Movement.TeleportTo(position)
+	local destination = position + Vector3.new(0, 3, 0)
+	local config = mv_activeConfig or {}
 
 	if not config.ClickTPSteps then
 		-- One instant jump. Servers with anti-teleport validation reject this
 		-- (you snap back) — that's what stepped mode is for.
-		root.CFrame = CFrame.new(destination)
+		local _, root = mv_character()
+		if root then
+			root.CFrame = CFrame.new(destination)
+		end
 		return
 	end
 
-	-- Stepped TP: hop toward the target in small increments so no single
-	-- frame's displacement trips the server's teleport check. A new click or
-	-- a respawn invalidates the run via the token.
 	mv_tpToken = mv_tpToken + 1
 	local token = mv_tpToken
 	local step = config.ClickTPStep or 10
@@ -221,9 +208,30 @@ local function mv_onInput(config, input, gameProcessed)
 	end)
 end
 
+local function mv_onInput(config, input, gameProcessed)
+	if gameProcessed or UI:IsCapturingKey() then
+		return
+	end
+	if not config.ClickTPEnabled then
+		return
+	end
+	if input.UserInputType ~= Enum.UserInputType.MouseButton1 then
+		return
+	end
+	if not UserInputService:IsKeyDown(config.ClickTPKey or Enum.KeyCode.LeftControl) then
+		return
+	end
+
+	local mouse = LocalPlayer:GetMouse()
+	if mouse and mouse.Hit then
+		Movement.TeleportTo(mouse.Hit.Position)
+	end
+end
+
 -- Event-driven halves (jump, click) live on their own connections; the
 -- per-frame halves are driven by the controller calling Update.
 function Movement:Init(config)
+	mv_activeConfig = config
 	if not mv_jumpConnection then
 		mv_jumpConnection = UserInputService.JumpRequest:Connect(function()
 			mv_onJumpRequest(config)

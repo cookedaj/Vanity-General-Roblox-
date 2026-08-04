@@ -150,6 +150,7 @@ Configuration.UI = {
 	MenuKey = Enum.KeyCode.RightShift,
 	UnloadKey = Enum.KeyCode.End,
 	Visible = false, -- the menu itself; opened with MenuKey, not an Interface toggle
+	Accent = Color3.fromRGB(132, 62, 190), -- UI accent color (live-recolored)
 	-- Interface overlays all start ON.
 	KeybindPanel = true,  -- standalone keybind window
 	TargetDisplay = true, -- popup naming whoever you're looking at
@@ -234,6 +235,7 @@ local DEFAULTS = {
 	Utility = { AntiAFK = true },
 	UI = {
 		Scale = 1,
+		Accent = Color3.fromRGB(132, 62, 190),
 		KeybindPanel = true,
 		TargetDisplay = true,
 		FPSCounter = true,

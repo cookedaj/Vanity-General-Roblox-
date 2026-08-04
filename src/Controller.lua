@@ -31,6 +31,10 @@ local Controller = {}
 Controller.Version = "0"
 Controller.Config = Configuration
 
+-- Injected rather than required by the UI (would be a UI <-> Movement cycle):
+-- the Players tab's "Teleport To" button calls this.
+UI.TeleportTo = Movement.TeleportTo
+
 Webhook.Version = Controller.Version -- stamped for the "loaded" embed
 
 local running = false
@@ -205,7 +209,12 @@ function Controller.Start()
 
 			guarded("ESP", ESP.Update, ESP, Configuration.ESP)
 
-			local okAim, target = guarded("Aimbot", CameraDirector.Update, CameraDirector, Configuration.Camera, Configuration.Debug)
+			-- While spectating (Players tab), the aimbot must not steer the
+			-- camera away from the spectate target.
+			local okAim, target = true, nil
+			if not (UI.IsSpectating and UI.IsSpectating()) then
+				okAim, target = guarded("Aimbot", CameraDirector.Update, CameraDirector, Configuration.Camera, Configuration.Debug)
+			end
 			if not okAim then
 				target = nil
 			end
