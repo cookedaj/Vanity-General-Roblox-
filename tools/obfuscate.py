@@ -156,17 +156,21 @@ def _walk_nodes(node, parent=None):
                     yield from _walk_nodes(item, node)
 
 
-def collect_name_replacements(tree):
+def collect_name_replacements(tree, src_text):
     """Rename every local identifier to _v1, _v2, ...
 
-    Returns (replacements, skipped) where replacements is a list of
+    Returns (replacements, mapping, skipped) where replacements is a list of
     (start, stop, new_name) source spans. A name is renamed only if it is
     declared as a local somewhere (local assign, local function, for-loop
     vars, function params) and isn't in KEEP_NAMES. Table-field positions
     (Index keys, Method names, table-constructor field keys) are never
-    renamed — `config.Enabled` must stay `config.Enabled`. Since every
-    occurrence of a declared local is renamed identically and the new names
-    collide with nothing, scoping is preserved without a full scope analysis.
+    renamed — `config.Enabled` must stay `config.Enabled`.
+
+    Ids that ALSO appear as bare table-constructor keys (`{ id =` / `, id =`)
+    are excluded from the mapping entirely: renaming them textually would
+    corrupt the table key, and renaming them only partially (span pass)
+    splits one local into two names and breaks the script. Skipping the
+    whole id keeps it consistent — merely readable.
     """
     declared = set()
     excluded_node_ids = set()
@@ -217,8 +221,12 @@ def collect_name_replacements(tree):
     rename_ids = sorted(n for n in declared if n not in KEEP_NAMES and len(n) > 1)
     existing = {n for n, _, _ in name_nodes} | KEEP_NAMES
     mapping = {}
+    skipped = []
     i = 0
     for old in rename_ids:
+        if re.search(rf"[{{,]\s*{re.escape(old)}\s*=", src_text):
+            skipped.append(old)
+            continue  # table-key use: leave the whole id alone (see docstring)
         while True:
             i += 1
             new = f"_v{i}"
@@ -232,7 +240,7 @@ def collect_name_replacements(tree):
         for name, start, stop in name_nodes
         if name in mapping
     ]
-    return replacements, mapping
+    return replacements, mapping, skipped
 
 
 def main() -> None:
@@ -255,7 +263,7 @@ def main() -> None:
         )
 
     strings = collect_strings(tree)
-    name_replacements, name_mapping = collect_name_replacements(tree)
+    name_replacements, name_mapping, skipped_ids = collect_name_replacements(tree, stripped)
 
     key = [random.randrange(1, 256) for _ in range(9)]
 
@@ -281,16 +289,12 @@ def main() -> None:
     # survive the span pass. Rename every remaining occurrence textually —
     # safe here because strings are already encrypted and comments stripped,
     # so identifier words only remain in code positions. `.id` / `:id`
-    # (field access) are protected by the lookbehind; ids that also appear
-    # as bare table-constructor keys (`{ id =` / `, id =`) are skipped
-    # entirely to stay safe. Already-renamed occurrences no longer match
-    # `old`, so spanned and unspanned occurrences converge on one name.
+    # (field access) are protected by the lookbehind. Already-renamed
+    # occurrences no longer match `old`, so spanned and unspanned
+    # occurrences converge on one name. (Table-key ids were excluded from
+    # the mapping up front, so no skip logic is needed here.)
     textual = 0
-    skipped_ids = []
     for old, new in sorted(name_mapping.items(), key=lambda kv: -len(kv[0])):
-        if re.search(rf"[{{,]\s*{re.escape(old)}\s*=", out):
-            skipped_ids.append(old)
-            continue  # appears as a table key — leave this name readable
         out, n = re.subn(rf"(?<![\w.:]){re.escape(old)}(?![\w])", new, out)
         textual += n
     if skipped_ids:
@@ -310,6 +314,23 @@ def main() -> None:
         ast.parse(result)
     except Exception as exc:
         raise SystemExit(f"obfuscated output failed to re-parse: {exc}")
+
+    # Every mangled _vN referenced must be declared somewhere. A split
+    # rename (some occurrences renamed, others not) leaves dangling
+    # references that only fail at runtime — catch them here.
+    declared_v = set()
+    for names in re.findall(r"\blocal\s+([^=\n]+)", result):
+        declared_v.update(re.findall(r"_v\d+", names))
+    for params in re.findall(r"function[^(]*\(([^)]*)\)", result):
+        declared_v.update(re.findall(r"_v\d+", params))
+    for targets in re.findall(r"\bfor\s+([^\n]+?)\s*(?:=|\bin\b)", result):
+        declared_v.update(re.findall(r"_v\d+", targets))
+    used_v = set(re.findall(r"(?<![\w.])(_v\d+)(?![\w])", result))
+    dangling = used_v - declared_v
+    if dangling:
+        raise SystemExit(
+            f"dangling mangled names (split rename bug): {sorted(dangling)[:10]}"
+        )
 
     emitted = re.findall(r"\(_V9\(\{([\d,]*)\}\)\)", result)
     if len(emitted) != len(strings):
