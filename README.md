@@ -1,7 +1,7 @@
 # Vanity-General
 
-A full client-side combat/visuals/movement suite for Roblox, built as 17 focused
-modules and shipped as a single obfuscated executor script.
+A full client-side combat/visuals/movement suite for Roblox, built as 18 focused
+modules and shipped as a single obfuscated, encrypted executor script.
 
 ## 🎯 What This Is
 
@@ -10,7 +10,7 @@ modules and shipped as a single obfuscated executor script.
 - **Combat** → Aimbot, triggerbot, silent aim, hitbox expander, no-recoil, no-spread
 - **Visual** → Player/NPC ESP (highlights, boxes, name/health/distance tags), Drawing boxes & tracers, fullbright, no fog
 - **Movement** → Fly, noclip, speed, infinite jump, click-teleport
-- **Settings** → Rebindable keys, per-game config profiles, anti-AFK, server hop / rejoin, unload
+- **Settings** → Rebindable keys, per-game config profiles, server hop / rejoin, unload
 
 `src/` is the single source of truth. The executor builds are **generated** —
 never edited directly.
@@ -20,16 +20,16 @@ never edited directly.
 ## ✨ Features
 
 ### Combat
-- 🎯 **Aimbot** — smooth camera lock with adjustable smoothness, velocity
-  prediction (0–1 lead), humanize jitter, FOV radius + on-screen FOV circle
-  (F1), sticky target, hitbox mode (`Random (Weighted)` with per-region
+- 🎯 **Aimbot** — smooth camera lock with adjustable smoothness, FOV radius +
+  on-screen FOV circle (F1), hitbox mode (`Random (Weighted)` with per-region
   chance weights, or Head/Torso/Arms/Legs), wall check, Team Check,
   Target Bots (NPCs), world-range limit in studs
 - 🔫 **Triggerbot** (F4) — auto-fires when the crosshair sits on a target,
   with a humanized random delay sampled between Min/MaxDelay, max-distance
   and vischeck options
-- 🤫 **Silent Aim** — redirects shots onto the aimbot's target without moving
-  the camera; executor-only (`hookmetamethod`/`getnamecallmethod`, guarded —
+- 🤫 **Silent Aim** — curves shots onto the target without moving the camera:
+  flat when the line is clear, lobbed over obstacles (hills, walls) when it
+  isn't; executor-only (`hookmetamethod`/`getnamecallmethod`, guarded —
   no-ops cleanly where unsupported)
 - 📦 **Hitbox Expander** — inflates enemy root parts (size/transparency)
 - 🧲 **No Recoil** (F2) — post-camera render bind fully undoes recoil climb;
@@ -49,13 +49,17 @@ never edited directly.
 - 👻 **Noclip**
 - 🏃 **Speed** boost (only the surplus over stock 16 WalkSpeed)
 - ♾️ **Infinite Jump**
-- ⚡ **Click TP** — hold LeftControl + left-click to teleport
+- ⚡ **Click TP** — hold LeftControl + left-click to teleport; stepped hops and
+  the anti-lagback pulse run automatically at fixed best settings
 
 ### Settings / QoL
 - ⌨️ Every hotkey rebindable from the UI, with conflict detection
 - 💾 **Per-game config profiles** — saved as JSON per PlaceId, so one executor
   folder holds settings for every game (`SaveConfig`/`LoadConfig`/…)
-- 😴 **Anti-AFK** — on by default
+- 🫥 **Environment cloaking** — the `getgenv` export never enumerates, created
+  instances are filtered out of game-side scans, all DataModel names are
+  randomized, and hooks wrap in `newcclosure` and install only when a feature
+  actually needs them
 - 🌐 **Server Hop / Rejoin** buttons
 - 🖥️ Keybind panel, target display, FPS counter, watermark (custom image id)
 - 🔔 Discord **webhook** "loaded" embed (plain `Configuration.Webhook.Url`)
@@ -69,10 +73,11 @@ Vanity-General/
 ├── bootstrap.lua                  (Local test entry; loads the dist build via readfile)
 ├── README.md                      (This file)
 │
-├── src/                           (SOURCE OF TRUTH — 17 modules, edit these)
+├── src/                           (SOURCE OF TRUTH — 18 modules, edit these)
+│   ├── Cloak.lua                  (Environment hiding: hidden globals, scan filters, C closures)
 │   ├── Configuration.lua          (All settings + defaults + reset)
 │   ├── ConfigManager.lua          (Per-game JSON config profiles, keyed by PlaceId)
-│   ├── Utility.lua                (Anti-AFK, server hop / rejoin, GUI parent helper)
+│   ├── Utility.lua                (Server hop / rejoin, GUI parent helper)
 │   ├── CameraDirector.lua         (Aimbot targeting + camera steering)
 │   ├── ESP.lua                    (Highlight/box/tag ESP, players + NPCs)
 │   ├── DrawingESP.lua             (Executor Drawing boxes/tracers)
@@ -94,20 +99,22 @@ Vanity-General/
 │
 ├── tools/
 │   ├── build.py                   (Bundler: src/ → dist/VanityGeneral_INTEGRATED.lua)
-│   └── obfuscate.py               (Obfuscator: dist → release/VanityGeneral.lua)
+│   ├── obfuscate.py               (Obfuscator: dist → dist/VanityGeneral_OBF.lua)
+│   └── encrypt.py                 (Encrypter: dist OBF → release/VanityGeneral.lua)
 │
 ├── dist/
-│   └── VanityGeneral_INTEGRATED.lua   (GENERATED — do not edit; ~183KB)
+│   ├── VanityGeneral_INTEGRATED.lua   (GENERATED — do not edit; ~216KB bundle)
+│   └── VanityGeneral_OBF.lua          (GENERATED — obfuscated, pre-encryption)
 │
 ├── release/
-│   ├── VanityGeneral.lua          (Obfuscated public release — GENERATED)
+│   ├── VanityGeneral.lua          (Encrypted self-decrypting public release — GENERATED)
 │   └── loader.lua                 (Cross-executor loadstring; paste this)
 │
 ├── tests/                         (StringObfuscation test suite and demo)
 ├── docs/                          (All guides — see Documentation below)
 │   └── history/                   (Archived changelogs)
 ├── reference/cpp/                 (C++ reference implementations)
-└── archive/                       (Stale older monoliths)
+└── vercel-deploy/                 (Website hosting copy — scripts/VanityGeneral.lua mirrors release/)
 ```
 
 ---
@@ -117,7 +124,7 @@ Vanity-General/
 ### Executor (recommended)
 
 Paste the contents of `release/loader.lua` into your executor. It fetches the
-obfuscated release and starts it, trying every common HTTP API until one works:
+encrypted release and starts it, trying every common HTTP API until one works:
 
 ```lua
 local VanityGeneral = loadstring(game:HttpGet("https://raw.githubusercontent.com/cookedaj/vanity-release/main/VanityGeneral.lua"))()
@@ -209,10 +216,13 @@ VanityGeneral.SetWatermarkImage("139845693858856")
 2. **Build**: `python tools/build.py` → `dist/VanityGeneral_INTEGRATED.lua`
    (bundle order/dependency list lives in `MODULES` at the top of build.py)
 3. **Test** locally via `bootstrap.lua` (or in Studio with the modular layout)
-4. **Obfuscate**: `python tools/obfuscate.py dist/VanityGeneral_INTEGRATED.lua release/VanityGeneral.lua`
-   (strips comments, XOR-encrypts every string literal, verifies the round-trip
-   before writing; requires `pip install luaparser`)
-5. **Release**: push `release/VanityGeneral.lua` to the public repo the loader
+4. **Obfuscate**: `python tools/obfuscate.py dist/VanityGeneral_INTEGRATED.lua dist/VanityGeneral_OBF.lua`
+   (strips comments, XOR-encrypts every string literal, mangles local names,
+   verifies the round-trip before writing; requires `pip install luaparser`)
+5. **Encrypt**: `python tools/encrypt.py dist/VanityGeneral_OBF.lua release/VanityGeneral.lua`
+   (wraps the obfuscated build in a self-decrypting byte-payload stub with a
+   random per-build key — the release contains no readable Lua)
+6. **Release**: push `release/VanityGeneral.lua` to the public repo the loader
    fetches from (`release/loader.lua` points at it)
 
 Module contract the bundler relies on: each module ends with

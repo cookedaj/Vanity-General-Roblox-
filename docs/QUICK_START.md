@@ -49,7 +49,8 @@ bundled blob.
 
 ```bash
 .venv-obf/Scripts/python.exe tools/build.py src dist/VanityGeneral_INTEGRATED.lua
-.venv-obf/Scripts/python.exe tools/obfuscate.py dist/VanityGeneral_INTEGRATED.lua release/VanityGeneral.lua
+.venv-obf/Scripts/python.exe tools/obfuscate.py dist/VanityGeneral_INTEGRATED.lua dist/VanityGeneral_OBF.lua
+.venv-obf/Scripts/python.exe tools/encrypt.py dist/VanityGeneral_OBF.lua release/VanityGeneral.lua
 # push release/VanityGeneral.lua to the public vanity-release repo
 ```
 

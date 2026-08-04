@@ -27,7 +27,6 @@ local JUMP_VELOCITY = 50
 local mv_jumpConnection
 local mv_clickConnection
 local mv_tpToken = 0 -- incremented per TP; a running stepped TP stops when stale
-local mv_activeConfig -- stored by Init so TeleportTo can read the ClickTP settings
 
 -- Returns character, root, humanoid for the local player, or nil when any piece
 -- is missing or dead (mid-respawn, etc).
@@ -80,20 +79,17 @@ local function mv_flyDirection(cam)
 	return nil
 end
 
--- Pulse: server speed checks validate displacement over a time window, so a
--- SUSTAINED high velocity always trips them eventually. Alternating boost
--- and coast intervals keeps every window plausible. The default coast is
--- LONGER than the boost — anti-cheat windows differ per game, so both are
--- configurable; lengthen the coast if you still rubber-band.
--- Coast frames drop to normal walkspeed rather than zero, so movement never
--- looks scripted stop-start.
-local function mv_pulseActive(config)
-	if config.Pulse == false then
-		return true
-	end
-	local boost = config.PulseBoost or 0.1
-	local coast = config.PulseCoast or 0.15
-	return (os.clock() % (boost + coast)) < boost
+-- Pulse (anti-lagback): server speed checks validate displacement over a time
+-- window, so a SUSTAINED high velocity always trips them eventually. Alternating
+-- boost and coast intervals keeps every window plausible. Always on with fixed
+-- timing (100 ms boost / 150 ms coast — the most compatible window across
+-- games); coast frames drop to normal walkspeed rather than zero, so movement
+-- never looks scripted stop-start.
+local PULSE_BOOST = 0.1
+local PULSE_COAST = 0.15
+
+local function mv_pulseActive()
+	return (os.clock() % (PULSE_BOOST + PULSE_COAST)) < PULSE_BOOST
 end
 
 -- Per-frame driver, called from the controller's RenderStepped loop.
@@ -128,7 +124,7 @@ function Movement:Update(dt, config)
 				local dir = mv_flyDirection(cam)
 				if dir then
 					local speed = config.FlySpeed or 50
-					if not mv_pulseActive(config) then
+					if not mv_pulseActive() then
 						speed = math.min(speed, BASE_WALKSPEED) -- coast at a plausible rate
 					end
 					velocity = dir * speed
@@ -147,7 +143,7 @@ function Movement:Update(dt, config)
 	if config.SpeedEnabled then
 		local speed = config.Speed or BASE_WALKSPEED
 		local move = humanoid.MoveDirection
-		if speed > BASE_WALKSPEED and move.Magnitude > 0 and mv_pulseActive(config) then
+		if speed > BASE_WALKSPEED and move.Magnitude > 0 and mv_pulseActive() then
 			local velocity = root.AssemblyLinearVelocity
 			root.AssemblyLinearVelocity = Vector3.new(move.X * speed, velocity.Y, move.Z * speed)
 		end
@@ -170,27 +166,18 @@ end
 
 -- Teleports the local character to a world position (+3 studs so you land on
 -- top of the surface instead of inside it). Shared by Click TP and the Players
--- tab's "Teleport To" button. Stepped mode (ClickTPSteps) hops in small
--- increments so no single frame's displacement trips server teleport checks;
--- a new TP or a respawn invalidates a running hop via mv_tpToken.
+-- tab's "Teleport To" button. Always stepped: one instant jump gets rejected by
+-- server anti-teleport validation (you snap back), so the TP hops in small
+-- increments — no single frame's displacement trips the checks. A new TP or a
+-- respawn invalidates a running hop via mv_tpToken.
+local TP_STEP = 10 -- studs per hop
+local TP_INTERVAL = 0.05 -- seconds between hops
+
 function Movement.TeleportTo(position)
 	local destination = position + Vector3.new(0, 3, 0)
-	local config = mv_activeConfig or {}
-
-	if not config.ClickTPSteps then
-		-- One instant jump. Servers with anti-teleport validation reject this
-		-- (you snap back) — that's what stepped mode is for.
-		local _, root = mv_character()
-		if root then
-			root.CFrame = CFrame.new(destination)
-		end
-		return
-	end
 
 	mv_tpToken = mv_tpToken + 1
 	local token = mv_tpToken
-	local step = config.ClickTPStep or 10
-	local interval = config.ClickTPInterval or 0.05
 	task.spawn(function()
 		while token == mv_tpToken do
 			local _, currentRoot = mv_character()
@@ -198,12 +185,12 @@ function Movement.TeleportTo(position)
 				return
 			end
 			local offset = destination - currentRoot.CFrame.Position
-			if offset.Magnitude <= step then
+			if offset.Magnitude <= TP_STEP then
 				currentRoot.CFrame = CFrame.new(destination)
 				return
 			end
-			currentRoot.CFrame = currentRoot.CFrame + offset.Unit * step
-			task.wait(interval)
+			currentRoot.CFrame = currentRoot.CFrame + offset.Unit * TP_STEP
+			task.wait(TP_INTERVAL)
 		end
 	end)
 end
@@ -231,7 +218,6 @@ end
 -- Event-driven halves (jump, click) live on their own connections; the
 -- per-frame halves are driven by the controller calling Update.
 function Movement:Init(config)
-	mv_activeConfig = config
 	if not mv_jumpConnection then
 		mv_jumpConnection = UserInputService.JumpRequest:Connect(function()
 			mv_onJumpRequest(config)

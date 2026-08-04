@@ -12,6 +12,7 @@
 --==============================================================================
 
 -- Module tables (hoisted so every section can reference any module)
+local Cloak
 local Configuration
 local ConfigManager
 local Utility
@@ -29,6 +30,218 @@ local NoSpread
 local UI
 local Movement
 local Controller
+
+--============================================================================
+-- CLOAK
+--============================================================================
+Cloak = (function()
+	--==============================================================================
+	-- CLOAK
+	-- Keeps the script out of a game's environment integrity checks:
+	--  * The getgenv().VanityGeneral export is served through a metatable __index
+	--    instead of a raw key, so pairs(getgenv()) enumerations never see it.
+	--  * Instances the script creates are registered via Protect(); when the GAME
+	--    (not one of our threads) calls GetChildren/GetDescendants/FindFirstChild*,
+	--    the results are filtered of registered instances and their descendants.
+	--    This is what hides the head BillboardGui tags, which live inside player
+	--    characters and are otherwise visible to any character scan.
+	--  * RandomName() gives DataModel objects throwaway names, so nothing carries
+	--    a "Vanity*" string for name-signature scans.
+	-- Everything is best-effort: without hookmetamethod/checkcaller the filters
+	-- simply never install, and the script behaves exactly as before.
+	--==============================================================================
+
+	local Cloak = {}
+
+	local Players = game:GetService("Players")
+	local Workspace = game:GetService("Workspace")
+	local LocalPlayer = Players.LocalPlayer
+
+	-- Weak keys: destroyed instances (ESP entries churn on respawn/leave) drop out
+	-- of the set on their own once collected.
+	local protected = setmetatable({}, { __mode = "k" })
+	local protectedCount = 0
+
+	-- Values served through the getgenv metatable. A re-execution wraps the
+	-- previous chunk's __index, so a name only the OLD copy set still resolves
+	-- (this is how Main finds the previous Controller to stop it).
+	local hiddenGlobals = {}
+
+	local NAME_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+	function Cloak.RandomName(length)
+		length = length or 14
+		local out = {}
+		for i = 1, length do
+			local n = math.random(1, #NAME_CHARS)
+			out[i] = string.sub(NAME_CHARS, n, n)
+		end
+		return table.concat(out)
+	end
+
+	-- Wraps a hook replacement so it presents as a C function: islclosure() is
+	-- false, debug.getinfo shows no Lua source, string.dump fails, and no Lua
+	-- frames appear in a game's debug.traceback — the same profile the original
+	-- engine functions and metamethods have. Falls back to the plain function on
+	-- executors without newcclosure.
+	function Cloak.CClosure(fn)
+		if type(newcclosure) == "function" then
+			local ok, wrapped = pcall(newcclosure, fn)
+			if ok and type(wrapped) == "function" then
+				return wrapped
+			end
+		end
+		return fn
+	end
+
+	-- True when the game can enumerate this instance: it sits under Workspace or
+	-- the local PlayerGui (the fallbacks). gethui/CoreGui containers can't be read
+	-- by game scripts, so instances there need no filtering.
+	local function exposedToGame(inst)
+		local ok, exposed = pcall(function()
+			if inst:IsDescendantOf(Workspace) then
+				return true
+			end
+			local playerGui = LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
+			return playerGui ~= nil and inst:IsDescendantOf(playerGui)
+		end)
+		return ok and exposed == true
+	end
+
+	function Cloak.Protect(inst)
+		if not protected[inst] then
+			protected[inst] = true
+			protectedCount = protectedCount + 1
+		end
+		-- The __namecall filter is itself a modification a game can probe for, so
+		-- it installs on demand — only once something protected is actually
+		-- exposed to game-side scans. On an executor with gethui and everything
+		-- disabled, the game's metatable is never touched at all.
+		if exposedToGame(inst) then
+			Cloak.Install()
+		end
+		return inst
+	end
+
+	-- True when inst is, or lives under, a registered instance. Walks .Parent (an
+	-- __index read), so it cannot recurse through our own __namecall hook. Stops
+	-- at the DataModel, whose .Parent read is locked and would throw.
+	local function isHidden(inst)
+		local node = inst
+		while node and node ~= game do
+			if protected[node] then
+				return true
+			end
+			node = node.Parent
+		end
+		return false
+	end
+
+	-- Stores value under getgenv()[name] WITHOUT a raw key: reads still work, but
+	-- pairs()/next() scans of the environment never enumerate it. Returns false
+	-- when the environment can't take a metatable (caller may fall back to a raw
+	-- assignment if the export matters more than the hiding).
+	function Cloak.HideGlobal(name, value)
+		hiddenGlobals[name] = value
+
+		if type(getgenv) ~= "function" then
+			return false
+		end
+		local ok, env = pcall(getgenv)
+		if not ok or type(env) ~= "table" then
+			return false
+		end
+
+		-- A pre-cloak build may have left a raw key behind; drop it.
+		pcall(function()
+			if rawget(env, name) ~= nil then
+				rawset(env, name, nil)
+			end
+		end)
+
+		local ok2 = pcall(function()
+			local mt = getmetatable(env)
+			local oldIndex = mt and rawget(mt, "__index")
+			local newMt = {}
+			if mt then
+				for k, v in pairs(mt) do
+					newMt[k] = v
+				end
+			end
+			newMt.__index = function(_, key)
+				local hidden = hiddenGlobals[key]
+				if hidden ~= nil then
+					return hidden
+				end
+				if type(oldIndex) == "function" then
+					return oldIndex(env, key)
+				elseif type(oldIndex) == "table" then
+					return oldIndex[key]
+				end
+				return nil
+			end
+			setmetatable(env, newMt)
+		end)
+		return ok2
+	end
+
+	local installed = false
+
+	local FILTERED_METHODS = {
+		GetChildren = true,
+		GetDescendants = true,
+		FindFirstChild = true,
+		FindFirstChildOfClass = true,
+		FindFirstChildWhichIsA = true,
+	}
+
+	-- Installs the __namecall filter. Only GAME threads (checkcaller() == false)
+	-- get filtered results; our own modules keep seeing the full tree, so
+	-- applyAccent / NPC rescans / etc. are unaffected. Chains cleanly with the
+	-- Silent Aim hook, which installs later and wraps this closure.
+	function Cloak.Install()
+		if installed then
+			return
+		end
+		if type(hookmetamethod) ~= "function" or type(getnamecallmethod) ~= "function" then
+			return
+		end
+		-- Without checkcaller we cannot tell the game's scans from our own lookups,
+		-- and filtering our own calls would break the UI/ESP internals.
+		if type(checkcaller) ~= "function" then
+			return
+		end
+
+		local oldNamecall
+		local ok = pcall(function()
+			oldNamecall = hookmetamethod(game, "__namecall", Cloak.CClosure(function(self, ...)
+				local method = getnamecallmethod()
+				if protectedCount > 0 and method and FILTERED_METHODS[method] and not checkcaller() then
+					local res = oldNamecall(self, ...)
+					if method == "GetChildren" or method == "GetDescendants" then
+						local kept = {}
+						for i = 1, #res do
+							if not isHidden(res[i]) then
+								kept[#kept + 1] = res[i]
+							end
+						end
+						return kept
+					end
+					-- FindFirstChild*: single Instance result (or nil).
+					if typeof(res) == "Instance" and isHidden(res) then
+						return nil
+					end
+					return res
+				end
+				return oldNamecall(self, ...)
+			end))
+		end)
+
+		installed = ok
+	end
+
+	return Cloak
+end)() -- /Cloak
 
 --============================================================================
 -- CONFIGURATION
@@ -50,10 +263,6 @@ Configuration = (function()
 		FOV = 200,
 		-- World range limit in studs from your character.
 		MaxDistance = 1000,
-		-- Velocity lead: 0 = off, 1 = full lead using a rough time-of-flight model.
-		Prediction = 0,
-		-- Subtle per-frame jitter so the aim path isn't a perfect straight line.
-		Humanize = true,
 
 		-- Hitbox mode: "Random (Weighted)" uses TargetWeights below; otherwise a
 		-- specific region ("Head" / "Torso" / "Arms" / "Legs") is aimed at directly.
@@ -70,7 +279,6 @@ Configuration = (function()
 		},
 
 		WallCheck = true,     -- require line of sight to the target
-		StickyTarget = false, -- keep the current target until it dies / leaves / exits FOV
 		TargetBots = false,   -- also target NPCs (non-player models with a Humanoid)
 		TeamCheck = true,     -- never target players on your own team
 		FOVCircle = false,    -- draw the targeting radius on screen
@@ -122,19 +330,19 @@ Configuration = (function()
 		InfJumpEnabled = false,
 		ClickTPEnabled = false,
 		ClickTPKey = Enum.KeyCode.LeftControl, -- hold this + left click to teleport
-		-- Pulse boost/coast so sustained high speeds don't trip server speed
-		-- checks (the "rubber-band" snapback). Costs some effective speed.
-		Pulse = true,
-		PulseBoost = 0.1, -- seconds per boost burst
-		PulseCoast = 0.15, -- seconds per coast; lengthen if a game still snaps you
-		-- Click TP in small hops instead of one instant jump (see Movement module).
-		ClickTPSteps = false,
-		ClickTPStep = 10, -- studs per hop
-		ClickTPInterval = 0.05, -- seconds between hops
+		-- Speed/Fly anti-lagback pulsing and stepped Click TP are always on with
+		-- fixed best settings inside the Movement module (not configurable).
 	}
 
 	Configuration.SilentAim = {
 		Enabled = false,
+		-- Network plausibility: shots further than MaxAngle degrees off the real
+		-- camera aim are NOT rewritten (they miss legitimately), so the server
+		-- never sees a hit claim it can't reconcile with your look direction.
+		MaxAngle = 30,
+		-- Percent of in-cone shots to rewrite. Below 100 your hit rate stays
+		-- statistically human instead of a perfect, flaggable 100%.
+		HitChance = 100,
 	}
 
 	Configuration.Hitbox = {
@@ -153,10 +361,6 @@ Configuration = (function()
 	Configuration.Visuals = {
 		Fullbright = false,
 		NoFog = false,
-	}
-
-	Configuration.Utility = {
-		AntiAFK = true, -- simulates input on Idled so Roblox never kicks for inactivity
 	}
 
 	Configuration.ESP = {
@@ -214,12 +418,9 @@ Configuration = (function()
 			Smoothness = 0.85,
 			FOV = 200,
 			MaxDistance = 1000,
-			Prediction = 0,
-			Humanize = true,
 			Hitbox = "Random (Weighted)",
 			TargetWeights = { Head = 85, Torso = 15, Arms = 0, Legs = 0 },
 			WallCheck = true,
-			StickyTarget = false,
 			TargetBots = false,
 			TeamCheck = true,
 			FOVCircle = false,
@@ -252,14 +453,8 @@ Configuration = (function()
 			Speed = 16,
 			InfJumpEnabled = false,
 			ClickTPEnabled = false,
-			Pulse = true,
-			PulseBoost = 0.1,
-			PulseCoast = 0.15,
-			ClickTPSteps = false,
-			ClickTPStep = 10,
-			ClickTPInterval = 0.05,
 		},
-		SilentAim = { Enabled = false },
+		SilentAim = { Enabled = false, MaxAngle = 30, HitChance = 100 },
 		Hitbox = { Enabled = false, Size = 5, Transparency = 0.5 },
 		Drawing = {
 			Boxes = false,
@@ -268,7 +463,6 @@ Configuration = (function()
 			TracerColor = Color3.fromRGB(255, 255, 255),
 		},
 		Visuals = { Fullbright = false, NoFog = false },
-		Utility = { AntiAFK = true },
 		UI = {
 			Scale = 1,
 			Accent = Color3.fromRGB(132, 62, 190),
@@ -318,7 +512,7 @@ ConfigManager = (function()
 
 	local ConfigManager = {}
 	local CONFIG_FOLDER = "VanityGeneral"
-	local SAVED_SECTIONS = { "Camera", "ESP", "NoRecoil", "NoSpread", "Movement", "SilentAim", "Hitbox", "Drawing", "Visuals", "Utility", "UI" }
+	local SAVED_SECTIONS = { "Camera", "ESP", "NoRecoil", "NoSpread", "Movement", "SilentAim", "Hitbox", "Drawing", "Visuals", "UI" }
 
 	-- Executors vary in what file APIs they expose; everything degrades gracefully.
 	local function fsAvailable()
@@ -542,7 +736,7 @@ end)() -- /ConfigManager
 Utility = (function()
 	--==============================================================================
 	-- UTILITY
-	-- Small quality-of-life features: Anti-AFK, server hop / rejoin, GUI parent helper.
+	-- Small quality-of-life features: server hop / rejoin, GUI parent helper.
 	--==============================================================================
 
 	local Players = game:GetService("Players")
@@ -551,41 +745,6 @@ Utility = (function()
 	local LocalPlayer = Players.LocalPlayer
 
 	local Utility = {}
-	local TeleportService = game:GetService("TeleportService")
-	local ut_idleConnection
-
-	-- Anti-AFK: Roblox kicks after ~20 minutes without input. VirtualUser fakes
-	-- input at the engine level — it's an executor global on most executors and a
-	-- real (normally script-inaccessible) service otherwise, so try both.
-	function Utility:Init(config)
-		if ut_idleConnection then
-			return
-		end
-
-		local vu = (type(VirtualUser) ~= "nil" and VirtualUser) or nil
-		if not vu then
-			pcall(function()
-				vu = game:GetService("VirtualUser")
-			end)
-		end
-		if not vu then
-			return -- no way to simulate input on this executor
-		end
-
-		ut_idleConnection = LocalPlayer.Idled:Connect(function()
-			if config.AntiAFK then
-				vu:CaptureController()
-				vu:ClickButton2(Vector2.new())
-			end
-		end)
-	end
-
-	function Utility:Cleanup()
-		if ut_idleConnection then
-			ut_idleConnection:Disconnect()
-			ut_idleConnection = nil
-		end
-	end
 
 	function Utility:ServerHop()
 		local ok, err = pcall(function()
@@ -873,12 +1032,11 @@ CameraDirector = (function()
 	local LocalPlayer = Players.LocalPlayer
 	local Utility = Utility
 	local Candidates = Candidates
+	local Cloak = Cloak
 
 	local CameraDirector = {}
 
 	local Camera = Workspace.CurrentCamera
-	-- Random source for Humanize jitter (Random.new avoids reseeding the global RNG).
-	local cd_rng = Random.new()
 
 	-- Body regions map to the actual part names each rig type uses. Targeting picks a
 	-- region (a fixed one, or a weighted-random roll), then the first part that region
@@ -964,17 +1122,6 @@ CameraDirector = (function()
 		return "Head"
 	end
 
-	local function getScreenDistance(worldPosition)
-		local viewport, visible = Camera:WorldToViewportPoint(worldPosition)
-		if not visible or viewport.Z < 0 then
-			return math.huge
-		end
-
-		local screen = Vector2.new(viewport.X, viewport.Y)
-		local center = Camera.ViewportSize / 2
-		return (screen - center).Magnitude
-	end
-
 	local function isVisible(position, character)
 		local params = RaycastParams.new()
 		params.FilterType = Enum.RaycastFilterType.Exclude
@@ -997,7 +1144,7 @@ CameraDirector = (function()
 		end
 
 		fovGui = Instance.new("ScreenGui")
-		fovGui.Name = "VanityGeneralFOV"
+		fovGui.Name = Cloak.RandomName()
 		fovGui.ResetOnSpawn = false
 		fovGui.IgnoreGuiInset = true -- same space as Camera:WorldToViewportPoint
 		fovGui.DisplayOrder = 998
@@ -1008,6 +1155,7 @@ CameraDirector = (function()
 		if not ok or not fovGui.Parent then
 			fovGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 		end
+		Cloak.Protect(fovGui)
 
 		fovRing = Instance.new("Frame")
 		fovRing.Name = "Ring"
@@ -1061,50 +1209,7 @@ CameraDirector = (function()
 		fovGui, fovRing, fovStroke = nil, nil, nil
 	end
 
-	-- Builds a target table for a character if it currently passes every filter,
-	-- else nil. `player` is nil for bot (NPC) targets, so target.Player needs a
-	-- nil-check downstream.
-	local function evaluateCharacter(character, player, config)
-		if not character then
-			return nil
-		end
-
-		-- Team Check: never target teammates. Teamless players (Team == nil) stay
-		-- targetable; bots (player == nil) are unaffected.
-		if config.TeamCheck and player and player.Team ~= nil and player.Team == LocalPlayer.Team then
-			return nil
-		end
-
-		local humanoid = character:FindFirstChildOfClass("Humanoid")
-		if not humanoid or humanoid.Health <= 0 then
-			return nil
-		end
-
-		local anchor = anchorPart(character)
-		if not anchor then
-			return nil
-		end
-
-		-- On-screen cone: how far from the crosshair the target may be, in pixels.
-		local distance = getScreenDistance(anchor.Position)
-		if distance >= (config.FOV or 200) then
-			return nil
-		end
-
-		-- MaxDistance is a world-space range in studs (matches the UI's "m" label).
-		local worldDistance = (anchor.Position - Camera.CFrame.Position).Magnitude
-		if worldDistance > config.MaxDistance then
-			return nil
-		end
-
-		if config.WallCheck and not isVisible(anchor.Position, character) then
-			return nil
-		end
-
-		return { Player = player, Character = character, Anchor = anchor, ScreenDistance = distance }
-	end
-
-	-- Same math as getScreenDistance, but reading the candidate's precomputed
+	-- Pixel distance from the crosshair, reading the candidate's precomputed
 	-- projection instead of calling WorldToViewportPoint again.
 	local function screenDistance(cand)
 		if not cand.AnchorOnScreen or cand.AnchorScreen.Z < 0 then
@@ -1116,10 +1221,10 @@ CameraDirector = (function()
 		return (screen - center).Magnitude
 	end
 
-	-- Candidate-pool variant of evaluateCharacter: identical filters (Team Check,
-	-- FOV cone, world-space MaxDistance, WallCheck raycast) but reuses the parts,
-	-- distance and projection Candidates resolved once this frame. The pool only
-	-- holds living humanoids, so the alive check from evaluateCharacter is implied.
+	-- Candidate-pool filters: Team Check, FOV cone, world-space MaxDistance and
+	-- WallCheck raycast, reusing the parts, distance and projection Candidates
+	-- resolved once this frame. The pool only holds living humanoids, so the
+	-- alive check is implied.
 	local function evaluateCandidate(cand, config)
 		local player = cand.Player
 		if config.TeamCheck and player and player.Team ~= nil and player.Team == LocalPlayer.Team then
@@ -1233,8 +1338,6 @@ CameraDirector = (function()
 
 		if not config.Enabled then
 			self._lockedChar = nil -- reset the weighted lock so re-enabling re-rolls
-			self._stickyCharacter = nil
-			self._stickyPlayer = nil
 			self._currentTarget = nil
 			return
 		end
@@ -1243,29 +1346,13 @@ CameraDirector = (function()
 			return
 		end
 
-		-- Sticky target: stay on the current character while it still passes every
-		-- filter, otherwise reacquire the best one. Stops the aim flicking between
-		-- targets. Tracks the character (not just the player) so bot targets stick
-		-- too; the player reference is kept only to detect a player leaving.
-		local target
-		if config.StickyTarget and self._stickyCharacter then
-			if not self._stickyPlayer or self._stickyPlayer.Parent == Players then
-				target = evaluateCharacter(self._stickyCharacter, self._stickyPlayer, config)
-			end
-		end
-		if not target then
-			target = self:FindBestTarget(config)
-		end
+		local target = self:FindBestTarget(config)
 
 		if not target then
 			self._lockedChar = nil
-			self._stickyCharacter = nil
-			self._stickyPlayer = nil
 			self._currentTarget = nil
 			return
 		end
-		self._stickyCharacter = target.Character
-		self._stickyPlayer = target.Player
 
 		local region = self:_resolveRegion(target.Character, config)
 		local aimPart = pickPartFromRegion(target.Character, region) or pickAnyPart(target.Character)
@@ -1274,24 +1361,7 @@ CameraDirector = (function()
 			return
 		end
 
-		local aimPosition = aimPart.Position
-		local worldDistance = (aimPosition - Camera.CFrame.Position).Magnitude
-
-		-- Velocity lead. `worldDistance / 500` is a rough time-of-flight in seconds;
-		-- game forks with real projectile speeds should override that divisor.
-		if (config.Prediction or 0) > 0 then
-			aimPosition = aimPosition + aimPart.AssemblyLinearVelocity * config.Prediction * (worldDistance / 500)
-		end
-
-		local smoothness = config.Smoothness
-		if config.Humanize then
-			-- Per-frame jitter: a slightly varying lerp alpha plus a sub-degree
-			-- angular wobble (scaled to distance) so the aim path isn't a perfect line.
-			smoothness = smoothness * (0.9 + cd_rng:NextNumber() * 0.2)
-			aimPosition = aimPosition + cd_rng:NextUnitVector() * (worldDistance * math.rad(cd_rng:NextNumber() * 0.25))
-		end
-
-		self:PointCamera(aimPosition, smoothness)
+		self:PointCamera(aimPart.Position, config.Smoothness)
 
 		target.Part = aimPart
 		target.Region = region
@@ -1312,8 +1382,6 @@ CameraDirector = (function()
 
 	function CameraDirector:Cleanup()
 		self._lockedChar = nil
-		self._stickyCharacter = nil
-		self._stickyPlayer = nil
 		self._currentTarget = nil
 		destroyFovCircle()
 	end
@@ -1340,6 +1408,7 @@ ESP = (function()
 	local Configuration = Configuration
 	local Utility = Utility
 	local Candidates = Candidates
+	local Cloak = Cloak
 
 	local ESP = {}
 	local entries = {}
@@ -1367,7 +1436,7 @@ ESP = (function()
 		end
 
 		boxGui = Instance.new("ScreenGui")
-		boxGui.Name = "VanityGeneralBoxes"
+		boxGui.Name = Cloak.RandomName() -- random: no "Vanity*" name to signature-scan
 		boxGui.ResetOnSpawn = false
 		boxGui.IgnoreGuiInset = true -- matches Camera:WorldToViewportPoint space
 		boxGui.DisplayOrder = 996
@@ -1378,6 +1447,7 @@ ESP = (function()
 		if not ok or not boxGui.Parent then
 			boxGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 		end
+		Cloak.Protect(boxGui)
 
 		return boxGui
 	end
@@ -1440,12 +1510,15 @@ ESP = (function()
 	-- both stack. Parented to the head so it always renders and dies with respawns.
 	local function makeInfoTag(entry, name, head, config)
 		local tag = Instance.new("BillboardGui")
-		tag.Name = "VGInfo"
+		tag.Name = Cloak.RandomName()
 		tag.Size = UDim2.fromOffset(200, 46)
 		tag.StudsOffset = Vector3.new(0, 2.7, 0)
 		tag.AlwaysOnTop = true
 		tag.Adornee = head
 		tag.Parent = head
+		-- Lives inside the character, the one place gethui can't hide it: this is
+		-- the registration the game-side character scans get filtered against.
+		Cloak.Protect(tag)
 
 		local holder = Instance.new("Frame")
 		holder.BackgroundTransparency = 1
@@ -1758,7 +1831,7 @@ ESP = (function()
 		end
 
 		container = Instance.new("Folder")
-		container.Name = "VanityGeneralESP"
+		container.Name = Cloak.RandomName()
 
 		local ok = pcall(function()
 			container.Parent = Utility.getGuiParent()
@@ -1766,6 +1839,9 @@ ESP = (function()
 		if not ok or not container.Parent then
 			container.Parent = Workspace
 		end
+		-- Covers the Highlight children too (the filter hides whole subtrees) and
+		-- matters most on the Workspace fallback, where the game can scan it.
+		Cloak.Protect(container)
 
 		for _, player in ipairs(Players:GetPlayers()) do
 			addPlayer(player, Configuration.ESP.OutlineColor)
@@ -2261,7 +2337,7 @@ Triggerbot = (function()
 	local tb_currentDelay -- humanized reaction time, re-sampled per target landing
 	local tb_rng = Random.new()
 	local tb_lastFire = 0
-	local TB_REFIRE = 0.08 -- min seconds between shots so it can't spam every frame
+	local tb_refire = 0.1 -- sampled refire interval; a FIXED interval is a timing signature
 
 	local function tb_resolveClick()
 		if tb_resolved then
@@ -2366,8 +2442,12 @@ Triggerbot = (function()
 			tb_currentDelay = tb_rng:NextNumber(lo, hi)
 		end
 
-		if (now - tb_onTargetSince) >= (tb_currentDelay or 0) and (now - tb_lastFire) >= TB_REFIRE then
+		if (now - tb_onTargetSince) >= (tb_currentDelay or 0) and (now - tb_lastFire) >= tb_refire then
 			tb_lastFire = now
+			-- Re-sample the refire interval every shot (~6-11 clicks/s, human
+			-- semi-auto range) so server-side timing analysis sees jitter, not a
+			-- metronome.
+			tb_refire = tb_rng:NextNumber(0.09, 0.17)
 			tb_click()
 		end
 	end
@@ -2381,10 +2461,25 @@ end)() -- /Triggerbot
 SilentAim = (function()
 	--==============================================================================
 	-- SILENT AIM
-	-- Redirects your shots onto the aimbot's current target WITHOUT moving the
-	-- camera, by hooking game's metatable. Requires an executor with
-	-- hookmetamethod/getnamecallmethod — support varies, so both hooks are guarded
-	-- and independent of each other; without them the feature simply no-ops.
+	-- Redirects your shots onto a target WITHOUT moving the camera, by hooking the
+	-- game's metatable. When something (a hill, a wall, a building) sits between
+	-- you and the target, the shot is CURVED over it: the launch direction is
+	-- raised toward an arc apex computed above the obstruction, so a gravity-
+	-- affected projectile arcs up and drops onto the target instead of burying
+	-- itself in the hillside. Clear line of sight still takes a flat shot.
+	--
+	-- Target resolution: the aimbot's current lock first; with no lock, whoever
+	-- the crosshair is nearest (the same pick the Target Display makes — no wall
+	-- check, so targets behind terrain still register).
+	--
+	-- Network plausibility: before any rewrite, the target must pass a gate —
+	-- within MaxAngle of the real camera aim (so the server can reconcile the
+	-- shot with your look direction) and a HitChance roll (so your hit rate
+	-- stays statistically human). Failing shots go out unbent as legit misses.
+	--
+	-- Requires an executor with hookmetamethod/getnamecallmethod — support varies,
+	-- so both hooks are guarded and independent of each other; without them the
+	-- feature simply no-ops.
 	--==============================================================================
 
 	local Players = game:GetService("Players")
@@ -2392,19 +2487,104 @@ SilentAim = (function()
 
 	local LocalPlayer = Players.LocalPlayer
 	local CameraDirector = CameraDirector
+	local Cloak = Cloak
 
 	local SilentAim = {}
 	local sa_installed = false
 	local sa_warned = false
+	local sa_config -- the full Configuration table, stored by Init
 
-	-- The part the aimbot is currently locked onto, or nil.
+	-- Arc tuning. The apex is found by probing straight down from high above the
+	-- shot's midpoint; the shot is then lobbed CLEARANCE studs above whatever that
+	-- probe hits (the hilltop), capped at MAX_LIFT above the higher endpoint so we
+	-- never mortar rounds into orbit.
+	local ARC_PROBE_HEIGHT = 500
+	local ARC_CLEARANCE = 12
+	local ARC_MAX_LIFT = 200
+
+	-- Local muzzle approximation: the head when we have one, else the root, else
+	-- the camera. Used to aim rewritten remote args (the Raycast hook gets the
+	-- game's own origin passed in).
+	local function sa_muzzle()
+		local character = LocalPlayer.Character
+		if character then
+			local head = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
+			if head then
+				return head.Position
+			end
+		end
+		local camera = Workspace.CurrentCamera
+		return camera and camera.CFrame.Position or Vector3.zero
+	end
+
+	-- Resolve a BodyPart to shoot at from a Player or character model.
+	local function sa_anchorPart(character)
+		if not character then
+			return nil
+		end
+		return character:FindFirstChild("Head")
+			or character:FindFirstChild("HumanoidRootPart")
+			or character:FindFirstChild("UpperTorso")
+			or character:FindFirstChild("Torso")
+	end
+
+	-- The part to curve shots onto: the aimbot's lock when it has one, else
+	-- whoever the crosshair is nearest (Target Display pick — deliberately no wall
+	-- check, so someone behind a mountain still counts).
 	local function sa_targetPart()
 		local target = CameraDirector:GetCurrentTarget()
-		local part = target and target.Part
+		if target and target.Part and target.Part.Parent then
+			return target.Part
+		end
+
+		if not sa_config then
+			return nil
+		end
+		local look = CameraDirector:GetLookTarget(sa_config.ESP, sa_config.Camera)
+		if typeof(look) ~= "Instance" then
+			return nil
+		end
+		local character = look:IsA("Player") and look.Character or look
+		local part = sa_anchorPart(character)
 		if part and part.Parent then
 			return part
 		end
 		return nil
+	end
+
+	-- Where a shot from `origin` should be aimed to land on `part`. Flat when the
+	-- line is clear; raised over the obstruction's apex when it isn't, so gravity
+	-- carries the projectile over the top and down onto the target.
+	local function sa_aimPoint(origin, part)
+		local targetPos = part.Position
+
+		local params = RaycastParams.new()
+		params.FilterType = Enum.RaycastFilterType.Exclude
+		-- Excluding the target's own character too: a ray that would reach the
+		-- target then hits nothing, which reads as a clear line.
+		params.FilterDescendantsInstances = { LocalPlayer.Character, part:FindFirstAncestorOfClass("Model") or part }
+
+		if not Workspace:Raycast(origin, targetPos - origin, params) then
+			return targetPos -- clear line: flat shot
+		end
+
+		-- Blocked. Probe down from high above the midpoint to find the top of
+		-- whatever is in the way, then aim CLEARANCE studs over it.
+		local mid = (origin + targetPos) / 2
+		local probeTop = mid + Vector3.new(0, ARC_PROBE_HEIGHT, 0)
+		local floorY = math.min(origin.Y, targetPos.Y)
+		local hit = Workspace:Raycast(probeTop, Vector3.new(0, floorY - 5 - probeTop.Y, 0), params)
+
+		local ceilingY = math.max(origin.Y, targetPos.Y)
+		local apexY
+		if hit then
+			apexY = hit.Position.Y + ARC_CLEARANCE
+		else
+			apexY = ceilingY + ARC_MAX_LIFT -- nothing found: assume it's tall
+		end
+		apexY = math.clamp(apexY, ceilingY + 5, ceilingY + ARC_MAX_LIFT)
+
+		return Vector3.new(mid.X, apexY, mid.Z)
 	end
 
 	-- Only rewrite calls from game scripts. If the executor can't tell (no
@@ -2414,7 +2594,54 @@ SilentAim = (function()
 		return type(checkcaller) == "function" and not checkcaller()
 	end
 
+	local sa_rng = Random.new()
+
+	-- Network-plausibility gate. The server can reconcile a rewritten shot against
+	-- your replicated look direction and your hit rate, so a target is only
+	-- returned when a hit on it is a claim a legitimate player could have made:
+	-- within MaxAngle of the real camera aim, and passing the HitChance roll.
+	local function sa_plausiblePart()
+		local part = sa_targetPart()
+		if not part or not sa_config then
+			return nil
+		end
+
+		local maxAngle = sa_config.SilentAim.MaxAngle or 30
+		if maxAngle < 180 then
+			local cam = Workspace.CurrentCamera
+			if cam then
+				local toTarget = (part.Position - cam.CFrame.Position).Unit
+				if cam.CFrame.LookVector:Dot(toTarget) < math.cos(math.rad(maxAngle)) then
+					return nil -- too far off-aim: a hit here can't reconcile server-side
+				end
+			end
+		end
+
+		local chance = sa_config.SilentAim.HitChance or 100
+		if chance < 100 and sa_rng:NextNumber(0, 100) > chance then
+			return nil
+		end
+
+		return part
+	end
+
 	function SilentAim:Init(config)
+		-- Deliberately stores config ONLY: the metatable hooks install lazily on
+		-- the first Update with the feature enabled, so loading the script with
+		-- Silent Aim off leaves the game's metatable completely untouched.
+		sa_config = config
+	end
+
+	-- Per-frame hook point from the controller's loop. The installed hooks do the
+	-- real work passively; this exists only to defer installation until enable.
+	function SilentAim:Update(config)
+		if sa_installed or not config.SilentAim.Enabled then
+			return
+		end
+		self:_install()
+	end
+
+	function SilentAim:_install()
 		if sa_installed then
 			return
 		end
@@ -2423,23 +2650,38 @@ SilentAim = (function()
 				warn("[Vanity-General] Silent Aim needs hookmetamethod — not available in this executor.")
 				sa_warned = true
 			end
+			sa_installed = true -- tried and failed; don't retry every frame
 			return
 		end
 		sa_installed = true
 
-		-- __namecall: remote fires and Workspace.Raycast.
+		local function enabled()
+			return sa_config.SilentAim.Enabled
+		end
+
+		-- __namecall: remote fires and Workspace.Raycast. CClosure-wrapped so the
+		-- metamethod still looks like a C function to islclosure/getinfo checks.
 		local oldNamecall
-		oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-			if config.Enabled and sa_fromGameScript() then
+		oldNamecall = hookmetamethod(game, "__namecall", Cloak.CClosure(function(self, ...)
+			if enabled() and sa_fromGameScript() then
 				local method = getnamecallmethod()
-				local part = sa_targetPart()
+				local part = sa_plausiblePart()
 				if part then
 					if method == "FireServer" or method == "InvokeServer" then
-						-- Rewrite only position-like args; everything else passes through.
+						-- Rewrite position-like args onto the target and direction-like
+						-- args (unit-ish vectors) onto the arc's launch direction;
+						-- everything else passes through untouched.
+						local muzzle = sa_muzzle()
+						local aimPoint = sa_aimPoint(muzzle, part)
 						local args = { ... }
 						for i, value in ipairs(args) do
 							if typeof(value) == "Vector3" then
-								args[i] = part.Position
+								local magnitude = value.Magnitude
+								if magnitude > 0.5 and magnitude < 1.5 then
+									args[i] = (aimPoint - muzzle).Unit
+								else
+									args[i] = part.Position
+								end
 							elseif typeof(value) == "CFrame" then
 								args[i] = part.CFrame
 							end
@@ -2448,24 +2690,25 @@ SilentAim = (function()
 					end
 					if method == "Raycast" and self == Workspace then
 						-- Raycast(origin, direction, params): keep the original cast
-						-- length, bend the direction onto the target.
+						-- length, bend the direction along the arc's launch heading.
 						local origin, direction, params = ...
 						if typeof(origin) == "Vector3" and typeof(direction) == "Vector3" then
-							local bent = (part.Position - origin).Unit * direction.Magnitude
+							local aimPoint = sa_aimPoint(origin, part)
+							local bent = (aimPoint - origin).Unit * direction.Magnitude
 							return oldNamecall(self, origin, bent, params)
 						end
 					end
 				end
 			end
 			return oldNamecall(self, ...)
-		end)
+		end))
 
 		-- __index: the classic Mouse.Hit / Mouse.Target spoof.
 		local mouse = LocalPlayer:GetMouse()
 		local oldIndex
-		oldIndex = hookmetamethod(game, "__index", function(self, key)
-			if config.Enabled and sa_fromGameScript() and self == mouse then
-				local part = sa_targetPart()
+		oldIndex = hookmetamethod(game, "__index", Cloak.CClosure(function(self, key)
+			if enabled() and sa_fromGameScript() and self == mouse then
+				local part = sa_plausiblePart()
 				if part then
 					if key == "Hit" then
 						return part.CFrame
@@ -2476,7 +2719,7 @@ SilentAim = (function()
 				end
 			end
 			return oldIndex(self, key)
-		end)
+		end))
 	end
 
 	return SilentAim
@@ -2686,6 +2929,7 @@ NoSpread = (function()
 	--==============================================================================
 
 	local NoRecoil = NoRecoil
+	local Cloak = Cloak
 
 	local NoSpread = {}
 	local ns_active = false
@@ -2734,7 +2978,9 @@ NoSpread = (function()
 		if ns_mathHooked then
 			return
 		end
-		local ok, ret = pcall(hook, math.random, function(...)
+		-- CClosure-wrapped: math.random is a C function stock, so the replacement
+		-- must look like one too (islclosure/debug.getinfo/string.dump checks).
+		local ok, ret = pcall(hook, math.random, Cloak.CClosure(function(...)
 			local original = ns_origMathRandom(...)
 			if ns_active and ns_strength > 0 then
 				local a, b = ...
@@ -2742,7 +2988,7 @@ NoSpread = (function()
 				return ns_pull(original, ns_mathMid(a, b), a ~= nil)
 			end
 			return original
-		end)
+		end))
 		if ok then
 			ns_origMathRandom = ret
 			ns_mathHooked = true
@@ -2759,7 +3005,7 @@ NoSpread = (function()
 		local ok = pcall(function()
 			local sample = Random.new()
 
-			ns_origNextNumber = hook(sample.NextNumber, function(self, ...)
+			ns_origNextNumber = hook(sample.NextNumber, Cloak.CClosure(function(self, ...)
 				local original = ns_origNextNumber(self, ...)
 				if ns_active and ns_strength > 0 then
 					local mn, mx = ...
@@ -2767,16 +3013,16 @@ NoSpread = (function()
 					return ns_pull(original, centre, false)
 				end
 				return original
-			end)
+			end))
 
-			ns_origNextInteger = hook(sample.NextInteger, function(self, ...)
+			ns_origNextInteger = hook(sample.NextInteger, Cloak.CClosure(function(self, ...)
 				local original = ns_origNextInteger(self, ...)
 				if ns_active and ns_strength > 0 then
 					local mn, mx = ...
 					return ns_pull(original, (mn + mx) / 2, true)
 				end
 				return original
-			end)
+			end))
 		end)
 		if ok then
 			ns_randHooked = true
@@ -2870,12 +3116,13 @@ UI = (function()
 	local ConfigManager = ConfigManager
 	local Utility = Utility
 	local Webhook = Webhook
+	local Cloak = Cloak
 
 	-- Injected by the controller (avoids a UI <-> Movement require cycle): the
 	-- Players tab's "Teleport To" button calls this.
-	UI.TeleportTo = nil
-
 	local UI = {}
+
+	UI.TeleportTo = nil
 
 	-- Deep purple + black theme.
 	local COLORS = {
@@ -4544,12 +4791,6 @@ UI = (function()
 			config.Camera.WallCheck = not config.Camera.WallCheck
 		end)
 
-		makeToggle(aim, "Sticky Target", function()
-			return config.Camera.StickyTarget
-		end, function()
-			config.Camera.StickyTarget = not config.Camera.StickyTarget
-		end)
-
 		makeToggle(aim, "Target Bots", function()
 			return config.Camera.TargetBots
 		end, function()
@@ -4560,12 +4801,6 @@ UI = (function()
 			return config.Camera.TeamCheck
 		end, function()
 			config.Camera.TeamCheck = not config.Camera.TeamCheck
-		end)
-
-		makeToggle(aim, "Humanize", function()
-			return config.Camera.Humanize
-		end, function()
-			config.Camera.Humanize = not config.Camera.Humanize
 		end)
 
 		makeToggleWithKeybind(aim, "FOV Circle", function()
@@ -4584,12 +4819,6 @@ UI = (function()
 			return config.Camera.Smoothness
 		end, function(val)
 			config.Camera.Smoothness = val
-		end, false)
-
-		makeFillSlider(aim, "Prediction", 0, 1, function()
-			return config.Camera.Prediction
-		end, function(val)
-			config.Camera.Prediction = val
 		end, false)
 
 		-- FOV drives both the targeting cone and the on-screen circle.
@@ -4682,8 +4911,9 @@ UI = (function()
 			config.Triggerbot.WallCheck = not config.Triggerbot.WallCheck
 		end)
 
-		-- Silent Aim redirects shots without moving the camera. On executors without
-		-- hookmetamethod the toggle simply does nothing (see the SILENT AIM section).
+		-- Silent Aim curves shots onto the target without moving the camera — over
+		-- obstacles when the line is blocked. On executors without hookmetamethod
+		-- the toggle simply does nothing (see the SILENT AIM section).
 		local silent = makeGroup(right, "Silent Aim")
 
 		makeToggle(silent, "Enabled", function()
@@ -4949,42 +5179,6 @@ UI = (function()
 
 		local misc = makeGroup(left, "Other")
 
-		makeToggle(misc, "Pulse (Anti-Lagback)", function()
-			return config.Movement.Pulse
-		end, function()
-			config.Movement.Pulse = not config.Movement.Pulse
-		end)
-
-		makeFillSlider(misc, "Pulse Boost", 50, 500, function()
-			return (config.Movement.PulseBoost or 0.1) * 1000
-		end, function(val)
-			config.Movement.PulseBoost = val / 1000
-		end, true)
-
-		makeFillSlider(misc, "Pulse Coast", 50, 1000, function()
-			return (config.Movement.PulseCoast or 0.15) * 1000
-		end, function(val)
-			config.Movement.PulseCoast = val / 1000
-		end, true)
-
-		makeToggle(misc, "Stepped TP", function()
-			return config.Movement.ClickTPSteps
-		end, function()
-			config.Movement.ClickTPSteps = not config.Movement.ClickTPSteps
-		end)
-
-		makeFillSlider(misc, "TP Step Size", 1, 50, function()
-			return config.Movement.ClickTPStep or 10
-		end, function(val)
-			config.Movement.ClickTPStep = val
-		end, true)
-
-		makeFillSlider(misc, "TP Interval", 10, 500, function()
-			return (config.Movement.ClickTPInterval or 0.05) * 1000
-		end, function(val)
-			config.Movement.ClickTPInterval = val / 1000
-		end, true)
-
 		makeToggle(misc, "Noclip", function()
 			return config.Movement.NoclipEnabled
 		end, function()
@@ -5220,7 +5414,7 @@ UI = (function()
 	end
 
 	--==============================================================================
-	-- Misc tab: session actions moved out of Settings (account info, Anti-AFK,
+	-- Misc tab: session actions moved out of Settings (account info,
 	-- server hop / rejoin) plus webhook configuration.
 	--==============================================================================
 	local function buildMiscTab(parent, config)
@@ -5232,12 +5426,6 @@ UI = (function()
 		makeLabel(account, "Username", LocalPlayer and LocalPlayer.Name or "—")
 		makeLabel(account, "Display Name", LocalPlayer and LocalPlayer.DisplayName or "—")
 		makeLabel(account, "User ID", LocalPlayer and tostring(LocalPlayer.UserId) or "—")
-
-		makeToggle(account, "Anti-AFK", function()
-			return config.Utility.AntiAFK
-		end, function()
-			config.Utility.AntiAFK = not config.Utility.AntiAFK
-		end)
 
 		makeButton(account, "Server Hop", function()
 			Utility:ServerHop()
@@ -5840,7 +6028,7 @@ UI = (function()
 		startInputRouter()
 
 		gui = newInstance("ScreenGui", {
-			Name = "VanityGeneralUI",
+			Name = Cloak.RandomName(), -- random: no "Vanity*" name to signature-scan
 			ResetOnSpawn = false,
 			IgnoreGuiInset = true,
 			ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
@@ -5853,6 +6041,7 @@ UI = (function()
 		if not ok or not gui.Parent then
 			gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 		end
+		Cloak.Protect(gui)
 
 		mainWindow = newInstance("CanvasGroup", {
 			Parent = gui,
@@ -6309,7 +6498,6 @@ Movement = (function()
 	local mv_jumpConnection
 	local mv_clickConnection
 	local mv_tpToken = 0 -- incremented per TP; a running stepped TP stops when stale
-	local mv_activeConfig -- stored by Init so TeleportTo can read the ClickTP settings
 
 	-- Returns character, root, humanoid for the local player, or nil when any piece
 	-- is missing or dead (mid-respawn, etc).
@@ -6362,20 +6550,17 @@ Movement = (function()
 		return nil
 	end
 
-	-- Pulse: server speed checks validate displacement over a time window, so a
-	-- SUSTAINED high velocity always trips them eventually. Alternating boost
-	-- and coast intervals keeps every window plausible. The default coast is
-	-- LONGER than the boost — anti-cheat windows differ per game, so both are
-	-- configurable; lengthen the coast if you still rubber-band.
-	-- Coast frames drop to normal walkspeed rather than zero, so movement never
-	-- looks scripted stop-start.
-	local function mv_pulseActive(config)
-		if config.Pulse == false then
-			return true
-		end
-		local boost = config.PulseBoost or 0.1
-		local coast = config.PulseCoast or 0.15
-		return (os.clock() % (boost + coast)) < boost
+	-- Pulse (anti-lagback): server speed checks validate displacement over a time
+	-- window, so a SUSTAINED high velocity always trips them eventually. Alternating
+	-- boost and coast intervals keeps every window plausible. Always on with fixed
+	-- timing (100 ms boost / 150 ms coast — the most compatible window across
+	-- games); coast frames drop to normal walkspeed rather than zero, so movement
+	-- never looks scripted stop-start.
+	local PULSE_BOOST = 0.1
+	local PULSE_COAST = 0.15
+
+	local function mv_pulseActive()
+		return (os.clock() % (PULSE_BOOST + PULSE_COAST)) < PULSE_BOOST
 	end
 
 	-- Per-frame driver, called from the controller's RenderStepped loop.
@@ -6410,7 +6595,7 @@ Movement = (function()
 					local dir = mv_flyDirection(cam)
 					if dir then
 						local speed = config.FlySpeed or 50
-						if not mv_pulseActive(config) then
+						if not mv_pulseActive() then
 							speed = math.min(speed, BASE_WALKSPEED) -- coast at a plausible rate
 						end
 						velocity = dir * speed
@@ -6429,7 +6614,7 @@ Movement = (function()
 		if config.SpeedEnabled then
 			local speed = config.Speed or BASE_WALKSPEED
 			local move = humanoid.MoveDirection
-			if speed > BASE_WALKSPEED and move.Magnitude > 0 and mv_pulseActive(config) then
+			if speed > BASE_WALKSPEED and move.Magnitude > 0 and mv_pulseActive() then
 				local velocity = root.AssemblyLinearVelocity
 				root.AssemblyLinearVelocity = Vector3.new(move.X * speed, velocity.Y, move.Z * speed)
 			end
@@ -6452,27 +6637,18 @@ Movement = (function()
 
 	-- Teleports the local character to a world position (+3 studs so you land on
 	-- top of the surface instead of inside it). Shared by Click TP and the Players
-	-- tab's "Teleport To" button. Stepped mode (ClickTPSteps) hops in small
-	-- increments so no single frame's displacement trips server teleport checks;
-	-- a new TP or a respawn invalidates a running hop via mv_tpToken.
+	-- tab's "Teleport To" button. Always stepped: one instant jump gets rejected by
+	-- server anti-teleport validation (you snap back), so the TP hops in small
+	-- increments — no single frame's displacement trips the checks. A new TP or a
+	-- respawn invalidates a running hop via mv_tpToken.
+	local TP_STEP = 10 -- studs per hop
+	local TP_INTERVAL = 0.05 -- seconds between hops
+
 	function Movement.TeleportTo(position)
 		local destination = position + Vector3.new(0, 3, 0)
-		local config = mv_activeConfig or {}
-
-		if not config.ClickTPSteps then
-			-- One instant jump. Servers with anti-teleport validation reject this
-			-- (you snap back) — that's what stepped mode is for.
-			local _, root = mv_character()
-			if root then
-				root.CFrame = CFrame.new(destination)
-			end
-			return
-		end
 
 		mv_tpToken = mv_tpToken + 1
 		local token = mv_tpToken
-		local step = config.ClickTPStep or 10
-		local interval = config.ClickTPInterval or 0.05
 		task.spawn(function()
 			while token == mv_tpToken do
 				local _, currentRoot = mv_character()
@@ -6480,12 +6656,12 @@ Movement = (function()
 					return
 				end
 				local offset = destination - currentRoot.CFrame.Position
-				if offset.Magnitude <= step then
+				if offset.Magnitude <= TP_STEP then
 					currentRoot.CFrame = CFrame.new(destination)
 					return
 				end
-				currentRoot.CFrame = currentRoot.CFrame + offset.Unit * step
-				task.wait(interval)
+				currentRoot.CFrame = currentRoot.CFrame + offset.Unit * TP_STEP
+				task.wait(TP_INTERVAL)
 			end
 		end)
 	end
@@ -6513,7 +6689,6 @@ Movement = (function()
 	-- Event-driven halves (jump, click) live on their own connections; the
 	-- per-frame halves are driven by the controller calling Update.
 	function Movement:Init(config)
-		mv_activeConfig = config
 		if not mv_jumpConnection then
 			mv_jumpConnection = UserInputService.JumpRequest:Connect(function()
 				mv_onJumpRequest(config)
@@ -6549,7 +6724,8 @@ Controller = (function()
 	--==============================================================================
 	-- MAIN CONTROLLER - Entry Point
 	-- Orchestrates all systems (ESP, Camera, UI, Movement, Webhook, etc).
-	-- Exported to getgenv().VanityGeneral on Start (the global name is kept).
+	-- Exported as getgenv().VanityGeneral on Start — through the Cloak, so the
+	-- name reads normally but never enumerates in an environment scan.
 	--==============================================================================
 
 	local Players = game:GetService("Players")
@@ -6574,6 +6750,7 @@ Controller = (function()
 	local UI = UI
 	local Movement = Movement
 	local Webhook = Webhook
+	local Cloak = Cloak
 
 	local Controller = {}
 	Controller.Version = "0"
@@ -6588,7 +6765,8 @@ Controller = (function()
 	local running = false
 	local connections = {}
 	local aimbotSteering = false -- set each frame; tells NoRecoil to stand down
-	local RECOIL_BIND = "VanityGeneralRecoil" -- BindToRenderStep name (runs after camera)
+	-- Randomized so the BindToRenderStep name carries no script signature.
+	local RECOIL_BIND = Cloak.RandomName() -- BindToRenderStep name (runs after camera)
 
 	-- Per-frame crash guard. A raw error inside a RenderStepped handler repeats every
 	-- frame, flooding the console and tanking FPS. This swallows the error, keeps the
@@ -6690,6 +6868,10 @@ Controller = (function()
 
 		running = true
 
+		-- Note: no global hooks are installed here. The Cloak filter installs
+		-- itself on the first Protect() of a game-visible instance, and Silent Aim
+		-- installs on first enable — so simply loading the script with everything
+		-- off leaves the game's metatable completely untouched.
 		local ok, err = pcall(function()
 			ESP:Init()
 
@@ -6699,9 +6881,9 @@ Controller = (function()
 
 			Movement:Init(Configuration.Movement)
 
-			SilentAim:Init(Configuration.SilentAim)
-
-			Utility:Init(Configuration.Utility)
+			-- Full config: Silent Aim reads its own toggle plus the ESP/Camera
+			-- sections for its crosshair (look-target) fallback.
+			SilentAim:Init(Configuration)
 
 			table.insert(connections, Players.PlayerAdded:Connect(function(player)
 				guarded("PlayerAdded", ESP.OnPlayerAdded, ESP, player)
@@ -6783,6 +6965,10 @@ Controller = (function()
 				-- Neutralize client-side bullet spread rolls when enabled.
 				guarded("NoSpread", NoSpread.Update, NoSpread, Configuration.NoSpread)
 
+				-- Installs the Silent Aim hooks on first enable (kept out of Init so
+				-- loading the script never touches the game's metatable).
+				guarded("Silent Aim", SilentAim.Update, SilentAim, Configuration)
+
 				-- Auto-fire when the crosshair is on a target.
 				guarded("Triggerbot", Triggerbot.Update, Triggerbot, Configuration.Triggerbot, Configuration.Camera)
 
@@ -6831,8 +7017,10 @@ Controller = (function()
 			return Controller
 		end
 
-		-- Export under the historical global name so re-executions can find us.
-		if getgenv then
+		-- Export under the historical global name so re-executions can find us,
+		-- but through the cloak: readable as getgenv().VanityGeneral, invisible to
+		-- pairs() environment scans. Raw fallback only if hiding is impossible.
+		if not Cloak.HideGlobal("VanityGeneral", Controller) and getgenv then
 			getgenv().VanityGeneral = Controller
 		end
 
@@ -6893,9 +7081,6 @@ Controller = (function()
 		end)
 		pcall(function()
 			Visuals:Cleanup() -- restore original Lighting properties
-		end)
-		pcall(function()
-			Utility:Cleanup() -- disconnect the Anti-AFK Idled listener
 		end)
 		pcall(function()
 			NoSpread:Cleanup() -- restore original math.random so no global hook lingers

@@ -1,0 +1,206 @@
+--==============================================================================
+-- CLOAK
+-- Keeps the script out of a game's environment integrity checks:
+--  * The getgenv().VanityGeneral export is served through a metatable __index
+--    instead of a raw key, so pairs(getgenv()) enumerations never see it.
+--  * Instances the script creates are registered via Protect(); when the GAME
+--    (not one of our threads) calls GetChildren/GetDescendants/FindFirstChild*,
+--    the results are filtered of registered instances and their descendants.
+--    This is what hides the head BillboardGui tags, which live inside player
+--    characters and are otherwise visible to any character scan.
+--  * RandomName() gives DataModel objects throwaway names, so nothing carries
+--    a "Vanity*" string for name-signature scans.
+-- Everything is best-effort: without hookmetamethod/checkcaller the filters
+-- simply never install, and the script behaves exactly as before.
+--==============================================================================
+
+local Cloak = {}
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+
+-- Weak keys: destroyed instances (ESP entries churn on respawn/leave) drop out
+-- of the set on their own once collected.
+local protected = setmetatable({}, { __mode = "k" })
+local protectedCount = 0
+
+-- Values served through the getgenv metatable. A re-execution wraps the
+-- previous chunk's __index, so a name only the OLD copy set still resolves
+-- (this is how Main finds the previous Controller to stop it).
+local hiddenGlobals = {}
+
+local NAME_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+function Cloak.RandomName(length)
+	length = length or 14
+	local out = {}
+	for i = 1, length do
+		local n = math.random(1, #NAME_CHARS)
+		out[i] = string.sub(NAME_CHARS, n, n)
+	end
+	return table.concat(out)
+end
+
+-- Wraps a hook replacement so it presents as a C function: islclosure() is
+-- false, debug.getinfo shows no Lua source, string.dump fails, and no Lua
+-- frames appear in a game's debug.traceback — the same profile the original
+-- engine functions and metamethods have. Falls back to the plain function on
+-- executors without newcclosure.
+function Cloak.CClosure(fn)
+	if type(newcclosure) == "function" then
+		local ok, wrapped = pcall(newcclosure, fn)
+		if ok and type(wrapped) == "function" then
+			return wrapped
+		end
+	end
+	return fn
+end
+
+-- True when the game can enumerate this instance: it sits under Workspace or
+-- the local PlayerGui (the fallbacks). gethui/CoreGui containers can't be read
+-- by game scripts, so instances there need no filtering.
+local function exposedToGame(inst)
+	local ok, exposed = pcall(function()
+		if inst:IsDescendantOf(Workspace) then
+			return true
+		end
+		local playerGui = LocalPlayer and LocalPlayer:FindFirstChild("PlayerGui")
+		return playerGui ~= nil and inst:IsDescendantOf(playerGui)
+	end)
+	return ok and exposed == true
+end
+
+function Cloak.Protect(inst)
+	if not protected[inst] then
+		protected[inst] = true
+		protectedCount = protectedCount + 1
+	end
+	-- The __namecall filter is itself a modification a game can probe for, so
+	-- it installs on demand — only once something protected is actually
+	-- exposed to game-side scans. On an executor with gethui and everything
+	-- disabled, the game's metatable is never touched at all.
+	if exposedToGame(inst) then
+		Cloak.Install()
+	end
+	return inst
+end
+
+-- True when inst is, or lives under, a registered instance. Walks .Parent (an
+-- __index read), so it cannot recurse through our own __namecall hook. Stops
+-- at the DataModel, whose .Parent read is locked and would throw.
+local function isHidden(inst)
+	local node = inst
+	while node and node ~= game do
+		if protected[node] then
+			return true
+		end
+		node = node.Parent
+	end
+	return false
+end
+
+-- Stores value under getgenv()[name] WITHOUT a raw key: reads still work, but
+-- pairs()/next() scans of the environment never enumerate it. Returns false
+-- when the environment can't take a metatable (caller may fall back to a raw
+-- assignment if the export matters more than the hiding).
+function Cloak.HideGlobal(name, value)
+	hiddenGlobals[name] = value
+
+	if type(getgenv) ~= "function" then
+		return false
+	end
+	local ok, env = pcall(getgenv)
+	if not ok or type(env) ~= "table" then
+		return false
+	end
+
+	-- A pre-cloak build may have left a raw key behind; drop it.
+	pcall(function()
+		if rawget(env, name) ~= nil then
+			rawset(env, name, nil)
+		end
+	end)
+
+	local ok2 = pcall(function()
+		local mt = getmetatable(env)
+		local oldIndex = mt and rawget(mt, "__index")
+		local newMt = {}
+		if mt then
+			for k, v in pairs(mt) do
+				newMt[k] = v
+			end
+		end
+		newMt.__index = function(_, key)
+			local hidden = hiddenGlobals[key]
+			if hidden ~= nil then
+				return hidden
+			end
+			if type(oldIndex) == "function" then
+				return oldIndex(env, key)
+			elseif type(oldIndex) == "table" then
+				return oldIndex[key]
+			end
+			return nil
+		end
+		setmetatable(env, newMt)
+	end)
+	return ok2
+end
+
+local installed = false
+
+local FILTERED_METHODS = {
+	GetChildren = true,
+	GetDescendants = true,
+	FindFirstChild = true,
+	FindFirstChildOfClass = true,
+	FindFirstChildWhichIsA = true,
+}
+
+-- Installs the __namecall filter. Only GAME threads (checkcaller() == false)
+-- get filtered results; our own modules keep seeing the full tree, so
+-- applyAccent / NPC rescans / etc. are unaffected. Chains cleanly with the
+-- Silent Aim hook, which installs later and wraps this closure.
+function Cloak.Install()
+	if installed then
+		return
+	end
+	if type(hookmetamethod) ~= "function" or type(getnamecallmethod) ~= "function" then
+		return
+	end
+	-- Without checkcaller we cannot tell the game's scans from our own lookups,
+	-- and filtering our own calls would break the UI/ESP internals.
+	if type(checkcaller) ~= "function" then
+		return
+	end
+
+	local oldNamecall
+	local ok = pcall(function()
+		oldNamecall = hookmetamethod(game, "__namecall", Cloak.CClosure(function(self, ...)
+			local method = getnamecallmethod()
+			if protectedCount > 0 and method and FILTERED_METHODS[method] and not checkcaller() then
+				local res = oldNamecall(self, ...)
+				if method == "GetChildren" or method == "GetDescendants" then
+					local kept = {}
+					for i = 1, #res do
+						if not isHidden(res[i]) then
+							kept[#kept + 1] = res[i]
+						end
+					end
+					return kept
+				end
+				-- FindFirstChild*: single Instance result (or nil).
+				if typeof(res) == "Instance" and isHidden(res) then
+					return nil
+				end
+				return res
+			end
+			return oldNamecall(self, ...)
+		end))
+	end)
+
+	installed = ok
+end
+
+return Cloak

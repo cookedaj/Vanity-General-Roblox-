@@ -1,7 +1,8 @@
 --==============================================================================
 -- MAIN CONTROLLER - Entry Point
 -- Orchestrates all systems (ESP, Camera, UI, Movement, Webhook, etc).
--- Exported to getgenv().VanityGeneral on Start (the global name is kept).
+-- Exported as getgenv().VanityGeneral on Start — through the Cloak, so the
+-- name reads normally but never enumerates in an environment scan.
 --==============================================================================
 
 local Players = game:GetService("Players")
@@ -26,6 +27,7 @@ local Utility = require(script.Utility)
 local UI = require(script.UI)
 local Movement = require(script.Movement)
 local Webhook = require(script.Webhook)
+local Cloak = require(script.Cloak)
 
 local Controller = {}
 Controller.Version = "0"
@@ -40,7 +42,8 @@ Webhook.Version = Controller.Version -- stamped for the "loaded" embed
 local running = false
 local connections = {}
 local aimbotSteering = false -- set each frame; tells NoRecoil to stand down
-local RECOIL_BIND = "VanityGeneralRecoil" -- BindToRenderStep name (runs after camera)
+-- Randomized so the BindToRenderStep name carries no script signature.
+local RECOIL_BIND = Cloak.RandomName() -- BindToRenderStep name (runs after camera)
 
 -- Per-frame crash guard. A raw error inside a RenderStepped handler repeats every
 -- frame, flooding the console and tanking FPS. This swallows the error, keeps the
@@ -142,6 +145,10 @@ function Controller.Start()
 
 	running = true
 
+	-- Note: no global hooks are installed here. The Cloak filter installs
+	-- itself on the first Protect() of a game-visible instance, and Silent Aim
+	-- installs on first enable — so simply loading the script with everything
+	-- off leaves the game's metatable completely untouched.
 	local ok, err = pcall(function()
 		ESP:Init()
 
@@ -151,9 +158,9 @@ function Controller.Start()
 
 		Movement:Init(Configuration.Movement)
 
-		SilentAim:Init(Configuration.SilentAim)
-
-		Utility:Init(Configuration.Utility)
+		-- Full config: Silent Aim reads its own toggle plus the ESP/Camera
+		-- sections for its crosshair (look-target) fallback.
+		SilentAim:Init(Configuration)
 
 		table.insert(connections, Players.PlayerAdded:Connect(function(player)
 			guarded("PlayerAdded", ESP.OnPlayerAdded, ESP, player)
@@ -235,6 +242,10 @@ function Controller.Start()
 			-- Neutralize client-side bullet spread rolls when enabled.
 			guarded("NoSpread", NoSpread.Update, NoSpread, Configuration.NoSpread)
 
+			-- Installs the Silent Aim hooks on first enable (kept out of Init so
+			-- loading the script never touches the game's metatable).
+			guarded("Silent Aim", SilentAim.Update, SilentAim, Configuration)
+
 			-- Auto-fire when the crosshair is on a target.
 			guarded("Triggerbot", Triggerbot.Update, Triggerbot, Configuration.Triggerbot, Configuration.Camera)
 
@@ -283,8 +294,10 @@ function Controller.Start()
 		return Controller
 	end
 
-	-- Export under the historical global name so re-executions can find us.
-	if getgenv then
+	-- Export under the historical global name so re-executions can find us,
+	-- but through the cloak: readable as getgenv().VanityGeneral, invisible to
+	-- pairs() environment scans. Raw fallback only if hiding is impossible.
+	if not Cloak.HideGlobal("VanityGeneral", Controller) and getgenv then
 		getgenv().VanityGeneral = Controller
 	end
 
@@ -345,9 +358,6 @@ function Controller.Stop()
 	end)
 	pcall(function()
 		Visuals:Cleanup() -- restore original Lighting properties
-	end)
-	pcall(function()
-		Utility:Cleanup() -- disconnect the Anti-AFK Idled listener
 	end)
 	pcall(function()
 		NoSpread:Cleanup() -- restore original math.random so no global hook lingers

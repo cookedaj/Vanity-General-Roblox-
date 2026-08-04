@@ -14,10 +14,6 @@ Configuration.Camera = {
 	FOV = 200,
 	-- World range limit in studs from your character.
 	MaxDistance = 1000,
-	-- Velocity lead: 0 = off, 1 = full lead using a rough time-of-flight model.
-	Prediction = 0,
-	-- Subtle per-frame jitter so the aim path isn't a perfect straight line.
-	Humanize = true,
 
 	-- Hitbox mode: "Random (Weighted)" uses TargetWeights below; otherwise a
 	-- specific region ("Head" / "Torso" / "Arms" / "Legs") is aimed at directly.
@@ -34,7 +30,6 @@ Configuration.Camera = {
 	},
 
 	WallCheck = true,     -- require line of sight to the target
-	StickyTarget = false, -- keep the current target until it dies / leaves / exits FOV
 	TargetBots = false,   -- also target NPCs (non-player models with a Humanoid)
 	TeamCheck = true,     -- never target players on your own team
 	FOVCircle = false,    -- draw the targeting radius on screen
@@ -86,19 +81,19 @@ Configuration.Movement = {
 	InfJumpEnabled = false,
 	ClickTPEnabled = false,
 	ClickTPKey = Enum.KeyCode.LeftControl, -- hold this + left click to teleport
-	-- Pulse boost/coast so sustained high speeds don't trip server speed
-	-- checks (the "rubber-band" snapback). Costs some effective speed.
-	Pulse = true,
-	PulseBoost = 0.1, -- seconds per boost burst
-	PulseCoast = 0.15, -- seconds per coast; lengthen if a game still snaps you
-	-- Click TP in small hops instead of one instant jump (see Movement module).
-	ClickTPSteps = false,
-	ClickTPStep = 10, -- studs per hop
-	ClickTPInterval = 0.05, -- seconds between hops
+	-- Speed/Fly anti-lagback pulsing and stepped Click TP are always on with
+	-- fixed best settings inside the Movement module (not configurable).
 }
 
 Configuration.SilentAim = {
 	Enabled = false,
+	-- Network plausibility: shots further than MaxAngle degrees off the real
+	-- camera aim are NOT rewritten (they miss legitimately), so the server
+	-- never sees a hit claim it can't reconcile with your look direction.
+	MaxAngle = 30,
+	-- Percent of in-cone shots to rewrite. Below 100 your hit rate stays
+	-- statistically human instead of a perfect, flaggable 100%.
+	HitChance = 100,
 }
 
 Configuration.Hitbox = {
@@ -117,10 +112,6 @@ Configuration.Drawing = {
 Configuration.Visuals = {
 	Fullbright = false,
 	NoFog = false,
-}
-
-Configuration.Utility = {
-	AntiAFK = true, -- simulates input on Idled so Roblox never kicks for inactivity
 }
 
 Configuration.ESP = {
@@ -178,12 +169,9 @@ local DEFAULTS = {
 		Smoothness = 0.85,
 		FOV = 200,
 		MaxDistance = 1000,
-		Prediction = 0,
-		Humanize = true,
 		Hitbox = "Random (Weighted)",
 		TargetWeights = { Head = 85, Torso = 15, Arms = 0, Legs = 0 },
 		WallCheck = true,
-		StickyTarget = false,
 		TargetBots = false,
 		TeamCheck = true,
 		FOVCircle = false,
@@ -216,14 +204,8 @@ local DEFAULTS = {
 		Speed = 16,
 		InfJumpEnabled = false,
 		ClickTPEnabled = false,
-		Pulse = true,
-		PulseBoost = 0.1,
-		PulseCoast = 0.15,
-		ClickTPSteps = false,
-		ClickTPStep = 10,
-		ClickTPInterval = 0.05,
 	},
-	SilentAim = { Enabled = false },
+	SilentAim = { Enabled = false, MaxAngle = 30, HitChance = 100 },
 	Hitbox = { Enabled = false, Size = 5, Transparency = 0.5 },
 	Drawing = {
 		Boxes = false,
@@ -232,7 +214,6 @@ local DEFAULTS = {
 		TracerColor = Color3.fromRGB(255, 255, 255),
 	},
 	Visuals = { Fullbright = false, NoFog = false },
-	Utility = { AntiAFK = true },
 	UI = {
 		Scale = 1,
 		Accent = Color3.fromRGB(132, 62, 190),

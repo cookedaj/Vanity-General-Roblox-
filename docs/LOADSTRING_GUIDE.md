@@ -55,9 +55,9 @@ VanityGeneral.SendWebhook(content, opts)
 
 ## Features by tab
 
-- **Combat** — aimbot (smoothness, prediction, humanize, FOV, sticky target,
-  target part), Target Bots (NPCs), Team Check, triggerbot (randomized
-  min/max delay), silent aim (needs `hookmetamethod`), hitbox expander,
+- **Combat** — aimbot (smoothness, FOV, target part), Target Bots (NPCs),
+  Team Check, triggerbot (randomized min/max delay), silent aim (curves shots
+  over obstacles; needs `hookmetamethod`), hitbox expander,
   no-recoil / no-spread.
 - **Visual** — ESP highlights, name/health/distance tags (players and NPCs),
   box ESP + tracers (needs the `Drawing` library), fullbright, no fog.
@@ -88,5 +88,6 @@ defeat specific features (silent aim, speed, hitbox) — that's inherent.
 - The StringObfuscation / DebuggerDetection library is **not** part of the
   build anymore. It lives in `src/security/` as a standalone library — see
   `docs/StringObfuscation_*.md` if you want to use it in your own scripts.
-- The release file is obfuscated (encrypted strings, mangled names). Edit
+- The release file is obfuscated (encrypted strings, mangled names) and then
+  fully encrypted into a self-decrypting stub (`tools/encrypt.py`). Edit
   `src/` and rebuild — never edit the release directly.

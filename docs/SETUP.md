@@ -4,7 +4,7 @@ A full client-side combat/visuals/movement suite for Roblox.
 
 There are two ways to run it:
 
-- **Executor** (the intended path) — paste the loader, get the obfuscated
+- **Executor** (the intended path) — paste the loader, get the encrypted
   release.
 - **Roblox Studio** (for development) — install the modular source.
 
@@ -38,7 +38,7 @@ VanityGeneral.Start()
 
 ## Roblox Studio Setup (modular source)
 
-`src/` is the single source of truth — 17 modules. The old
+`src/` is the single source of truth — 18 modules. The old
 `MainController.lua`/`Loader.lua` entry points are gone; `Main.lua` is the
 only entry.
 
@@ -47,9 +47,9 @@ only entry.
 2. Copy these `src/` files as **ModuleScripts** in the folder
    (name each exactly after its file):
 
-   `Configuration`, `ConfigManager`, `Utility`, `CameraDirector`, `ESP`,
-   `DrawingESP`, `Visuals`, `Webhook`, `Triggerbot`, `SilentAim`, `Hitbox`,
-   `NoRecoil`, `NoSpread`, `UI`, `Movement`, `Controller`
+   `Cloak`, `Configuration`, `ConfigManager`, `Utility`, `CameraDirector`,
+   `ESP`, `DrawingESP`, `Visuals`, `Webhook`, `Triggerbot`, `SilentAim`,
+   `Hitbox`, `NoRecoil`, `NoSpread`, `UI`, `Movement`, `Controller`
 
 3. Copy `src/Main.lua` as a **LocalScript** in the same folder
 
@@ -82,7 +82,7 @@ Every hotkey is rebindable from the UI; conflicting binds are rejected.
 
 All defaults live in `src/Configuration.lua`, one section per system:
 `Camera` (aimbot), `NoRecoil`, `NoSpread`, `Triggerbot`, `Movement`,
-`SilentAim`, `Hitbox`, `Drawing`, `Visuals`, `Utility` (anti-AFK), `ESP`,
+`SilentAim`, `Hitbox`, `Drawing`, `Visuals`, `ESP`,
 `UI`, `Webhook`. `Configuration.reset()` restores the tunables in `DEFAULTS`
 (keybinds and the webhook URL survive a reset).
 

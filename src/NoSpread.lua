@@ -4,6 +4,7 @@
 --==============================================================================
 
 local NoRecoil = require(script.NoRecoil)
+local Cloak = require(script.Cloak)
 
 local NoSpread = {}
 local ns_active = false
@@ -52,7 +53,9 @@ local function ns_installMath(hook)
 	if ns_mathHooked then
 		return
 	end
-	local ok, ret = pcall(hook, math.random, function(...)
+	-- CClosure-wrapped: math.random is a C function stock, so the replacement
+	-- must look like one too (islclosure/debug.getinfo/string.dump checks).
+	local ok, ret = pcall(hook, math.random, Cloak.CClosure(function(...)
 		local original = ns_origMathRandom(...)
 		if ns_active and ns_strength > 0 then
 			local a, b = ...
@@ -60,7 +63,7 @@ local function ns_installMath(hook)
 			return ns_pull(original, ns_mathMid(a, b), a ~= nil)
 		end
 		return original
-	end)
+	end))
 	if ok then
 		ns_origMathRandom = ret
 		ns_mathHooked = true
@@ -77,7 +80,7 @@ local function ns_installRandom(hook)
 	local ok = pcall(function()
 		local sample = Random.new()
 
-		ns_origNextNumber = hook(sample.NextNumber, function(self, ...)
+		ns_origNextNumber = hook(sample.NextNumber, Cloak.CClosure(function(self, ...)
 			local original = ns_origNextNumber(self, ...)
 			if ns_active and ns_strength > 0 then
 				local mn, mx = ...
@@ -85,16 +88,16 @@ local function ns_installRandom(hook)
 				return ns_pull(original, centre, false)
 			end
 			return original
-		end)
+		end))
 
-		ns_origNextInteger = hook(sample.NextInteger, function(self, ...)
+		ns_origNextInteger = hook(sample.NextInteger, Cloak.CClosure(function(self, ...)
 			local original = ns_origNextInteger(self, ...)
 			if ns_active and ns_strength > 0 then
 				local mn, mx = ...
 				return ns_pull(original, (mn + mx) / 2, true)
 			end
 			return original
-		end)
+		end))
 	end)
 	if ok then
 		ns_randHooked = true

@@ -26,6 +26,7 @@ import sys
 
 # Bundle order = require dependency order. Every module listed must exist.
 MODULES = [
+    "Cloak",
     "Configuration",
     "ConfigManager",
     "Utility",

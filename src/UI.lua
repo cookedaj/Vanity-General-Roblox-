@@ -13,12 +13,13 @@ local LocalPlayer = Players.LocalPlayer
 local ConfigManager = require(script.ConfigManager)
 local Utility = require(script.Utility)
 local Webhook = require(script.Webhook)
+local Cloak = require(script.Cloak)
 
 -- Injected by the controller (avoids a UI <-> Movement require cycle): the
 -- Players tab's "Teleport To" button calls this.
-UI.TeleportTo = nil
-
 local UI = {}
+
+UI.TeleportTo = nil
 
 -- Deep purple + black theme.
 local COLORS = {
@@ -1687,12 +1688,6 @@ local function buildCameraTab(parent, config)
 		config.Camera.WallCheck = not config.Camera.WallCheck
 	end)
 
-	makeToggle(aim, "Sticky Target", function()
-		return config.Camera.StickyTarget
-	end, function()
-		config.Camera.StickyTarget = not config.Camera.StickyTarget
-	end)
-
 	makeToggle(aim, "Target Bots", function()
 		return config.Camera.TargetBots
 	end, function()
@@ -1703,12 +1698,6 @@ local function buildCameraTab(parent, config)
 		return config.Camera.TeamCheck
 	end, function()
 		config.Camera.TeamCheck = not config.Camera.TeamCheck
-	end)
-
-	makeToggle(aim, "Humanize", function()
-		return config.Camera.Humanize
-	end, function()
-		config.Camera.Humanize = not config.Camera.Humanize
 	end)
 
 	makeToggleWithKeybind(aim, "FOV Circle", function()
@@ -1727,12 +1716,6 @@ local function buildCameraTab(parent, config)
 		return config.Camera.Smoothness
 	end, function(val)
 		config.Camera.Smoothness = val
-	end, false)
-
-	makeFillSlider(aim, "Prediction", 0, 1, function()
-		return config.Camera.Prediction
-	end, function(val)
-		config.Camera.Prediction = val
 	end, false)
 
 	-- FOV drives both the targeting cone and the on-screen circle.
@@ -1825,8 +1808,9 @@ local function buildCameraTab(parent, config)
 		config.Triggerbot.WallCheck = not config.Triggerbot.WallCheck
 	end)
 
-	-- Silent Aim redirects shots without moving the camera. On executors without
-	-- hookmetamethod the toggle simply does nothing (see the SILENT AIM section).
+	-- Silent Aim curves shots onto the target without moving the camera — over
+	-- obstacles when the line is blocked. On executors without hookmetamethod
+	-- the toggle simply does nothing (see the SILENT AIM section).
 	local silent = makeGroup(right, "Silent Aim")
 
 	makeToggle(silent, "Enabled", function()
@@ -2092,42 +2076,6 @@ local function buildMovementTab(parent, config)
 
 	local misc = makeGroup(left, "Other")
 
-	makeToggle(misc, "Pulse (Anti-Lagback)", function()
-		return config.Movement.Pulse
-	end, function()
-		config.Movement.Pulse = not config.Movement.Pulse
-	end)
-
-	makeFillSlider(misc, "Pulse Boost", 50, 500, function()
-		return (config.Movement.PulseBoost or 0.1) * 1000
-	end, function(val)
-		config.Movement.PulseBoost = val / 1000
-	end, true)
-
-	makeFillSlider(misc, "Pulse Coast", 50, 1000, function()
-		return (config.Movement.PulseCoast or 0.15) * 1000
-	end, function(val)
-		config.Movement.PulseCoast = val / 1000
-	end, true)
-
-	makeToggle(misc, "Stepped TP", function()
-		return config.Movement.ClickTPSteps
-	end, function()
-		config.Movement.ClickTPSteps = not config.Movement.ClickTPSteps
-	end)
-
-	makeFillSlider(misc, "TP Step Size", 1, 50, function()
-		return config.Movement.ClickTPStep or 10
-	end, function(val)
-		config.Movement.ClickTPStep = val
-	end, true)
-
-	makeFillSlider(misc, "TP Interval", 10, 500, function()
-		return (config.Movement.ClickTPInterval or 0.05) * 1000
-	end, function(val)
-		config.Movement.ClickTPInterval = val / 1000
-	end, true)
-
 	makeToggle(misc, "Noclip", function()
 		return config.Movement.NoclipEnabled
 	end, function()
@@ -2363,7 +2311,7 @@ local function buildPlayersTab(parent, config)
 end
 
 --==============================================================================
--- Misc tab: session actions moved out of Settings (account info, Anti-AFK,
+-- Misc tab: session actions moved out of Settings (account info,
 -- server hop / rejoin) plus webhook configuration.
 --==============================================================================
 local function buildMiscTab(parent, config)
@@ -2375,12 +2323,6 @@ local function buildMiscTab(parent, config)
 	makeLabel(account, "Username", LocalPlayer and LocalPlayer.Name or "—")
 	makeLabel(account, "Display Name", LocalPlayer and LocalPlayer.DisplayName or "—")
 	makeLabel(account, "User ID", LocalPlayer and tostring(LocalPlayer.UserId) or "—")
-
-	makeToggle(account, "Anti-AFK", function()
-		return config.Utility.AntiAFK
-	end, function()
-		config.Utility.AntiAFK = not config.Utility.AntiAFK
-	end)
 
 	makeButton(account, "Server Hop", function()
 		Utility:ServerHop()
@@ -2983,7 +2925,7 @@ function UI:Init(config, onUnload)
 	startInputRouter()
 
 	gui = newInstance("ScreenGui", {
-		Name = "VanityGeneralUI",
+		Name = Cloak.RandomName(), -- random: no "Vanity*" name to signature-scan
 		ResetOnSpawn = false,
 		IgnoreGuiInset = true,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
@@ -2996,6 +2938,7 @@ function UI:Init(config, onUnload)
 	if not ok or not gui.Parent then
 		gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 	end
+	Cloak.Protect(gui)
 
 	mainWindow = newInstance("CanvasGroup", {
 		Parent = gui,

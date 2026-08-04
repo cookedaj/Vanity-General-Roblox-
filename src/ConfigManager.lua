@@ -9,7 +9,7 @@
 
 local ConfigManager = {}
 local CONFIG_FOLDER = "VanityGeneral"
-local SAVED_SECTIONS = { "Camera", "ESP", "NoRecoil", "NoSpread", "Movement", "SilentAim", "Hitbox", "Drawing", "Visuals", "Utility", "UI" }
+local SAVED_SECTIONS = { "Camera", "ESP", "NoRecoil", "NoSpread", "Movement", "SilentAim", "Hitbox", "Drawing", "Visuals", "UI" }
 
 -- Executors vary in what file APIs they expose; everything degrades gracefully.
 local function fsAvailable()

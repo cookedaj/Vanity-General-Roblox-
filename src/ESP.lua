@@ -10,6 +10,7 @@ local LocalPlayer = Players.LocalPlayer
 local Configuration = require(script.Configuration)
 local Utility = require(script.Utility)
 local Candidates = require(script.Candidates)
+local Cloak = require(script.Cloak)
 
 local ESP = {}
 local entries = {}
@@ -37,7 +38,7 @@ local function getBoxGui()
 	end
 
 	boxGui = Instance.new("ScreenGui")
-	boxGui.Name = "VanityGeneralBoxes"
+	boxGui.Name = Cloak.RandomName() -- random: no "Vanity*" name to signature-scan
 	boxGui.ResetOnSpawn = false
 	boxGui.IgnoreGuiInset = true -- matches Camera:WorldToViewportPoint space
 	boxGui.DisplayOrder = 996
@@ -48,6 +49,7 @@ local function getBoxGui()
 	if not ok or not boxGui.Parent then
 		boxGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 	end
+	Cloak.Protect(boxGui)
 
 	return boxGui
 end
@@ -110,12 +112,15 @@ end
 -- both stack. Parented to the head so it always renders and dies with respawns.
 local function makeInfoTag(entry, name, head, config)
 	local tag = Instance.new("BillboardGui")
-	tag.Name = "VGInfo"
+	tag.Name = Cloak.RandomName()
 	tag.Size = UDim2.fromOffset(200, 46)
 	tag.StudsOffset = Vector3.new(0, 2.7, 0)
 	tag.AlwaysOnTop = true
 	tag.Adornee = head
 	tag.Parent = head
+	-- Lives inside the character, the one place gethui can't hide it: this is
+	-- the registration the game-side character scans get filtered against.
+	Cloak.Protect(tag)
 
 	local holder = Instance.new("Frame")
 	holder.BackgroundTransparency = 1
@@ -428,7 +433,7 @@ function ESP:Init()
 	end
 
 	container = Instance.new("Folder")
-	container.Name = "VanityGeneralESP"
+	container.Name = Cloak.RandomName()
 
 	local ok = pcall(function()
 		container.Parent = Utility.getGuiParent()
@@ -436,6 +441,9 @@ function ESP:Init()
 	if not ok or not container.Parent then
 		container.Parent = Workspace
 	end
+	-- Covers the Highlight children too (the filter hides whole subtrees) and
+	-- matters most on the Workspace fallback, where the game can scan it.
+	Cloak.Protect(container)
 
 	for _, player in ipairs(Players:GetPlayers()) do
 		addPlayer(player, Configuration.ESP.OutlineColor)

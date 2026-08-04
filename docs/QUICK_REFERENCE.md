@@ -41,13 +41,13 @@ V.Config.Movement.FlySpeed = 100
 
 ## Feature map
 
-- **Combat**: aimbot, prediction, humanize, sticky target, FOV circle,
-  Target Bots, Team Check, triggerbot (random delay), silent aim*,
-  hitbox expander, no-recoil, no-spread
+- **Combat**: aimbot, FOV circle, Target Bots, Team Check, triggerbot
+  (random delay), silent aim* (curves shots over obstacles), hitbox
+  expander, no-recoil, no-spread
 - **Visual**: ESP, name/health/distance tags, box ESP*, tracers*,
   fullbright, no fog
 - **Movement**: fly, noclip, speed, infinite jump, click-TP
-- **Settings**: keybinds, profiles, anti-AFK, server hop, rejoin, unload
+- **Settings**: keybinds, profiles, server hop, rejoin, unload
 
 \* executor-dependent — no-ops safely if the API is missing.
 
@@ -55,5 +55,6 @@ V.Config.Movement.FlySpeed = 100
 
 - Security library (StringObfuscation etc.) is NOT bundled anymore — see
   `docs/StringObfuscation_*.md` for the standalone version in `src/security/`.
-- Release is obfuscated; develop in `src/`, rebuild with `tools/build.py`
-  then `tools/obfuscate.py`. Full guide: `docs/LOADSTRING_GUIDE.md`.
+- Release is obfuscated + encrypted; develop in `src/`, rebuild with
+  `tools/build.py`, then `tools/obfuscate.py`, then `tools/encrypt.py`.
+  Full guide: `docs/LOADSTRING_GUIDE.md`.

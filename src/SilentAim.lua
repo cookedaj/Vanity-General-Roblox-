@@ -1,9 +1,24 @@
 --==============================================================================
 -- SILENT AIM
--- Redirects your shots onto the aimbot's current target WITHOUT moving the
--- camera, by hooking game's metatable. Requires an executor with
--- hookmetamethod/getnamecallmethod — support varies, so both hooks are guarded
--- and independent of each other; without them the feature simply no-ops.
+-- Redirects your shots onto a target WITHOUT moving the camera, by hooking the
+-- game's metatable. When something (a hill, a wall, a building) sits between
+-- you and the target, the shot is CURVED over it: the launch direction is
+-- raised toward an arc apex computed above the obstruction, so a gravity-
+-- affected projectile arcs up and drops onto the target instead of burying
+-- itself in the hillside. Clear line of sight still takes a flat shot.
+--
+-- Target resolution: the aimbot's current lock first; with no lock, whoever
+-- the crosshair is nearest (the same pick the Target Display makes — no wall
+-- check, so targets behind terrain still register).
+--
+-- Network plausibility: before any rewrite, the target must pass a gate —
+-- within MaxAngle of the real camera aim (so the server can reconcile the
+-- shot with your look direction) and a HitChance roll (so your hit rate
+-- stays statistically human). Failing shots go out unbent as legit misses.
+--
+-- Requires an executor with hookmetamethod/getnamecallmethod — support varies,
+-- so both hooks are guarded and independent of each other; without them the
+-- feature simply no-ops.
 --==============================================================================
 
 local Players = game:GetService("Players")
@@ -11,19 +26,104 @@ local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 local CameraDirector = require(script.CameraDirector)
+local Cloak = require(script.Cloak)
 
 local SilentAim = {}
 local sa_installed = false
 local sa_warned = false
+local sa_config -- the full Configuration table, stored by Init
 
--- The part the aimbot is currently locked onto, or nil.
+-- Arc tuning. The apex is found by probing straight down from high above the
+-- shot's midpoint; the shot is then lobbed CLEARANCE studs above whatever that
+-- probe hits (the hilltop), capped at MAX_LIFT above the higher endpoint so we
+-- never mortar rounds into orbit.
+local ARC_PROBE_HEIGHT = 500
+local ARC_CLEARANCE = 12
+local ARC_MAX_LIFT = 200
+
+-- Local muzzle approximation: the head when we have one, else the root, else
+-- the camera. Used to aim rewritten remote args (the Raycast hook gets the
+-- game's own origin passed in).
+local function sa_muzzle()
+	local character = LocalPlayer.Character
+	if character then
+		local head = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
+		if head then
+			return head.Position
+		end
+	end
+	local camera = Workspace.CurrentCamera
+	return camera and camera.CFrame.Position or Vector3.zero
+end
+
+-- Resolve a BodyPart to shoot at from a Player or character model.
+local function sa_anchorPart(character)
+	if not character then
+		return nil
+	end
+	return character:FindFirstChild("Head")
+		or character:FindFirstChild("HumanoidRootPart")
+		or character:FindFirstChild("UpperTorso")
+		or character:FindFirstChild("Torso")
+end
+
+-- The part to curve shots onto: the aimbot's lock when it has one, else
+-- whoever the crosshair is nearest (Target Display pick — deliberately no wall
+-- check, so someone behind a mountain still counts).
 local function sa_targetPart()
 	local target = CameraDirector:GetCurrentTarget()
-	local part = target and target.Part
+	if target and target.Part and target.Part.Parent then
+		return target.Part
+	end
+
+	if not sa_config then
+		return nil
+	end
+	local look = CameraDirector:GetLookTarget(sa_config.ESP, sa_config.Camera)
+	if typeof(look) ~= "Instance" then
+		return nil
+	end
+	local character = look:IsA("Player") and look.Character or look
+	local part = sa_anchorPart(character)
 	if part and part.Parent then
 		return part
 	end
 	return nil
+end
+
+-- Where a shot from `origin` should be aimed to land on `part`. Flat when the
+-- line is clear; raised over the obstruction's apex when it isn't, so gravity
+-- carries the projectile over the top and down onto the target.
+local function sa_aimPoint(origin, part)
+	local targetPos = part.Position
+
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	-- Excluding the target's own character too: a ray that would reach the
+	-- target then hits nothing, which reads as a clear line.
+	params.FilterDescendantsInstances = { LocalPlayer.Character, part:FindFirstAncestorOfClass("Model") or part }
+
+	if not Workspace:Raycast(origin, targetPos - origin, params) then
+		return targetPos -- clear line: flat shot
+	end
+
+	-- Blocked. Probe down from high above the midpoint to find the top of
+	-- whatever is in the way, then aim CLEARANCE studs over it.
+	local mid = (origin + targetPos) / 2
+	local probeTop = mid + Vector3.new(0, ARC_PROBE_HEIGHT, 0)
+	local floorY = math.min(origin.Y, targetPos.Y)
+	local hit = Workspace:Raycast(probeTop, Vector3.new(0, floorY - 5 - probeTop.Y, 0), params)
+
+	local ceilingY = math.max(origin.Y, targetPos.Y)
+	local apexY
+	if hit then
+		apexY = hit.Position.Y + ARC_CLEARANCE
+	else
+		apexY = ceilingY + ARC_MAX_LIFT -- nothing found: assume it's tall
+	end
+	apexY = math.clamp(apexY, ceilingY + 5, ceilingY + ARC_MAX_LIFT)
+
+	return Vector3.new(mid.X, apexY, mid.Z)
 end
 
 -- Only rewrite calls from game scripts. If the executor can't tell (no
@@ -33,7 +133,54 @@ local function sa_fromGameScript()
 	return type(checkcaller) == "function" and not checkcaller()
 end
 
+local sa_rng = Random.new()
+
+-- Network-plausibility gate. The server can reconcile a rewritten shot against
+-- your replicated look direction and your hit rate, so a target is only
+-- returned when a hit on it is a claim a legitimate player could have made:
+-- within MaxAngle of the real camera aim, and passing the HitChance roll.
+local function sa_plausiblePart()
+	local part = sa_targetPart()
+	if not part or not sa_config then
+		return nil
+	end
+
+	local maxAngle = sa_config.SilentAim.MaxAngle or 30
+	if maxAngle < 180 then
+		local cam = Workspace.CurrentCamera
+		if cam then
+			local toTarget = (part.Position - cam.CFrame.Position).Unit
+			if cam.CFrame.LookVector:Dot(toTarget) < math.cos(math.rad(maxAngle)) then
+				return nil -- too far off-aim: a hit here can't reconcile server-side
+			end
+		end
+	end
+
+	local chance = sa_config.SilentAim.HitChance or 100
+	if chance < 100 and sa_rng:NextNumber(0, 100) > chance then
+		return nil
+	end
+
+	return part
+end
+
 function SilentAim:Init(config)
+	-- Deliberately stores config ONLY: the metatable hooks install lazily on
+	-- the first Update with the feature enabled, so loading the script with
+	-- Silent Aim off leaves the game's metatable completely untouched.
+	sa_config = config
+end
+
+-- Per-frame hook point from the controller's loop. The installed hooks do the
+-- real work passively; this exists only to defer installation until enable.
+function SilentAim:Update(config)
+	if sa_installed or not config.SilentAim.Enabled then
+		return
+	end
+	self:_install()
+end
+
+function SilentAim:_install()
 	if sa_installed then
 		return
 	end
@@ -42,23 +189,38 @@ function SilentAim:Init(config)
 			warn("[Vanity-General] Silent Aim needs hookmetamethod — not available in this executor.")
 			sa_warned = true
 		end
+		sa_installed = true -- tried and failed; don't retry every frame
 		return
 	end
 	sa_installed = true
 
-	-- __namecall: remote fires and Workspace.Raycast.
+	local function enabled()
+		return sa_config.SilentAim.Enabled
+	end
+
+	-- __namecall: remote fires and Workspace.Raycast. CClosure-wrapped so the
+	-- metamethod still looks like a C function to islclosure/getinfo checks.
 	local oldNamecall
-	oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-		if config.Enabled and sa_fromGameScript() then
+	oldNamecall = hookmetamethod(game, "__namecall", Cloak.CClosure(function(self, ...)
+		if enabled() and sa_fromGameScript() then
 			local method = getnamecallmethod()
-			local part = sa_targetPart()
+			local part = sa_plausiblePart()
 			if part then
 				if method == "FireServer" or method == "InvokeServer" then
-					-- Rewrite only position-like args; everything else passes through.
+					-- Rewrite position-like args onto the target and direction-like
+					-- args (unit-ish vectors) onto the arc's launch direction;
+					-- everything else passes through untouched.
+					local muzzle = sa_muzzle()
+					local aimPoint = sa_aimPoint(muzzle, part)
 					local args = { ... }
 					for i, value in ipairs(args) do
 						if typeof(value) == "Vector3" then
-							args[i] = part.Position
+							local magnitude = value.Magnitude
+							if magnitude > 0.5 and magnitude < 1.5 then
+								args[i] = (aimPoint - muzzle).Unit
+							else
+								args[i] = part.Position
+							end
 						elseif typeof(value) == "CFrame" then
 							args[i] = part.CFrame
 						end
@@ -67,24 +229,25 @@ function SilentAim:Init(config)
 				end
 				if method == "Raycast" and self == Workspace then
 					-- Raycast(origin, direction, params): keep the original cast
-					-- length, bend the direction onto the target.
+					-- length, bend the direction along the arc's launch heading.
 					local origin, direction, params = ...
 					if typeof(origin) == "Vector3" and typeof(direction) == "Vector3" then
-						local bent = (part.Position - origin).Unit * direction.Magnitude
+						local aimPoint = sa_aimPoint(origin, part)
+						local bent = (aimPoint - origin).Unit * direction.Magnitude
 						return oldNamecall(self, origin, bent, params)
 					end
 				end
 			end
 		end
 		return oldNamecall(self, ...)
-	end)
+	end))
 
 	-- __index: the classic Mouse.Hit / Mouse.Target spoof.
 	local mouse = LocalPlayer:GetMouse()
 	local oldIndex
-	oldIndex = hookmetamethod(game, "__index", function(self, key)
-		if config.Enabled and sa_fromGameScript() and self == mouse then
-			local part = sa_targetPart()
+	oldIndex = hookmetamethod(game, "__index", Cloak.CClosure(function(self, key)
+		if enabled() and sa_fromGameScript() and self == mouse then
+			local part = sa_plausiblePart()
 			if part then
 				if key == "Hit" then
 					return part.CFrame
@@ -95,7 +258,7 @@ function SilentAim:Init(config)
 			end
 		end
 		return oldIndex(self, key)
-	end)
+	end))
 end
 
 return SilentAim

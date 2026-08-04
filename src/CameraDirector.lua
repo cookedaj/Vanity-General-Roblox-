@@ -9,12 +9,11 @@ local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 local Utility = require(script.Utility)
 local Candidates = require(script.Candidates)
+local Cloak = require(script.Cloak)
 
 local CameraDirector = {}
 
 local Camera = Workspace.CurrentCamera
--- Random source for Humanize jitter (Random.new avoids reseeding the global RNG).
-local cd_rng = Random.new()
 
 -- Body regions map to the actual part names each rig type uses. Targeting picks a
 -- region (a fixed one, or a weighted-random roll), then the first part that region
@@ -100,17 +99,6 @@ local function rollWeightedRegion(weights)
 	return "Head"
 end
 
-local function getScreenDistance(worldPosition)
-	local viewport, visible = Camera:WorldToViewportPoint(worldPosition)
-	if not visible or viewport.Z < 0 then
-		return math.huge
-	end
-
-	local screen = Vector2.new(viewport.X, viewport.Y)
-	local center = Camera.ViewportSize / 2
-	return (screen - center).Magnitude
-end
-
 local function isVisible(position, character)
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
@@ -133,7 +121,7 @@ local function ensureFovRing()
 	end
 
 	fovGui = Instance.new("ScreenGui")
-	fovGui.Name = "VanityGeneralFOV"
+	fovGui.Name = Cloak.RandomName()
 	fovGui.ResetOnSpawn = false
 	fovGui.IgnoreGuiInset = true -- same space as Camera:WorldToViewportPoint
 	fovGui.DisplayOrder = 998
@@ -144,6 +132,7 @@ local function ensureFovRing()
 	if not ok or not fovGui.Parent then
 		fovGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 	end
+	Cloak.Protect(fovGui)
 
 	fovRing = Instance.new("Frame")
 	fovRing.Name = "Ring"
@@ -197,50 +186,7 @@ local function destroyFovCircle()
 	fovGui, fovRing, fovStroke = nil, nil, nil
 end
 
--- Builds a target table for a character if it currently passes every filter,
--- else nil. `player` is nil for bot (NPC) targets, so target.Player needs a
--- nil-check downstream.
-local function evaluateCharacter(character, player, config)
-	if not character then
-		return nil
-	end
-
-	-- Team Check: never target teammates. Teamless players (Team == nil) stay
-	-- targetable; bots (player == nil) are unaffected.
-	if config.TeamCheck and player and player.Team ~= nil and player.Team == LocalPlayer.Team then
-		return nil
-	end
-
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if not humanoid or humanoid.Health <= 0 then
-		return nil
-	end
-
-	local anchor = anchorPart(character)
-	if not anchor then
-		return nil
-	end
-
-	-- On-screen cone: how far from the crosshair the target may be, in pixels.
-	local distance = getScreenDistance(anchor.Position)
-	if distance >= (config.FOV or 200) then
-		return nil
-	end
-
-	-- MaxDistance is a world-space range in studs (matches the UI's "m" label).
-	local worldDistance = (anchor.Position - Camera.CFrame.Position).Magnitude
-	if worldDistance > config.MaxDistance then
-		return nil
-	end
-
-	if config.WallCheck and not isVisible(anchor.Position, character) then
-		return nil
-	end
-
-	return { Player = player, Character = character, Anchor = anchor, ScreenDistance = distance }
-end
-
--- Same math as getScreenDistance, but reading the candidate's precomputed
+-- Pixel distance from the crosshair, reading the candidate's precomputed
 -- projection instead of calling WorldToViewportPoint again.
 local function screenDistance(cand)
 	if not cand.AnchorOnScreen or cand.AnchorScreen.Z < 0 then
@@ -252,10 +198,10 @@ local function screenDistance(cand)
 	return (screen - center).Magnitude
 end
 
--- Candidate-pool variant of evaluateCharacter: identical filters (Team Check,
--- FOV cone, world-space MaxDistance, WallCheck raycast) but reuses the parts,
--- distance and projection Candidates resolved once this frame. The pool only
--- holds living humanoids, so the alive check from evaluateCharacter is implied.
+-- Candidate-pool filters: Team Check, FOV cone, world-space MaxDistance and
+-- WallCheck raycast, reusing the parts, distance and projection Candidates
+-- resolved once this frame. The pool only holds living humanoids, so the
+-- alive check is implied.
 local function evaluateCandidate(cand, config)
 	local player = cand.Player
 	if config.TeamCheck and player and player.Team ~= nil and player.Team == LocalPlayer.Team then
@@ -369,8 +315,6 @@ function CameraDirector:Update(config, debug)
 
 	if not config.Enabled then
 		self._lockedChar = nil -- reset the weighted lock so re-enabling re-rolls
-		self._stickyCharacter = nil
-		self._stickyPlayer = nil
 		self._currentTarget = nil
 		return
 	end
@@ -379,29 +323,13 @@ function CameraDirector:Update(config, debug)
 		return
 	end
 
-	-- Sticky target: stay on the current character while it still passes every
-	-- filter, otherwise reacquire the best one. Stops the aim flicking between
-	-- targets. Tracks the character (not just the player) so bot targets stick
-	-- too; the player reference is kept only to detect a player leaving.
-	local target
-	if config.StickyTarget and self._stickyCharacter then
-		if not self._stickyPlayer or self._stickyPlayer.Parent == Players then
-			target = evaluateCharacter(self._stickyCharacter, self._stickyPlayer, config)
-		end
-	end
-	if not target then
-		target = self:FindBestTarget(config)
-	end
+	local target = self:FindBestTarget(config)
 
 	if not target then
 		self._lockedChar = nil
-		self._stickyCharacter = nil
-		self._stickyPlayer = nil
 		self._currentTarget = nil
 		return
 	end
-	self._stickyCharacter = target.Character
-	self._stickyPlayer = target.Player
 
 	local region = self:_resolveRegion(target.Character, config)
 	local aimPart = pickPartFromRegion(target.Character, region) or pickAnyPart(target.Character)
@@ -410,24 +338,7 @@ function CameraDirector:Update(config, debug)
 		return
 	end
 
-	local aimPosition = aimPart.Position
-	local worldDistance = (aimPosition - Camera.CFrame.Position).Magnitude
-
-	-- Velocity lead. `worldDistance / 500` is a rough time-of-flight in seconds;
-	-- game forks with real projectile speeds should override that divisor.
-	if (config.Prediction or 0) > 0 then
-		aimPosition = aimPosition + aimPart.AssemblyLinearVelocity * config.Prediction * (worldDistance / 500)
-	end
-
-	local smoothness = config.Smoothness
-	if config.Humanize then
-		-- Per-frame jitter: a slightly varying lerp alpha plus a sub-degree
-		-- angular wobble (scaled to distance) so the aim path isn't a perfect line.
-		smoothness = smoothness * (0.9 + cd_rng:NextNumber() * 0.2)
-		aimPosition = aimPosition + cd_rng:NextUnitVector() * (worldDistance * math.rad(cd_rng:NextNumber() * 0.25))
-	end
-
-	self:PointCamera(aimPosition, smoothness)
+	self:PointCamera(aimPart.Position, config.Smoothness)
 
 	target.Part = aimPart
 	target.Region = region
@@ -448,8 +359,6 @@ end
 
 function CameraDirector:Cleanup()
 	self._lockedChar = nil
-	self._stickyCharacter = nil
-	self._stickyPlayer = nil
 	self._currentTarget = nil
 	destroyFovCircle()
 end

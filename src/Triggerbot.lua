@@ -16,7 +16,7 @@ local tb_onTargetSince = nil -- os.clock when the crosshair first landed on a ta
 local tb_currentDelay -- humanized reaction time, re-sampled per target landing
 local tb_rng = Random.new()
 local tb_lastFire = 0
-local TB_REFIRE = 0.08 -- min seconds between shots so it can't spam every frame
+local tb_refire = 0.1 -- sampled refire interval; a FIXED interval is a timing signature
 
 local function tb_resolveClick()
 	if tb_resolved then
@@ -121,8 +121,12 @@ function Triggerbot:Update(config, cameraConfig)
 		tb_currentDelay = tb_rng:NextNumber(lo, hi)
 	end
 
-	if (now - tb_onTargetSince) >= (tb_currentDelay or 0) and (now - tb_lastFire) >= TB_REFIRE then
+	if (now - tb_onTargetSince) >= (tb_currentDelay or 0) and (now - tb_lastFire) >= tb_refire then
 		tb_lastFire = now
+		-- Re-sample the refire interval every shot (~6-11 clicks/s, human
+		-- semi-auto range) so server-side timing analysis sees jitter, not a
+		-- metronome.
+		tb_refire = tb_rng:NextNumber(0.09, 0.17)
 		tb_click()
 	end
 end
