@@ -5882,8 +5882,10 @@ Movement = (function()
 	--==============================================================================
 	-- MOVEMENT
 	-- Client-side movement suite: fly, noclip, speed, infinite jump, click TP.
-	-- Everything is CFrame or physics velocity only — no BodyMovers, no
-	-- WalkSpeed/JumpPower writes, no Humanoid:ChangeState spoofing.
+	-- Fly/Speed steer through AssemblyLinearVelocity (physics-integrated, so
+	-- movement replicates naturally and doesn't trip teleport checks or
+	-- rubber-band). No BodyMovers, no WalkSpeed/JumpPower writes, no
+	-- Humanoid:ChangeState spoofing. Click TP is the only CFrame teleport.
 	--==============================================================================
 
 	local Players = game:GetService("Players")
@@ -5975,29 +5977,36 @@ Movement = (function()
 			return
 		end
 
-		-- Fly: pure CFrame translation of the root (rotation untouched, so the
-		-- character stays upright and keeps its look direction). Velocity is zeroed
-		-- while flying so gravity can't make you sink between steps.
+		-- Fly: velocity steering, NOT CFrame teleports. Small per-frame teleports
+		-- fight the physics engine and read as position hacks — the server snaps
+		-- you back (rubber-banding) and anti-teleport checks fire. Driving
+		-- AssemblyLinearVelocity lets physics integrate the movement, so it
+		-- replicates like ordinary motion.
 		if config.FlyEnabled then
 			local cam = Workspace.CurrentCamera
 			if cam then
-				root.AssemblyLinearVelocity = Vector3.zero
+				local velocity = Vector3.zero
 				-- While a keybind box is capturing, WASD/Space are a rebind, not flying.
 				if not UI:IsCapturingKey() then
 					local dir = mv_flyDirection(cam)
 					if dir then
-						root.CFrame = root.CFrame + dir * (config.FlySpeed or 50) * dt
+						velocity = dir * (config.FlySpeed or 50)
 					end
 				end
+				root.AssemblyLinearVelocity = velocity
 			end
+			return -- fly owns the character's velocity; don't let Speed fight it
 		end
 
-		-- Speed: a CFrame nudge along the humanoid's OWN move direction, so it works
-		-- with any control scheme and never touches WalkSpeed.
+		-- Speed: override the horizontal velocity toward the humanoid's OWN move
+		-- direction (works with any control scheme), preserving vertical velocity
+		-- so jumps/falls stay natural. WalkSpeed itself is never written.
 		if config.SpeedEnabled then
-			local surplus = (config.Speed or BASE_WALKSPEED) - BASE_WALKSPEED
-			if surplus > 0 and humanoid.MoveDirection.Magnitude > 0 then
-				root.CFrame = root.CFrame + humanoid.MoveDirection * surplus * dt
+			local speed = config.Speed or BASE_WALKSPEED
+			local move = humanoid.MoveDirection
+			if speed > BASE_WALKSPEED and move.Magnitude > 0 then
+				local velocity = root.AssemblyLinearVelocity
+				root.AssemblyLinearVelocity = Vector3.new(move.X * speed, velocity.Y, move.Z * speed)
 			end
 		end
 	end
