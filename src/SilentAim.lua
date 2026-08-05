@@ -200,42 +200,61 @@ function SilentAim:_install()
 
 	-- __namecall: remote fires and Workspace.Raycast. CClosure-wrapped so the
 	-- metamethod still looks like a C function to islclosure/getinfo checks.
+	--
+	-- sa_busy re-entry guard: sa_aimPoint does its OWN Workspace:Raycast probes,
+	-- which fire this hook again. On executors where checkcaller can't recognize
+	-- a call made from inside a hook as ours, that recursion never terminates
+	-- (Raycast -> hook -> Raycast -> ...) and kills the executor with a
+	-- C stack overflow. While sa_busy is set, everything passes through raw.
+	local sa_busy = false
+
+	-- Applies the rewrite for one call. Returns a packed result list when the
+	-- call was rewritten, or nil to let the original call through untouched.
+	local function rewrite(oldNamecall, self, method, part, ...)
+		if method == "FireServer" or method == "InvokeServer" then
+			-- Rewrite position-like args onto the target and direction-like
+			-- args (unit-ish vectors) onto the arc's launch direction;
+			-- everything else passes through untouched.
+			local muzzle = sa_muzzle()
+			local aimPoint = sa_aimPoint(muzzle, part)
+			local args = { ... }
+			for i, value in ipairs(args) do
+				if typeof(value) == "Vector3" then
+					local magnitude = value.Magnitude
+					if magnitude > 0.5 and magnitude < 1.5 then
+						args[i] = (aimPoint - muzzle).Unit
+					else
+						args[i] = part.Position
+					end
+				elseif typeof(value) == "CFrame" then
+					args[i] = part.CFrame
+				end
+			end
+			return table.pack(oldNamecall(self, table.unpack(args)))
+		end
+		if method == "Raycast" and self == Workspace then
+			-- Raycast(origin, direction, params): keep the original cast
+			-- length, bend the direction along the arc's launch heading.
+			local origin, direction, params = ...
+			if typeof(origin) == "Vector3" and typeof(direction) == "Vector3" then
+				local aimPoint = sa_aimPoint(origin, part)
+				local bent = (aimPoint - origin).Unit * direction.Magnitude
+				return table.pack(oldNamecall(self, origin, bent, params))
+			end
+		end
+		return nil
+	end
+
 	local oldNamecall
 	oldNamecall = hookmetamethod(game, "__namecall", Cloak.CClosure(function(self, ...)
-		if enabled() and sa_fromGameScript() then
-			local method = getnamecallmethod()
+		if not sa_busy and enabled() and sa_fromGameScript() then
 			local part = sa_plausiblePart()
 			if part then
-				if method == "FireServer" or method == "InvokeServer" then
-					-- Rewrite position-like args onto the target and direction-like
-					-- args (unit-ish vectors) onto the arc's launch direction;
-					-- everything else passes through untouched.
-					local muzzle = sa_muzzle()
-					local aimPoint = sa_aimPoint(muzzle, part)
-					local args = { ... }
-					for i, value in ipairs(args) do
-						if typeof(value) == "Vector3" then
-							local magnitude = value.Magnitude
-							if magnitude > 0.5 and magnitude < 1.5 then
-								args[i] = (aimPoint - muzzle).Unit
-							else
-								args[i] = part.Position
-							end
-						elseif typeof(value) == "CFrame" then
-							args[i] = part.CFrame
-						end
-					end
-					return oldNamecall(self, table.unpack(args))
-				end
-				if method == "Raycast" and self == Workspace then
-					-- Raycast(origin, direction, params): keep the original cast
-					-- length, bend the direction along the arc's launch heading.
-					local origin, direction, params = ...
-					if typeof(origin) == "Vector3" and typeof(direction) == "Vector3" then
-						local aimPoint = sa_aimPoint(origin, part)
-						local bent = (aimPoint - origin).Unit * direction.Magnitude
-						return oldNamecall(self, origin, bent, params)
-					end
+				sa_busy = true
+				local ok, packed = pcall(rewrite, oldNamecall, self, getnamecallmethod(), part, ...)
+				sa_busy = false
+				if ok and packed then
+					return table.unpack(packed, 1, packed.n)
 				end
 			end
 		end
