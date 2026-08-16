@@ -202,8 +202,11 @@ local function installEnvGuard()
 				result = oldIndex[key]
 			end
 			resolving = false
+			-- A delegate that ERRORS on a miss must not take the script down:
+			-- some executors' C __index throws (e.g. "attempt to call a nil
+			-- value") instead of answering nil. Treat it as an ordinary miss.
 			if not okCall then
-				error(result, 0) -- preserve the original error behavior
+				return nil
 			end
 			return result
 		end
