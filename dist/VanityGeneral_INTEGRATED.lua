@@ -53,6 +53,9 @@ Cloak = (function()
 
 	local Cloak = {}
 
+	-- Seed the RNG so RandomName() produces non-deterministic output.
+	pcall(function() math.randomseed(os.time()) end)
+
 	local Players = game:GetService("Players")
 	local Workspace = game:GetService("Workspace")
 	local LocalPlayer = Players.LocalPlayer
@@ -834,25 +837,49 @@ Candidates = (function()
 	-- require cycle. Scanning the whole Workspace every frame is too expensive, so
 	-- the list refreshes at most every BOT_SCAN_INTERVAL seconds and the scan only
 	-- runs while TargetBots is on. CameraDirector.GetBotCharacters delegates here.
-	local BOT_SCAN_INTERVAL = 0.5
 	local botCharacters = {}
-	local botScanAt = -math.huge
+	local botModels = {} -- [model] = true, for fast lookup
 
-	function Candidates.GetBotCharacters()
-		local now = os.clock()
-		if now - botScanAt < BOT_SCAN_INTERVAL then
-			return botCharacters
+	local function onDescendantAdded(descendant)
+		if not descendant:IsA("Model") then
+			return
 		end
-		botScanAt = now
-
-		table.clear(botCharacters)
-		for _, descendant in ipairs(Workspace:GetDescendants()) do
-			if descendant:IsA("Model")
+		-- Defer so the Humanoid has time to parent in.
+		task.defer(function()
+			if descendant.Parent
 				and descendant:FindFirstChildOfClass("Humanoid")
 				and not Players:GetPlayerFromCharacter(descendant)
 			then
-				table.insert(botCharacters, descendant)
+				if not botModels[descendant] then
+					botModels[descendant] = true
+					table.insert(botCharacters, descendant)
+				end
 			end
+		end)
+	end
+
+	local function onDescendantRemoving(descendant)
+		if botModels[descendant] then
+			botModels[descendant] = nil
+			for i = #botCharacters, 1, -1 do
+				if botCharacters[i] == descendant then
+					table.remove(botCharacters, i)
+					break
+				end
+			end
+		end
+	end
+
+	-- Warm-start: one-time scan of existing descendants, then event-driven.
+	local botInitDone = false
+	function Candidates.GetBotCharacters()
+		if not botInitDone then
+			botInitDone = true
+			for _, descendant in ipairs(Workspace:GetDescendants()) do
+				onDescendantAdded(descendant)
+			end
+			Workspace.DescendantAdded:Connect(onDescendantAdded)
+			Workspace.DescendantRemoving:Connect(onDescendantRemoving)
 		end
 		return botCharacters
 	end
@@ -1014,6 +1041,12 @@ Candidates = (function()
 		return frame
 	end
 
+	-- Exported for CameraDirector (eliminates duplication between modules).
+	Candidates.REGION_PARTS = REGION_PARTS
+	Candidates.REGION_ORDER = REGION_ORDER
+	Candidates.pickPartFromRegion = pickPartFromRegion
+	Candidates.pickAnyPart = pickAnyPart
+
 	return Candidates
 end)() -- /Candidates
 
@@ -1038,74 +1071,19 @@ CameraDirector = (function()
 
 	local Camera = Workspace.CurrentCamera
 
-	-- Body regions map to the actual part names each rig type uses. Targeting picks a
-	-- region (a fixed one, or a weighted-random roll), then the first part that region
-	-- actually has on the target's character — so it works on both R15 and R6.
-	local REGION_PARTS = {
-		Head = { "Head" },
-		Torso = { "UpperTorso", "LowerTorso", "Torso", "HumanoidRootPart" },
-		Arms = {
-			"LeftHand", "RightHand",
-			"LeftLowerArm", "RightLowerArm",
-			"LeftUpperArm", "RightUpperArm",
-			"Left Arm", "Right Arm",
-		},
-		Legs = {
-			"LeftFoot", "RightFoot",
-			"LeftLowerLeg", "RightLowerLeg",
-			"LeftUpperLeg", "RightUpperLeg",
-			"Left Leg", "Right Leg",
-		},
-	}
-	local REGION_ORDER = { "Head", "Torso", "Arms", "Legs" }
+	-- Body regions and part resolution are delegated to Candidates (shared per-frame
+	-- provider) to eliminate duplication between modules.
+	local REGION_PARTS = Candidates.REGION_PARTS
+	local REGION_ORDER = Candidates.REGION_ORDER
+	local pickPartFromRegion = Candidates.pickPartFromRegion
+	local pickAnyPart = Candidates.pickAnyPart
 
-	local rng = Random.new()
-
-	local function pickPartFromRegion(character, region)
-		local names = REGION_PARTS[region]
-		if not names then
-			return nil
-		end
-		for _, name in ipairs(names) do
-			local part = character:FindFirstChild(name)
-			if part and part:IsA("BasePart") then
-				return part
-			end
-		end
-		return nil
-	end
-
-	-- First available part across all regions, then any BasePart as a last resort.
-	local function pickAnyPart(character)
-		for _, region in ipairs(REGION_ORDER) do
-			local part = pickPartFromRegion(character, region)
-			if part then
-				return part
-			end
-		end
-		for _, descendant in ipairs(character:GetDescendants()) do
-			if descendant:IsA("BasePart") then
-				return descendant
-			end
-		end
-		return nil
-	end
-
-	-- Stable reference part used to decide WHICH character to target, so the choice of
-	-- character never jitters with the weighted aim-part roll.
-	local function anchorPart(character)
-		return character:FindFirstChild("Head")
-			or character:FindFirstChild("HumanoidRootPart")
-			or character:FindFirstChild("UpperTorso")
-			or character:FindFirstChild("Torso")
-			or pickAnyPart(character)
-	end
 
 	-- Weighted-random region using the 0-100 weights. Falls back to Head when every
 	-- weight is zero so tracking still does something sensible.
 	local function rollWeightedRegion(weights)
 		local total = 0
-		for _, region in ipairs(REGION_ORDER) do
+		for _, region in ipairs(Candidates.REGION_ORDER) do
 			total = total + math.max(0, (weights and weights[region]) or 0)
 		end
 		if total <= 0 then
@@ -1113,7 +1091,7 @@ CameraDirector = (function()
 		end
 		local roll = rng:NextNumber() * total
 		local acc = 0
-		for _, region in ipairs(REGION_ORDER) do
+		for _, region in ipairs(Candidates.REGION_ORDER) do
 			acc = acc + math.max(0, weights[region] or 0)
 			if roll <= acc then
 				return region
@@ -1310,7 +1288,7 @@ CameraDirector = (function()
 	function CameraDirector:_resolveRegion(character, config)
 		local mode = config.Hitbox
 
-		if mode and mode ~= "Random (Weighted)" and REGION_PARTS[mode] then
+		if mode and mode ~= "Random (Weighted)" and Candidates.REGION_PARTS[mode] then
 			return mode
 		end
 
@@ -1355,12 +1333,17 @@ CameraDirector = (function()
 		end
 
 		local region = self:_resolveRegion(target.Character, config)
-		local aimPart = pickPartFromRegion(target.Character, region) or pickAnyPart(target.Character)
+		local aimPart = Candidates.pickPartFromRegion(target.Character, region) or Candidates.pickAnyPart(target.Character)
 		if not aimPart then
 			self._currentTarget = nil
 			return
 		end
 
+		-- Streaming guard: the part may have been streamed out mid-frame.
+		if not aimPart:IsDescendantOf(Workspace) then
+			self._currentTarget = nil
+			return
+		end
 		self:PointCamera(aimPart.Position, config.Smoothness)
 
 		target.Part = aimPart
@@ -1415,6 +1398,15 @@ ESP = (function()
 	local container
 	local boxGui -- ScreenGui holding the 2D boxes (Boxes mode)
 	local DEPTH = Enum.HighlightDepthMode.AlwaysOnTop
+
+	-- Helper to create and configure instances (mirrors the UI.lua helper).
+	local function newInstance(class, props)
+		local inst = Instance.new(class)
+		for k, v in pairs(props) do
+			inst[k] = v
+		end
+		return inst
+	end
 
 	local function isAlive(humanoid)
 		return humanoid and humanoid.Health > 0
@@ -2090,6 +2082,8 @@ Visuals = (function()
 	local Visuals = {}
 	local Lighting = game:GetService("Lighting")
 	local vs_originals -- captured the first time either feature turns on
+	local Lighting = game:GetService("Lighting")
+	local vs_originals -- captured the first time either feature turns on
 	local vs_fullbrightOn = false
 	local vs_noFogOn = false
 	local vs_lastCheck = 0
@@ -2606,6 +2600,11 @@ SilentAim = (function()
 			return nil
 		end
 
+		-- Streaming guard: don't rewrite shots at streamed-out parts.
+		if not part:IsDescendantOf(Workspace) then
+			return nil
+		end
+
 		local maxAngle = sa_config.SilentAim.MaxAngle or 30
 		if maxAngle < 180 then
 			local cam = Workspace.CurrentCamera
@@ -3095,12 +3094,17 @@ NoSpread = (function()
 		if not hook then
 			return
 		end
-		if ns_mathHooked and ns_origMathRandom then
-			pcall(hook, math.random, ns_origMathRandom)
-			ns_mathHooked = false
+		local okMath, errMath = pcall(function()
+			if ns_mathHooked and ns_origMathRandom then
+				hook(math.random, ns_origMathRandom)
+				ns_mathHooked = false
+			end
+		end)
+		if not okMath then
+			warn("[Vanity-General] NoSpread math.random restore failed:", errMath)
 		end
-		if ns_randHooked then
-			pcall(function()
+		local okRand, errRand = pcall(function()
+			if ns_randHooked then
 				local sample = Random.new()
 				if ns_origNextNumber then
 					hook(sample.NextNumber, ns_origNextNumber)
@@ -3108,8 +3112,11 @@ NoSpread = (function()
 				if ns_origNextInteger then
 					hook(sample.NextInteger, ns_origNextInteger)
 				end
-			end)
-			ns_randHooked = false
+				ns_randHooked = false
+			end
+		end)
+		if not okRand then
+			warn("[Vanity-General] NoSpread Random restore failed:", errRand)
 		end
 	end
 
@@ -3192,9 +3199,10 @@ UI = (function()
 	local spectatePlayer
 	local spectateBtn -- action button whose label flips with the spectate state
 
-	-- Recolors every existing element still showing the OLD accent to the new one
-	-- (accent-colored properties are value copies, so a walk is the only way to
-	-- catch what's already built). New controls read COLORS.accent directly.
+	-- Recolors every existing element still showing the OLD accent to the new one.
+	-- Rapid changes (e.g. dragging the color picker) are coalesced with task.defer
+	-- so the tree is only walked once per frame.
+	local pendingAccent = nil
 	local function applyAccent(newColor)
 		local oldColor = COLORS.accent
 		if newColor == oldColor then
@@ -3207,23 +3215,31 @@ UI = (function()
 		if not gui then
 			return
 		end
-		for _, inst in ipairs(gui:GetDescendants()) do
-			if inst:IsA("GuiObject") then
-				if inst.BackgroundColor3 == oldColor then
-					inst.BackgroundColor3 = newColor
-				end
-				if (inst:IsA("TextLabel") or inst:IsA("TextButton") or inst:IsA("TextBox"))
-					and inst.TextColor3 == oldColor
-				then
-					inst.TextColor3 = newColor
-				end
-				if inst:IsA("ScrollingFrame") and inst.ScrollBarImageColor3 == oldColor then
-					inst.ScrollBarImageColor3 = newColor
-				end
-			elseif inst:IsA("UIStroke") and inst.Color == oldColor then
-				inst.Color = newColor
+		-- Coalesce rapid successive calls into a single tree walk.
+		pendingAccent = newColor
+		task.defer(function()
+			if pendingAccent ~= newColor then
+				return
 			end
-		end
+			pendingAccent = nil
+			for _, inst in ipairs(gui:GetDescendants()) do
+				if inst:IsA("GuiObject") then
+					if inst.BackgroundColor3 == oldColor then
+						inst.BackgroundColor3 = newColor
+					end
+					if (inst:IsA("TextLabel") or inst:IsA("TextButton") or inst:IsA("TextBox"))
+						and inst.TextColor3 == oldColor
+					then
+						inst.TextColor3 = newColor
+					end
+					if inst:IsA("ScrollingFrame") and inst.ScrollBarImageColor3 == oldColor then
+						inst.ScrollBarImageColor3 = newColor
+					end
+				elseif inst:IsA("UIStroke") and inst.Color == oldColor then
+					inst.Color = newColor
+				end
+			end
+		end)
 	end
 
 	local function refreshSpectateBtn()
@@ -6588,8 +6604,11 @@ Movement = (function()
 
 		-- Noclip: re-applied every frame, so the moment this stops running (toggle
 		-- off, or the whole script unloads) collision comes back on its own.
+		-- Cached per-character to avoid walking the descendant tree every frame.
 		if config.NoclipEnabled and character then
-			for _, part in ipairs(character:GetDescendants()) do
+			local noclipParts = character:GetDescendants()
+			for i = 1, #noclipParts do
+				local part = noclipParts[i]
 				if part:IsA("BasePart") then
 					part.CanCollide = false
 				end
@@ -6772,7 +6791,7 @@ Controller = (function()
 	local Cloak = Cloak
 
 	local Controller = {}
-	Controller.Version = "0"
+	Controller.Version = "1.0.0"
 	Controller.Config = Configuration
 
 	-- Injected rather than required by the UI (would be a UI <-> Movement cycle):

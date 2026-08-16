@@ -15,74 +15,19 @@ local CameraDirector = {}
 
 local Camera = Workspace.CurrentCamera
 
--- Body regions map to the actual part names each rig type uses. Targeting picks a
--- region (a fixed one, or a weighted-random roll), then the first part that region
--- actually has on the target's character — so it works on both R15 and R6.
-local REGION_PARTS = {
-	Head = { "Head" },
-	Torso = { "UpperTorso", "LowerTorso", "Torso", "HumanoidRootPart" },
-	Arms = {
-		"LeftHand", "RightHand",
-		"LeftLowerArm", "RightLowerArm",
-		"LeftUpperArm", "RightUpperArm",
-		"Left Arm", "Right Arm",
-	},
-	Legs = {
-		"LeftFoot", "RightFoot",
-		"LeftLowerLeg", "RightLowerLeg",
-		"LeftUpperLeg", "RightUpperLeg",
-		"Left Leg", "Right Leg",
-	},
-}
-local REGION_ORDER = { "Head", "Torso", "Arms", "Legs" }
+-- Body regions and part resolution are delegated to Candidates (shared per-frame
+-- provider) to eliminate duplication between modules.
+local REGION_PARTS = Candidates.REGION_PARTS
+local REGION_ORDER = Candidates.REGION_ORDER
+local pickPartFromRegion = Candidates.pickPartFromRegion
+local pickAnyPart = Candidates.pickAnyPart
 
-local rng = Random.new()
-
-local function pickPartFromRegion(character, region)
-	local names = REGION_PARTS[region]
-	if not names then
-		return nil
-	end
-	for _, name in ipairs(names) do
-		local part = character:FindFirstChild(name)
-		if part and part:IsA("BasePart") then
-			return part
-		end
-	end
-	return nil
-end
-
--- First available part across all regions, then any BasePart as a last resort.
-local function pickAnyPart(character)
-	for _, region in ipairs(REGION_ORDER) do
-		local part = pickPartFromRegion(character, region)
-		if part then
-			return part
-		end
-	end
-	for _, descendant in ipairs(character:GetDescendants()) do
-		if descendant:IsA("BasePart") then
-			return descendant
-		end
-	end
-	return nil
-end
-
--- Stable reference part used to decide WHICH character to target, so the choice of
--- character never jitters with the weighted aim-part roll.
-local function anchorPart(character)
-	return character:FindFirstChild("Head")
-		or character:FindFirstChild("HumanoidRootPart")
-		or character:FindFirstChild("UpperTorso")
-		or character:FindFirstChild("Torso")
-		or pickAnyPart(character)
-end
 
 -- Weighted-random region using the 0-100 weights. Falls back to Head when every
 -- weight is zero so tracking still does something sensible.
 local function rollWeightedRegion(weights)
 	local total = 0
-	for _, region in ipairs(REGION_ORDER) do
+	for _, region in ipairs(Candidates.REGION_ORDER) do
 		total = total + math.max(0, (weights and weights[region]) or 0)
 	end
 	if total <= 0 then
@@ -90,7 +35,7 @@ local function rollWeightedRegion(weights)
 	end
 	local roll = rng:NextNumber() * total
 	local acc = 0
-	for _, region in ipairs(REGION_ORDER) do
+	for _, region in ipairs(Candidates.REGION_ORDER) do
 		acc = acc + math.max(0, weights[region] or 0)
 		if roll <= acc then
 			return region
@@ -287,7 +232,7 @@ end
 function CameraDirector:_resolveRegion(character, config)
 	local mode = config.Hitbox
 
-	if mode and mode ~= "Random (Weighted)" and REGION_PARTS[mode] then
+	if mode and mode ~= "Random (Weighted)" and Candidates.REGION_PARTS[mode] then
 		return mode
 	end
 
@@ -332,12 +277,17 @@ function CameraDirector:Update(config, debug)
 	end
 
 	local region = self:_resolveRegion(target.Character, config)
-	local aimPart = pickPartFromRegion(target.Character, region) or pickAnyPart(target.Character)
+	local aimPart = Candidates.pickPartFromRegion(target.Character, region) or Candidates.pickAnyPart(target.Character)
 	if not aimPart then
 		self._currentTarget = nil
 		return
 	end
 
+	-- Streaming guard: the part may have been streamed out mid-frame.
+	if not aimPart:IsDescendantOf(Workspace) then
+		self._currentTarget = nil
+		return
+	end
 	self:PointCamera(aimPart.Position, config.Smoothness)
 
 	target.Part = aimPart

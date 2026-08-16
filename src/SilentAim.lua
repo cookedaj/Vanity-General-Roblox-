@@ -145,6 +145,11 @@ local function sa_plausiblePart()
 		return nil
 	end
 
+	-- Streaming guard: don't rewrite shots at streamed-out parts.
+	if not part:IsDescendantOf(Workspace) then
+		return nil
+	end
+
 	local maxAngle = sa_config.SilentAim.MaxAngle or 30
 	if maxAngle < 180 then
 		local cam = Workspace.CurrentCamera

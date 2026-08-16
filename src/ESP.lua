@@ -18,6 +18,15 @@ local container
 local boxGui -- ScreenGui holding the 2D boxes (Boxes mode)
 local DEPTH = Enum.HighlightDepthMode.AlwaysOnTop
 
+-- Helper to create and configure instances (mirrors the UI.lua helper).
+local function newInstance(class, props)
+	local inst = Instance.new(class)
+	for k, v in pairs(props) do
+		inst[k] = v
+	end
+	return inst
+end
+
 local function isAlive(humanoid)
 	return humanoid and humanoid.Health > 0
 end

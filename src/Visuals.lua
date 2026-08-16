@@ -8,6 +8,8 @@ local Lighting = game:GetService("Lighting")
 local Visuals = {}
 local Lighting = game:GetService("Lighting")
 local vs_originals -- captured the first time either feature turns on
+local Lighting = game:GetService("Lighting")
+local vs_originals -- captured the first time either feature turns on
 local vs_fullbrightOn = false
 local vs_noFogOn = false
 local vs_lastCheck = 0

@@ -151,12 +151,17 @@ function NoSpread:Cleanup()
 	if not hook then
 		return
 	end
-	if ns_mathHooked and ns_origMathRandom then
-		pcall(hook, math.random, ns_origMathRandom)
-		ns_mathHooked = false
+	local okMath, errMath = pcall(function()
+		if ns_mathHooked and ns_origMathRandom then
+			hook(math.random, ns_origMathRandom)
+			ns_mathHooked = false
+		end
+	end)
+	if not okMath then
+		warn("[Vanity-General] NoSpread math.random restore failed:", errMath)
 	end
-	if ns_randHooked then
-		pcall(function()
+	local okRand, errRand = pcall(function()
+		if ns_randHooked then
 			local sample = Random.new()
 			if ns_origNextNumber then
 				hook(sample.NextNumber, ns_origNextNumber)
@@ -164,8 +169,11 @@ function NoSpread:Cleanup()
 			if ns_origNextInteger then
 				hook(sample.NextInteger, ns_origNextInteger)
 			end
-		end)
-		ns_randHooked = false
+			ns_randHooked = false
+		end
+	end)
+	if not okRand then
+		warn("[Vanity-General] NoSpread Random restore failed:", errRand)
 	end
 end
 

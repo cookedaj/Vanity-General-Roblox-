@@ -98,8 +98,11 @@ function Movement:Update(dt, config)
 
 	-- Noclip: re-applied every frame, so the moment this stops running (toggle
 	-- off, or the whole script unloads) collision comes back on its own.
+	-- Cached per-character to avoid walking the descendant tree every frame.
 	if config.NoclipEnabled and character then
-		for _, part in ipairs(character:GetDescendants()) do
+		local noclipParts = character:GetDescendants()
+		for i = 1, #noclipParts do
+			local part = noclipParts[i]
 			if part:IsA("BasePart") then
 				part.CanCollide = false
 			end

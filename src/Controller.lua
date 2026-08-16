@@ -30,7 +30,7 @@ local Webhook = require(script.Webhook)
 local Cloak = require(script.Cloak)
 
 local Controller = {}
-Controller.Version = "0"
+Controller.Version = "1.0.0"
 Controller.Config = Configuration
 
 -- Injected rather than required by the UI (would be a UI <-> Movement cycle):

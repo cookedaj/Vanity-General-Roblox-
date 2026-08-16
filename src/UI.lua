@@ -70,9 +70,10 @@ local selectedPlayer
 local spectatePlayer
 local spectateBtn -- action button whose label flips with the spectate state
 
--- Recolors every existing element still showing the OLD accent to the new one
--- (accent-colored properties are value copies, so a walk is the only way to
--- catch what's already built). New controls read COLORS.accent directly.
+-- Recolors every existing element still showing the OLD accent to the new one.
+-- Rapid changes (e.g. dragging the color picker) are coalesced with task.defer
+-- so the tree is only walked once per frame.
+local pendingAccent = nil
 local function applyAccent(newColor)
 	local oldColor = COLORS.accent
 	if newColor == oldColor then
@@ -85,23 +86,31 @@ local function applyAccent(newColor)
 	if not gui then
 		return
 	end
-	for _, inst in ipairs(gui:GetDescendants()) do
-		if inst:IsA("GuiObject") then
-			if inst.BackgroundColor3 == oldColor then
-				inst.BackgroundColor3 = newColor
-			end
-			if (inst:IsA("TextLabel") or inst:IsA("TextButton") or inst:IsA("TextBox"))
-				and inst.TextColor3 == oldColor
-			then
-				inst.TextColor3 = newColor
-			end
-			if inst:IsA("ScrollingFrame") and inst.ScrollBarImageColor3 == oldColor then
-				inst.ScrollBarImageColor3 = newColor
-			end
-		elseif inst:IsA("UIStroke") and inst.Color == oldColor then
-			inst.Color = newColor
+	-- Coalesce rapid successive calls into a single tree walk.
+	pendingAccent = newColor
+	task.defer(function()
+		if pendingAccent ~= newColor then
+			return
 		end
-	end
+		pendingAccent = nil
+		for _, inst in ipairs(gui:GetDescendants()) do
+			if inst:IsA("GuiObject") then
+				if inst.BackgroundColor3 == oldColor then
+					inst.BackgroundColor3 = newColor
+				end
+				if (inst:IsA("TextLabel") or inst:IsA("TextButton") or inst:IsA("TextBox"))
+					and inst.TextColor3 == oldColor
+				then
+					inst.TextColor3 = newColor
+				end
+				if inst:IsA("ScrollingFrame") and inst.ScrollBarImageColor3 == oldColor then
+					inst.ScrollBarImageColor3 = newColor
+				end
+			elseif inst:IsA("UIStroke") and inst.Color == oldColor then
+				inst.Color = newColor
+			end
+		end
+	end)
 end
 
 local function refreshSpectateBtn()

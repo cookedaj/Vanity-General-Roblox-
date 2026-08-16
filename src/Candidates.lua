@@ -40,25 +40,49 @@ local frame = {}
 -- require cycle. Scanning the whole Workspace every frame is too expensive, so
 -- the list refreshes at most every BOT_SCAN_INTERVAL seconds and the scan only
 -- runs while TargetBots is on. CameraDirector.GetBotCharacters delegates here.
-local BOT_SCAN_INTERVAL = 0.5
 local botCharacters = {}
-local botScanAt = -math.huge
+local botModels = {} -- [model] = true, for fast lookup
 
-function Candidates.GetBotCharacters()
-	local now = os.clock()
-	if now - botScanAt < BOT_SCAN_INTERVAL then
-		return botCharacters
+local function onDescendantAdded(descendant)
+	if not descendant:IsA("Model") then
+		return
 	end
-	botScanAt = now
-
-	table.clear(botCharacters)
-	for _, descendant in ipairs(Workspace:GetDescendants()) do
-		if descendant:IsA("Model")
+	-- Defer so the Humanoid has time to parent in.
+	task.defer(function()
+		if descendant.Parent
 			and descendant:FindFirstChildOfClass("Humanoid")
 			and not Players:GetPlayerFromCharacter(descendant)
 		then
-			table.insert(botCharacters, descendant)
+			if not botModels[descendant] then
+				botModels[descendant] = true
+				table.insert(botCharacters, descendant)
+			end
 		end
+	end)
+end
+
+local function onDescendantRemoving(descendant)
+	if botModels[descendant] then
+		botModels[descendant] = nil
+		for i = #botCharacters, 1, -1 do
+			if botCharacters[i] == descendant then
+				table.remove(botCharacters, i)
+				break
+			end
+		end
+	end
+end
+
+-- Warm-start: one-time scan of existing descendants, then event-driven.
+local botInitDone = false
+function Candidates.GetBotCharacters()
+	if not botInitDone then
+		botInitDone = true
+		for _, descendant in ipairs(Workspace:GetDescendants()) do
+			onDescendantAdded(descendant)
+		end
+		Workspace.DescendantAdded:Connect(onDescendantAdded)
+		Workspace.DescendantRemoving:Connect(onDescendantRemoving)
 	end
 	return botCharacters
 end
@@ -219,5 +243,11 @@ end
 function Candidates:Get()
 	return frame
 end
+
+-- Exported for CameraDirector (eliminates duplication between modules).
+Candidates.REGION_PARTS = REGION_PARTS
+Candidates.REGION_ORDER = REGION_ORDER
+Candidates.pickPartFromRegion = pickPartFromRegion
+Candidates.pickAnyPart = pickAnyPart
 
 return Candidates

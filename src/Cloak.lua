@@ -16,6 +16,9 @@
 
 local Cloak = {}
 
+-- Seed the RNG so RandomName() produces non-deterministic output.
+pcall(function() math.randomseed(os.time()) end)
+
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer

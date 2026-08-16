@@ -129,6 +129,15 @@ def main() -> None:
         f.write(result)
     print(f"ok: bundled {len(MODULES)} modules -> {out_file} ({len(result)} bytes)")
 
+    # Sync the integrated build to the Vercel deploy folder.
+    import shutil
+    vercel_script = "vercel-deploy/scripts/VanityGeneral.lua"
+    try:
+        shutil.copy(out_file, vercel_script)
+        print(f"ok: synced -> {vercel_script}")
+    except Exception as e:
+        print(f"warn: could not sync to {vercel_script}: {e}")
+
 
 if __name__ == "__main__":
     main()
