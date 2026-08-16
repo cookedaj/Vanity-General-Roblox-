@@ -18,7 +18,7 @@ fetches the latest release and starts it, trying every common HTTP API
 Minimal form (if your executor has `game:HttpGet`):
 
 ```lua
-local VanityGeneral = loadstring(game:HttpGet("https://raw.githubusercontent.com/cookedaj/vanity-release/main/VanityGeneral.lua"))()
+local VanityGeneral = loadstring(game:HttpGet("https://raw.githubusercontent.com/cookedaj/Vanity-General-Roblox-/main/release/VanityGeneral.lua"))()
 VanityGeneral.Start()
 ```
 

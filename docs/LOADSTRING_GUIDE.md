@@ -1,12 +1,12 @@
 # Vanity-General — Loadstring Guide
 
-The release build is served from the public `vanity-release` repo and works on
+The release build is served from the `Vanity-General-Roblox-` repo and works on
 any executor with an HTTP function.
 
 ## The loadstring
 
 ```lua
-loadstring((function(u) if game.HttpGet then return game:HttpGet(u) end return request({Url=u,Method="GET"}).Body end)("https://raw.githubusercontent.com/cookedaj/vanity-release/main/VanityGeneral.lua?t="..tick()))().Start()
+loadstring((function(u) if game.HttpGet then return game:HttpGet(u) end return request({Url=u,Method="GET"}).Body end)("https://raw.githubusercontent.com/cookedaj/Vanity-General-Roblox-/main/release/VanityGeneral.lua?t="..tick()))().Start()
 ```
 
 The `?t=` cache-buster makes every inject fetch the latest release.

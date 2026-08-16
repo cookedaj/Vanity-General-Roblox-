@@ -7,7 +7,7 @@ Get running in under two minutes, two ways.
 Paste into your executor:
 
 ```lua
-loadstring((function(u) if game.HttpGet then return game:HttpGet(u) end return request({Url=u,Method="GET"}).Body end)("https://raw.githubusercontent.com/cookedaj/vanity-release/main/VanityGeneral.lua?t="..tick()))().Start()
+loadstring((function(u) if game.HttpGet then return game:HttpGet(u) end return request({Url=u,Method="GET"}).Body end)("https://raw.githubusercontent.com/cookedaj/Vanity-General-Roblox-/main/release/VanityGeneral.lua?t="..tick()))().Start()
 ```
 
 Then: **RightShift** opens the menu, **LeftAlt** toggles camera tracking,
@@ -51,7 +51,7 @@ bundled blob.
 .venv-obf/Scripts/python.exe tools/build.py src dist/VanityGeneral_INTEGRATED.lua
 .venv-obf/Scripts/python.exe tools/obfuscate.py dist/VanityGeneral_INTEGRATED.lua dist/VanityGeneral_OBF.lua
 .venv-obf/Scripts/python.exe tools/encrypt.py dist/VanityGeneral_OBF.lua release/VanityGeneral.lua
-# push release/VanityGeneral.lua to the public vanity-release repo
+# push release/VanityGeneral.lua to this repo (it serves `release/VanityGeneral.lua` directly)
 ```
 
 Users get the update on their next inject — no loader change needed.

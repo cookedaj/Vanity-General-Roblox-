@@ -3,7 +3,7 @@
 ## Loadstring
 
 ```lua
-loadstring((function(u) if game.HttpGet then return game:HttpGet(u) end return request({Url=u,Method="GET"}).Body end)("https://raw.githubusercontent.com/cookedaj/vanity-release/main/VanityGeneral.lua?t="..tick()))().Start()
+loadstring((function(u) if game.HttpGet then return game:HttpGet(u) end return request({Url=u,Method="GET"}).Body end)("https://raw.githubusercontent.com/cookedaj/Vanity-General-Roblox-/main/release/VanityGeneral.lua?t="..tick()))().Start()
 ```
 
 Local-file form: `loadstring(readfile("VanityGeneral.lua"))().Start()`

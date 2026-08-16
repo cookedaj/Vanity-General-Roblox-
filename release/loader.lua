@@ -4,7 +4,7 @@
 --   VanityGeneral.Start()
 --
 -- Hosted — tries every known executor HTTP API until one works:
-local URL = "https://raw.githubusercontent.com/cookedaj/vanity-release/main/VanityGeneral.lua?t=" .. tick()
+local URL = "https://raw.githubusercontent.com/cookedaj/Vanity-General-Roblox-/main/release/VanityGeneral.lua?t=" .. tick()
 
 local function bodyOf(res)
 	return type(res) == "table" and (res.Body or res.body) or nil

@@ -127,7 +127,7 @@ Paste the contents of `release/loader.lua` into your executor. It fetches the
 encrypted release and starts it, trying every common HTTP API until one works:
 
 ```lua
-local VanityGeneral = loadstring(game:HttpGet("https://raw.githubusercontent.com/cookedaj/vanity-release/main/VanityGeneral.lua"))()
+local VanityGeneral = loadstring(game:HttpGet("https://raw.githubusercontent.com/cookedaj/Vanity-General-Roblox-/main/release/VanityGeneral.lua"))()
 VanityGeneral.Start()
 ```
 
@@ -179,7 +179,7 @@ The entry chunk returns the Controller (also exported as
 `getgenv().VanityGeneral`):
 
 ```lua
-local VanityGeneral = loadstring(game:HttpGet("https://raw.githubusercontent.com/cookedaj/vanity-release/main/VanityGeneral.lua"))()
+local VanityGeneral = loadstring(game:HttpGet("https://raw.githubusercontent.com/cookedaj/Vanity-General-Roblox-/main/release/VanityGeneral.lua"))()
 
 VanityGeneral.Start()          -- start (also .start())
 VanityGeneral.Stop()           -- full teardown (also .stop())
