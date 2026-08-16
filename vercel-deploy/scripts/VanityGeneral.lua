@@ -64,6 +64,7 @@ Cloak = (function()
 	-- of the set on their own once collected.
 	local protected = setmetatable({}, { __mode = "k" })
 	local protectedCount = 0
+	local protecting = false -- re-entry guard, see Protect()
 
 	-- Values served through the getgenv metatable. A re-execution wraps the
 	-- previous chunk's __index, so a name only the OLD copy set still resolves
@@ -120,8 +121,20 @@ Cloak = (function()
 		-- it installs on demand — only once something protected is actually
 		-- exposed to game-side scans. On an executor with gethui and everything
 		-- disabled, the game's metatable is never touched at all.
-		if exposedToGame(inst) then
-			Cloak.Install()
+		--
+		-- protecting re-entry guard: exposedToGame issues IsDescendantOf /
+		-- FindFirstChild namecalls. On executors where checkcaller can't tell a
+		-- hook-internal call from a game call, those re-enter the __namecall
+		-- hooks, and anything that leads back here would recurse until a
+		-- C stack overflow. A nested Protect simply defers to the outer call —
+		-- Install() runs either way.
+		if not protecting then
+			protecting = true
+			local exposed = exposedToGame(inst)
+			protecting = false
+			if exposed then
+				Cloak.Install()
+			end
 		end
 		return inst
 	end
@@ -216,11 +229,22 @@ Cloak = (function()
 		end
 
 		local oldNamecall
+		local inFilter = false
 		local ok = pcall(function()
 			oldNamecall = hookmetamethod(game, "__namecall", Cloak.CClosure(function(self, ...)
 				local method = getnamecallmethod()
-				if protectedCount > 0 and method and FILTERED_METHODS[method] and not checkcaller() then
-					local res = oldNamecall(self, ...)
+				-- inFilter re-entry guard: while a filtered call is being resolved
+				-- (oldNamecall + isHidden's .Parent walk), any nested namecall must
+				-- pass through raw. Without this, an executor that reports
+				-- hook-internal calls as game calls recurses until C stack overflow.
+				if not inFilter and protectedCount > 0 and method and FILTERED_METHODS[method] and not checkcaller() then
+					inFilter = true
+					local results = table.pack(pcall(oldNamecall, self, ...))
+					inFilter = false
+					if not results[1] then
+						error(results[2], 0)
+					end
+					local res = results[2]
 					if method == "GetChildren" or method == "GetDescendants" then
 						local kept = {}
 						for i = 1, #res do
@@ -2661,11 +2685,14 @@ SilentAim = (function()
 		-- __namecall: remote fires and Workspace.Raycast. CClosure-wrapped so the
 		-- metamethod still looks like a C function to islclosure/getinfo checks.
 		--
-		-- sa_busy re-entry guard: sa_aimPoint does its OWN Workspace:Raycast probes,
+		-- sa_busy re-entry guard: sa_aimPoint does its OWN Workspace:Raycast probes
+		-- and sa_plausiblePart does IsDescendantOf/FindFirstChild namecalls, all of
 		-- which fire this hook again. On executors where checkcaller can't recognize
 		-- a call made from inside a hook as ours, that recursion never terminates
-		-- (Raycast -> hook -> Raycast -> ...) and kills the executor with a
-		-- C stack overflow. While sa_busy is set, everything passes through raw.
+		-- (namecall -> hook -> namecall -> ...) and kills the executor with a
+		-- C stack overflow. The guard therefore covers the WHOLE hook body —
+		-- target resolution included, not just the rewrite — and while it is set,
+		-- everything passes through raw.
 		local sa_busy = false
 
 		-- Applies the rewrite for one call. Returns a packed result list when the
@@ -2707,27 +2734,43 @@ SilentAim = (function()
 
 		local oldNamecall
 		oldNamecall = hookmetamethod(game, "__namecall", Cloak.CClosure(function(self, ...)
-			if not sa_busy and enabled() and sa_fromGameScript() then
-				local part = sa_plausiblePart()
-				if part then
-					sa_busy = true
-					local ok, packed = pcall(rewrite, oldNamecall, self, getnamecallmethod(), part, ...)
-					sa_busy = false
-					if ok and packed then
-						return table.unpack(packed, 1, packed.n)
+			-- Busy: a namecall issued by our own hook logic (target resolution,
+			-- arc probes). Pass it straight through so it can never re-enter.
+			if sa_busy then
+				return oldNamecall(self, ...)
+			end
+			if enabled() and sa_fromGameScript() then
+				sa_busy = true
+				local ok, packed = pcall(function()
+					local part = sa_plausiblePart()
+					if not part then
+						return nil
 					end
+					return rewrite(oldNamecall, self, getnamecallmethod(), part, ...)
+				end)
+				sa_busy = false
+				if ok and packed then
+					return table.unpack(packed, 1, packed.n)
 				end
 			end
 			return oldNamecall(self, ...)
 		end))
 
-		-- __index: the classic Mouse.Hit / Mouse.Target spoof.
+		-- __index: the classic Mouse.Hit / Mouse.Target spoof. Same re-entry
+		-- guard: sa_plausiblePart reads properties off instances, and on
+		-- executors that can't tell hook-internal reads from game reads those
+		-- would fire this hook again.
 		local mouse = LocalPlayer:GetMouse()
 		local oldIndex
 		oldIndex = hookmetamethod(game, "__index", Cloak.CClosure(function(self, key)
+			if sa_busy then
+				return oldIndex(self, key)
+			end
 			if enabled() and sa_fromGameScript() and self == mouse then
-				local part = sa_plausiblePart()
-				if part then
+				sa_busy = true
+				local ok, part = pcall(sa_plausiblePart)
+				sa_busy = false
+				if ok and part then
 					if key == "Hit" then
 						return part.CFrame
 					end

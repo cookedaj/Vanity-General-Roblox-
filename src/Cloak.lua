@@ -27,6 +27,7 @@ local LocalPlayer = Players.LocalPlayer
 -- of the set on their own once collected.
 local protected = setmetatable({}, { __mode = "k" })
 local protectedCount = 0
+local protecting = false -- re-entry guard, see Protect()
 
 -- Values served through the getgenv metatable. A re-execution wraps the
 -- previous chunk's __index, so a name only the OLD copy set still resolves
@@ -83,8 +84,20 @@ function Cloak.Protect(inst)
 	-- it installs on demand — only once something protected is actually
 	-- exposed to game-side scans. On an executor with gethui and everything
 	-- disabled, the game's metatable is never touched at all.
-	if exposedToGame(inst) then
-		Cloak.Install()
+	--
+	-- protecting re-entry guard: exposedToGame issues IsDescendantOf /
+	-- FindFirstChild namecalls. On executors where checkcaller can't tell a
+	-- hook-internal call from a game call, those re-enter the __namecall
+	-- hooks, and anything that leads back here would recurse until a
+	-- C stack overflow. A nested Protect simply defers to the outer call —
+	-- Install() runs either way.
+	if not protecting then
+		protecting = true
+		local exposed = exposedToGame(inst)
+		protecting = false
+		if exposed then
+			Cloak.Install()
+		end
 	end
 	return inst
 end
@@ -179,11 +192,22 @@ function Cloak.Install()
 	end
 
 	local oldNamecall
+	local inFilter = false
 	local ok = pcall(function()
 		oldNamecall = hookmetamethod(game, "__namecall", Cloak.CClosure(function(self, ...)
 			local method = getnamecallmethod()
-			if protectedCount > 0 and method and FILTERED_METHODS[method] and not checkcaller() then
-				local res = oldNamecall(self, ...)
+			-- inFilter re-entry guard: while a filtered call is being resolved
+			-- (oldNamecall + isHidden's .Parent walk), any nested namecall must
+			-- pass through raw. Without this, an executor that reports
+			-- hook-internal calls as game calls recurses until C stack overflow.
+			if not inFilter and protectedCount > 0 and method and FILTERED_METHODS[method] and not checkcaller() then
+				inFilter = true
+				local results = table.pack(pcall(oldNamecall, self, ...))
+				inFilter = false
+				if not results[1] then
+					error(results[2], 0)
+				end
+				local res = results[2]
 				if method == "GetChildren" or method == "GetDescendants" then
 					local kept = {}
 					for i = 1, #res do
