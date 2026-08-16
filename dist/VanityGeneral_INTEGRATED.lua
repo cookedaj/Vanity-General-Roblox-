@@ -3044,17 +3044,27 @@ NoSpread = (function()
 		end
 		-- CClosure-wrapped: math.random is a C function stock, so the replacement
 		-- must look like one too (islclosure/debug.getinfo/string.dump checks).
-		local ok, ret = pcall(hook, math.random, Cloak.CClosure(function(...)
-			local original = ns_origMathRandom(...)
+		--
+		-- Pre-hook capture as fallback: a sane hookfunction returns the original,
+		-- but an executor that returns the REPLACEMENT (or nothing) would make the
+		-- hook call itself — infinite recursion, C stack overflow. The pre-hook
+		-- capture is the same function object, so it is a safe fallback.
+		local original = math.random
+		ns_origMathRandom = original
+		local replacement = Cloak.CClosure(function(...)
+			local value = ns_origMathRandom(...)
 			if ns_active and ns_strength > 0 then
 				local a, b = ...
 				-- math.random() returns a float; the (n) and (a,b) forms return integers.
-				return ns_pull(original, ns_mathMid(a, b), a ~= nil)
+				return ns_pull(value, ns_mathMid(a, b), a ~= nil)
 			end
-			return original
-		end))
+			return value
+		end)
+		local ok, ret = pcall(hook, math.random, replacement)
 		if ok then
-			ns_origMathRandom = ret
+			if type(ret) == "function" and ret ~= replacement then
+				ns_origMathRandom = ret
+			end
 			ns_mathHooked = true
 		end
 	end
@@ -3069,7 +3079,15 @@ NoSpread = (function()
 		local ok = pcall(function()
 			local sample = Random.new()
 
-			ns_origNextNumber = hook(sample.NextNumber, Cloak.CClosure(function(self, ...)
+			-- Same fallback pattern as the math hook: capture the originals
+			-- pre-hook, and only trust hook()'s return when it is a different
+			-- function — a self-return would recurse until C stack overflow.
+			local origNumber = sample.NextNumber
+			local origInteger = sample.NextInteger
+			ns_origNextNumber = origNumber
+			ns_origNextInteger = origInteger
+
+			local numberReplacement = Cloak.CClosure(function(self, ...)
 				local original = ns_origNextNumber(self, ...)
 				if ns_active and ns_strength > 0 then
 					local mn, mx = ...
@@ -3077,16 +3095,24 @@ NoSpread = (function()
 					return ns_pull(original, centre, false)
 				end
 				return original
-			end))
+			end)
+			local retNumber = hook(sample.NextNumber, numberReplacement)
+			if type(retNumber) == "function" and retNumber ~= numberReplacement then
+				ns_origNextNumber = retNumber
+			end
 
-			ns_origNextInteger = hook(sample.NextInteger, Cloak.CClosure(function(self, ...)
+			local integerReplacement = Cloak.CClosure(function(self, ...)
 				local original = ns_origNextInteger(self, ...)
 				if ns_active and ns_strength > 0 then
 					local mn, mx = ...
 					return ns_pull(original, (mn + mx) / 2, true)
 				end
 				return original
-			end))
+			end)
+			local retInteger = hook(sample.NextInteger, integerReplacement)
+			if type(retInteger) == "function" and retInteger ~= integerReplacement then
+				ns_origNextInteger = retInteger
+			end
 		end)
 		if ok then
 			ns_randHooked = true
