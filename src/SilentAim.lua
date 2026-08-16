@@ -261,13 +261,16 @@ function SilentAim:_install()
 			return oldNamecall(self, ...)
 		end
 		if enabled() and sa_fromGameScript() then
+			-- Capture the varargs BEFORE the pcall closure — a nested function
+			-- is not vararg, so '...' cannot be referenced inside it.
+			local args = table.pack(...)
 			sa_busy = true
 			local ok, packed = pcall(function()
 				local part = sa_plausiblePart()
 				if not part then
 					return nil
 				end
-				return rewrite(oldNamecall, self, getnamecallmethod(), part, ...)
+				return rewrite(oldNamecall, self, getnamecallmethod(), part, table.unpack(args, 1, args.n))
 			end)
 			sa_busy = false
 			if ok and packed then
