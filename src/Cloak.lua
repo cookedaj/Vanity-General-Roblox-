@@ -1,8 +1,6 @@
 --==============================================================================
 -- CLOAK
 -- Keeps the script out of a game's environment integrity checks:
---  * The getgenv().VanityGeneral export is served through a metatable __index
---    instead of a raw key, so pairs(getgenv()) enumerations never see it.
 --  * Instances the script creates are registered via Protect(); when the GAME
 --    (not one of our threads) calls GetChildren/GetDescendants/FindFirstChild*,
 --    the results are filtered of registered instances and their descendants.
@@ -10,6 +8,8 @@
 --    characters and are otherwise visible to any character scan.
 --  * RandomName() gives DataModel objects throwaway names, so nothing carries
 --    a "Vanity*" string for name-signature scans.
+-- The getgenv __index export-hiding was REMOVED: on executors with a fragile
+-- C __index it caused C stack overflows / uncatchable delegate errors.
 -- Everything is best-effort: without hookmetamethod/checkcaller the filters
 -- simply never install, and the script behaves exactly as before.
 --==============================================================================
@@ -29,16 +29,12 @@ local protected = setmetatable({}, { __mode = "k" })
 local protectedCount = 0
 local protecting = false -- re-entry guard, see Protect()
 
--- Values served through the getgenv metatable wrapper. The table is SHARED
--- across executions via the registry (see installEnvGuard below), so replacing
--- the wrapper never loses names a previous copy hid — that is how Main still
--- finds the previous Controller to stop it.
+-- Recorded hidden names (this copy only). The getgenv metatable wrapper that
+-- used to serve these is DISABLED — see the note above HideGlobal.
 local hiddenGlobals = {}
 
--- Raw-key registry shared across executions in the same session: lets a later
--- copy recognize (and replace, never wrap) an earlier copy's __index wrapper.
--- Zero-width-space prefix keeps it out of casual eyeball scans; it is a raw
--- key, so pairs() CAN see it — accepted tradeoff for crash-proof re-execution.
+-- Registry key the (now disabled) env wrapper used; still read at load so a
+-- wrapper left by an earlier build this session can be uninstalled.
 local REGISTRY_KEY = "\226\128\139vg_rt"
 
 local NAME_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -123,121 +119,52 @@ local function isHidden(inst)
 	return false
 end
 
--- Installs (or replaces) the getgenv __index wrapper that serves hiddenGlobals.
--- Installed EAGERLY at module load — modules loaded after Cloak probe missing
--- globals (syn/delta/fluxus/...), and a stale UNGUARDED wrapper left by a
--- crashed copy would cycle on the very first miss.
---
--- Two crash-proofing rules:
---  1. Never wrap one of our own wrappers. Every past execution (including
---     crashed copies whose metatable changes linger in the session) would
---     otherwise add another link to the delegation chain — and if any link
---     ever resolves a miss by re-reading this same environment, the chain
---     becomes a cycle: wrapper -> original __index (a C function, invisible
---     in stack traces) -> wrapper -> ... until C stack overflow. The registry
---     tracks the installed wrapper and the REAL __index under it, so the
---     chain stays exactly one wrapper deep.
---  2. resolving re-entry guard: covers executors whose original __index
---     resolves a miss by indexing THIS environment again, firing this wrapper
---     again (wrapper -> C __index -> wrapper -> ...). While a resolution is
---     in flight, nested misses answer nil and the cycle dies.
-local RUN_ID = Cloak.RandomName(16)
-local function installEnvGuard()
+-- ENVIRONMENT METATABLE WRAPPING IS DISABLED.
+-- The stealth wrapper (serving the getgenv().VanityGeneral export through an
+-- __index so pairs() scans never see it) proved fatal on executors whose
+-- original __index is a fragile C closure: delegating a miss through our
+-- wrapper could cycle (wrapper -> C __index -> wrapper -> ... = C stack
+-- overflow) or throw straight through pcall ("attempt to call a nil value").
+-- Multiple crash reports traced back to it. Reliability beats hiding one
+-- global, so HideGlobal now just records the name and returns false, and
+-- Controller falls back to the plain raw export every pre-cloak build used.
+
+-- Uninstalls the __index wrapper a previous (fixed) copy of this script left
+-- on getgenv() earlier in the session; its registry key survives, which lets
+-- us recognize the wrapper and restore the original __index. Wrappers from
+-- pre-registry builds can't be recognized — rejoining clears those.
+local function uninstallStaleEnvWrapper()
 	if type(getgenv) ~= "function" then
-		return false
+		return
 	end
-	local ok, env = pcall(getgenv)
-	if not ok or type(env) ~= "table" then
-		return false
-	end
-
-	local registry = rawget(env, REGISTRY_KEY)
-	if type(registry) ~= "table" then
-		registry = {}
-		rawset(env, REGISTRY_KEY, registry)
-	end
-	if registry.runId ~= nil and registry.runId == RUN_ID then
-		return true -- this copy already installed its wrapper
-	end
-
-	-- Share the names table across executions (see the hiddenGlobals comment).
-	if type(registry.names) ~= "table" then
-		registry.names = {}
-	end
-	hiddenGlobals = registry.names
-
-	local ok2 = pcall(function()
-		local mt = getmetatable(env)
-		local oldIndex = mt and rawget(mt, "__index")
-		if type(registry.wrapper) == "function" and oldIndex == registry.wrapper then
-			oldIndex = registry.original -- replace our old wrapper; never wrap it
-		else
-			-- A foreign wrapper (or a pre-fix build's): keep it as the delegate
-			-- so names it hid still resolve; our busy guard bounds the chain.
-			registry.original = oldIndex
+	pcall(function()
+		local env = getgenv()
+		if type(env) ~= "table" then
+			return
 		end
-
-		local newMt = {}
-		if mt then
+		local registry = rawget(env, REGISTRY_KEY)
+		if type(registry) ~= "table" or type(registry.wrapper) ~= "function" then
+			return
+		end
+		local mt = getmetatable(env)
+		if mt and rawget(mt, "__index") == registry.wrapper then
+			local newMt = {}
 			for k, v in pairs(mt) do
 				newMt[k] = v
 			end
+			newMt.__index = registry.original
+			setmetatable(env, newMt)
 		end
-
-		local resolving = false
-		local wrapper
-		wrapper = function(_, key)
-			local hidden = hiddenGlobals[key]
-			if hidden ~= nil then
-				return hidden
-			end
-			if resolving then
-				return nil
-			end
-			resolving = true
-			local okCall, result = true, nil
-			if type(oldIndex) == "function" then
-				okCall, result = pcall(oldIndex, env, key)
-			elseif type(oldIndex) == "table" then
-				result = oldIndex[key]
-			end
-			resolving = false
-			-- A delegate that ERRORS on a miss must not take the script down:
-			-- some executors' C __index throws (e.g. "attempt to call a nil
-			-- value") instead of answering nil. Treat it as an ordinary miss.
-			if not okCall then
-				return nil
-			end
-			return result
-		end
-		newMt.__index = wrapper
-		registry.wrapper = wrapper
-		setmetatable(env, newMt)
+		registry.wrapper = nil
 	end)
-	if ok2 then
-		registry.runId = RUN_ID
-	end
-	return ok2
 end
 
--- Stores value under getgenv()[name] WITHOUT a raw key: reads still work, but
--- pairs()/next() scans of the environment never enumerate it. Returns false
--- when the environment can't take a metatable (caller may fall back to a raw
--- assignment if the export matters more than the hiding).
+-- Kept for API compatibility. Records the name for this copy's own use and
+-- returns false so the caller uses a raw export — see the disabled-wrapper
+-- note above.
 function Cloak.HideGlobal(name, value)
 	hiddenGlobals[name] = value
-
-	-- A pre-cloak build may have left a raw key behind; drop it.
-	if type(getgenv) == "function" then
-		pcall(function()
-			local env = getgenv()
-			if type(env) == "table" and rawget(env, name) ~= nil then
-				rawset(env, name, nil)
-			end
-		end)
-	end
-
-	return installEnvGuard()
+	return false
 end
 
 local installed = false
@@ -306,11 +233,10 @@ function Cloak.Install()
 	installed = ok
 end
 
--- Install the environment guard NOW, at load time: Cloak is the first module
--- in the bundle, and every module loaded after it probes missing globals
--- (syn/delta/fluxus/...). If a crashed copy left an unguarded __index wrapper
--- on the environment, the very first miss would cycle wrapper -> C __index ->
--- wrapper until a C stack overflow — before Controller.Start ever runs.
-installEnvGuard()
+-- Uninstall the env wrapper a previous fixed build left behind this session
+-- (Cloak is the first module in the bundle, so this runs before anything else
+-- can trip over it). Pre-registry wrappers can't be recognized; rejoin clears
+-- them.
+uninstallStaleEnvWrapper()
 
 return Cloak
